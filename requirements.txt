@@ -1,0 +1,18 @@
+# Core runtime deps
+requests
+pillow
+pygame
+pystray
+
+# PDF Export
+reportlab
+
+# Voice Input
+SpeechRecognition
+pyaudio
+
+# Text to Speech
+pyttsx3
+
+# Optional: enable DOCX export
+python-docx

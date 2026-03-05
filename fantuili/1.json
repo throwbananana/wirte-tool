@@ -1,0 +1,1603 @@
+{
+  "version": "3.0",
+  "results": {
+    "characters": [
+      {
+        "name": "上田桥汰",
+        "role": "主角",
+        "description": "努力从阴郁系转变为阳光系的男生，有过去自卑的经历（国中时几乎不与人交流），现在和夏绘良、徒然是好友，立志成为真诚的阳光系。\n\n【补充】从“阴郁系”（不爱社交、自尊心强）转变为阳光系的努力者，通过春假期间改造性格与外貌融入集体，在第二章中试图帮助宇民水乃融入班级。\n\n【补充】曾是阴郁系（不爱社交、自尊心强），通过春假努力改变性格、外貌，融入集体；后成为阳光系，主动帮助他人（如三井）\n\n【补充】从阴郁系转变为阳光系的努力者，在借宿活动中是核心组织者。\n\n【补充】故事核心人物，从阴郁系向阳光系转变的过程，通过演讲等行动影响他人，性格在挣扎中成长。\n\n【补充】故事中“我”的视角人物，以“为大家牵线搭桥的角色”为命名灵感。",
+        "tags": [
+          "转变者",
+          "阳光系转型者",
+          "阳光系",
+          "主角",
+          "故事核心人物",
+          "阴郁系→阳光系转变者",
+          "阴郁转阳"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "夏绘良",
+        "role": "配角/朋友",
+        "description": "天生阳光系的辣妹，白皙肌肤金发，时尚有个性（如足球社成员、时尚穿搭），和桥汰关系亲密。\n\n【补充】阳光系代表人物，与桥汰、游游等一起玩足球，性格开朗，主动接近宇民水乃试图建立友谊。\n\n【补充】和上田关系好，能理解他的转变；对三井的处境有共情\n\n【补充】阳光系群体成员，温柔且善于观察，和主角有深度交流。\n\n【补充】阳光系群体成员，拍摄过夜视频，性格开朗，对主角有支持作用。",
+        "tags": [
+          "温柔",
+          "辣妹",
+          "观察力强",
+          "阳光系",
+          "伙伴",
+          "主角好友"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小笠原徒然",
+        "role": "配角/朋友",
+        "description": "彻底阳光系，开朗活泼但有点笨蛋（身高190cm，发型像蘑菇），和夏绘良是足球社伙伴。\n\n【补充】阳光系角色，喜欢黑辣妹，与夏绘良、游游互动频繁，试图帮助宇民水乃融入集体但方式直接。\n\n【补充】和上田、夏绘良等玩在一起，有时会开小混混的玩笑\n\n【补充】运动神经差但性格开朗，参与足球游戏等互动活动。\n\n【补充】性格直率但迟钝，嫉妒心强，在足球活动中活跃，对主角有互动。\n\n【补充】名字含义与性格有反差感（徒然意为无聊等），作者觉得反差不错。",
+        "tags": [
+          "轻浮男",
+          "反差命名",
+          "笨蛋",
+          "嫉妒",
+          "配角",
+          "运动神经差",
+          "阳光系",
+          "轻浮",
+          "开朗",
+          "主角好友"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "七草游游",
+        "role": "配角/暗恋对象",
+        "description": "黑发眼镜的阴郁系女生，距离感奇怪（物理和精神上），之后染粉红色头发改变形象。\n\n【补充】粉红色头发，之前是“阴郁系”（不爱社交），努力融入集体。与宇民水乃有交集，对宇民的温柔有所认可。\n\n【补充】粉红色头发，和上田互动多，喜欢轻小说、漫画等\n\n【补充】运动神经差，和宇民、夏绘良等互动，有独特个性（如辣妹形象）。\n\n【补充】粉红色头发，运动神经差，因照片事件受打击后逐渐恢复，性格敏感。\n\n【补充】名字源自七草粥，性格憨直乖巧；粉红色头发。",
+        "tags": [
+          "阴郁系",
+          "暗恋者",
+          "宅女",
+          "粉发",
+          "憨直",
+          "主角朋友",
+          "辣妹",
+          "运动神经差",
+          "阳光系",
+          "关键角色",
+          "阴郁系→阳光系转变者",
+          "主角好友"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "中林",
+        "role": "已知角色",
+        "description": "国中时和桥汰同班，阳光系的榜样（一视同仁的圣人），经常搭话。",
+        "tags": [
+          "阳光系",
+          "榜样"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "Neto子",
+        "role": "过去角色",
+        "description": "国中三年级时的女生，阴郁系，和桥汰有好感但后来发现对方是阳光系的轻浮男约会。",
+        "tags": [
+          "阴郁系",
+          "过去暗恋对象"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民水乃",
+        "role": "新增角色（阴郁系代表）",
+        "description": "娇小可爱但易怒，与游游是朋友。国中时被不怀好意的女生欺负过，因此孤僻且攻击性强。在第二章因《破坏治愈者》讨论与夏绘良冲突，后被桥汰假扮“男朋友”化解。\n\n【补充】冷静可靠，属于阳光系群体，多次协助主角行动。\n\n【补充】名字由游游喊的“宇民民”启发而来，命名过程先有绰号。",
+        "tags": [
+          "命名特殊",
+          "阴郁系",
+          "助手",
+          "阳光系",
+          "与七草游游关联",
+          "主角帮助对象"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民水乃（小森老师）",
+        "role": "配角，班导，性格复杂（表面亲切温和，实际是“走认真路线的人渣”）",
+        "description": "帮助主角融入集体，但内心有矛盾",
+        "tags": [
+          "班导",
+          "复杂性格"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "三井龙虎",
+        "role": "配角，之前被欺负的阴郁系学生，后来改变形象",
+        "description": "因外貌优越而自卑，不愿与人交流，后通过改变形象（剪浏海）和上田互动\n\n【补充】和主角互动，参与借宿活动。\n\n【补充】与主角关系密切，从孤独到成为阴郁系代表，性格坚定。\n\n【补充】取名时因名字阳刚但念起来像女生而烦恼，姓氏简单考虑。",
+        "tags": [
+          "友好",
+          "轻浮男",
+          "阴郁系",
+          "改变中",
+          "取名困惑",
+          "男性角色",
+          "伙伴"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "橘",
+        "role": "反派/配角（A班轻浮男）",
+        "description": "常欺负三井，后来因嫉妒三井的美貌而改变态度\n\n【补充】“A班橘”等，属于轻浮男群体成员。",
+        "tags": [
+          "轻浮男",
+          "对抗角色",
+          "A班"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "Neto子（假名）",
+        "role": "配角（国中同学）",
+        "description": "和上田在国中时相关，被阳光系男生抢走",
+        "tags": [
+          "国中同学",
+          "过去经历"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民水乃(Neto子)",
+        "role": "才女",
+        "description": "毒舌但擅长学习，和主角交流时展现真实性格。",
+        "tags": [
+          "才女",
+          "毒舌",
+          "学习好"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小森老师",
+        "role": "配角（老师）",
+        "description": "“认真路线的人渣”，表面亲切但有真实性格。\n\n【补充】性格反差大，“认真路线的人渣”自白，对主角有指导作用。",
+        "tags": [
+          "反差角色",
+          "老师",
+          "认真路线的人渣",
+          "亲切外表下有真实"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小凪",
+        "role": "妹妹",
+        "description": "活泼，参与借宿活动。\n\n【补充】在洗手台吃鲑鱼干，是主角的妹妹，性格活泼。",
+        "tags": [
+          "家人",
+          "妹妹",
+          "活泼"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "role": "配角（A班轻浮男）",
+        "name": "橘（A班橘）",
+        "description": "之前欺负过龙虎，属于阳光系群体，之后被主角演讲影响。",
+        "tags": [
+          "阳光系",
+          "反派"
+        ],
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "role": "配角（A班辣妹）",
+        "name": "西岛（辣妹西岛）",
+        "description": "戏弄游游的阳光系角色，性格恶劣，对主角有冲突。",
+        "tags": [
+          "阳光系",
+          "反派"
+        ],
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "role": "配角（轻浮男群体成员）",
+        "name": "Neto子（雌小鬼的伪娘）",
+        "description": "龙虎的朋友，属于轻浮男群体，性格毒舌。",
+        "tags": [
+          "轻浮男",
+          "朋友"
+        ],
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "青前夏绘良",
+        "role": "故事角色",
+        "description": "原本为爽朗运动少女，后辣妹化；姓氏“青前”受作者喜欢。",
+        "tags": [
+          "运动少女",
+          "辣妹化",
+          "女性角色"
+        ],
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      }
+    ],
+    "outline": [
+      {
+        "name": "早晨群聊互动",
+        "content": "上田桥汰、青前夏绘良、小笠原徒然在群组聊天室中交流头像和咖啡需求，并讨论头像变化。",
+        "characters": [
+          "上田桥汰",
+          "青前夏绘良",
+          "小笠原徒然"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "处理七草头上的鲑鱼干",
+        "content": "上田桥汰在走廊发现七草游游头发上有块鲑鱼干，捡起并含进嘴里。",
+        "characters": [
+          "上田桥汰",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "送心形饼干并讨论漫画",
+        "content": "放学后七草游游送给上田桥汰心形饼干，两人讨论《面包之恋》漫画内容。",
+        "characters": [
+          "上田桥汰",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "拒绝七草的感情表达",
+        "content": "在校门口，上田桥汰通过说喜欢《面包之恋》中的李李音来委婉拒绝七草的暗示。",
+        "characters": [
+          "上田桥汰",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "七草改变形象（染粉发）",
+        "content": "第二天，七草游游头发变为粉红色并换隐形眼镜，引发班级同学关注和反应。",
+        "characters": [
+          "上田桥汰",
+          "青前夏绘良",
+          "小笠原徒然",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "午休足球活动",
+        "content": "游游加入后笨拙但被夏绘良、徒然称赞，三人交流增多。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "七草游游",
+          "小笠原徒然"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民的观察与嫉妒",
+        "content": "上田注意到宇民在暗处窥视他们，推测是宇民本人；游游因嫉妒否认上田了解宇民。",
+        "characters": [
+          "上田桥汰",
+          "七草游游",
+          "宇民水乃"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民想染发冲突",
+        "content": "上田发现宇民买彩色染发剂，两人因宇民是否喜欢七草发生冲突。",
+        "characters": [
+          "上田桥汰",
+          "宇民水乃"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "被推倒事件",
+        "content": "上田被宇民推倒在地，事后道歉并询问原因，宇民透露会失控痛殴人。",
+        "characters": [
+          "上田桥汰",
+          "宇民水乃"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "了解宇民背景",
+        "content": "通过同学得知宇民国中时受欺负、容易说谎保护自己。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "午餐与购物",
+        "content": "回转寿司店，游游靠在桥汰身上；宇民对夏绘良不满。购物中心买姐妹装（游游和宇民），夏绘良称赞。",
+        "characters": [
+          "上田桥汰",
+          "七草游游",
+          "宇民水乃",
+          "夏绘良"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "《破坏治愈者》争执",
+        "content": "讨论作品时，宇民因观点不同与夏绘良争执，离开。",
+        "characters": [
+          "上田桥汰",
+          "七草游游",
+          "宇民水乃",
+          "夏绘良"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "解围与和解",
+        "content": "发现宇民被国中同学嘲讽，上田假扮男友解围；夏绘良向宇民道歉后和好。",
+        "characters": [
+          "上田桥汰",
+          "七草游游",
+          "小笠原徒然",
+          "宇民水乃",
+          "夏绘良"
+        ],
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "辅导室对话与形象改造",
+        "content": "主角通过升学就业辅导室与三井龙虎对话，建议其改变外在形象以改善处境；三井照此行动后，头发用发夹整理成美少女风格，引发班级骚动。",
+        "characters": [
+          "上田桥汰",
+          "三井龙虎"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "A班橘的反应与冲突",
+        "content": "A班的橘因嫉妒或想拉近关系对三井表达好感（方式笨拙），被主角等人反对；橘情绪激动后离开，三井向主角请求成为朋友。",
+        "characters": [
+          "上田桥汰",
+          "三井龙虎",
+          "橘"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "NTR觉醒与角色认知",
+        "content": "在美少女（三井）的告白式请求下，主角等人的性向受影响；结合前情“从阴郁系到阳光系的NTR”，揭示角色身份转变带来的冲突与认知变化。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "小笠原徒然",
+          "七草游游",
+          "三井龙虎"
+        ],
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "足球游戏加入宇民",
+        "content": "午休时，上田与夏绘良、徒然踢足球，游游参与但运动神经差；宇民（雌小鬼伪娘）暗中观察后加入游戏，动作精准却带威胁性。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "七草游游",
+          "小笠原徒然",
+          "宇民水乃"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "外宿准备与咖喱制作",
+        "content": "众人讨论外宿安排，宇民负责做咖喱；过程中宇民因拿奶油高度问题砸向自己额头，引发互动。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "七草游游",
+          "小笠原徒然",
+          "宇民水乃"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "洗澡时的情感交流",
+        "content": "夏绘良暴露对与人深入接触的脆弱，游游认知到上田从阴郁系转变的努力并表达认可；两人深夜在走廊互动。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "借宿结束后的日常",
+        "content": "外宿结束后，各人回家及后续小插曲（如宇民找漫画、游游睡在床上等）。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "主题转变与黑历史公开",
+        "content": "主角决定以「阴郁系与阳光系」为主题进行演讲，通过公开国中时期的黑历史照片（彻底的阴郁系），解释个人选择而非外界分类，为帮助游游接纳真实自我做准备。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "小笠原徒然",
+          "宇民水乃",
+          "三井龙虎",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "游游的心理变化与接纳",
+        "content": "演讲后，游游终于放下心结，开始重新面对自我，接受阴郁系身份并找回笑容。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "小笠原徒然",
+          "宇民水乃",
+          "三井龙虎",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "自由与成长的感悟",
+        "content": "主角与朋友们共度夏日时光，感受自由与成长，理解阴郁系和阳光系是个人选择而非外界定义。",
+        "characters": [
+          "上田桥汰",
+          "夏绘良",
+          "小笠原徒然",
+          "宇民水乃",
+          "三井龙虎",
+          "七草游游"
+        ],
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "角色命名思路分享",
+        "content": "作者详细说明各主要角色的名字由来（如上田桥汰因“牵线搭桥”的形象、七草游游取自“七草粥”、三井龙虎在发音与阳刚感间纠结后决定等）",
+        "characters": [
+          "上田桥汰",
+          "七草游游",
+          "青前夏绘良",
+          "宇民水乃",
+          "三井龙虎",
+          "小笠原徒然"
+        ],
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "表达致谢",
+        "content": "作者向画师にゅむ大人、编辑部及责任编辑表示感谢，并感谢读者支持",
+        "characters": [
+          "にゅむ大人",
+          "编辑部",
+          "责任编辑",
+          "读者们"
+        ],
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      }
+    ],
+    "timeline": [
+      {
+        "name": "午休踢足球活动",
+        "type": "truth",
+        "timestamp": "案发当天午休时间",
+        "location": "学校场地",
+        "action": "上田桥汰、夏绘良、小笠原徒然在足球游戏中，游游因运动神经差参与并引发冲突；宇民水乃暗中观察",
+        "chaos": "游游与徒然的冲突",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "介绍宇民水乃",
+        "type": "truth",
+        "timestamp": "案发当天（足球游戏期间）",
+        "location": "学校场地/教室附近",
+        "action": "通过对话介绍宇民是成绩好但阴郁的才女，与游游有交流但不亲密",
+        "chaos": null,
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小森老师自曝身份",
+        "type": "truth",
+        "timestamp": "与主角单独对谈时（案发当天）",
+        "location": "升学就业辅导室",
+        "action": "小森老师提到自己是“认真路线的人渣”，且品德高尚",
+        "chaos": null,
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "足球游戏加入宇民（雌小鬼伪娘）",
+        "type": "truth",
+        "timestamp": "案发当天午休后",
+        "location": "学校场地/教室附近",
+        "action": "宇民以“雌小鬼的伪娘”身份参与，动作精准却带威胁性",
+        "chaos": "宇民的威胁性表现",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "主角与夏绘良对谈（涉及三井龙虎转变）",
+        "type": "truth",
+        "timestamp": "案发当天（单独对谈时）",
+        "location": "升学就业辅导室",
+        "action": "讨论三井龙虎从阴郁系到阳光系的转变，以及主角过去暗恋Neto子被阳光系男生抢走的故事",
+        "chaos": null,
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "午休时在操场踢足球",
+        "type": "truth",
+        "timestamp": "某天午休时间",
+        "location": "学校操场",
+        "action": "与夏绘良、徒然等一起踢足球，龙虎加入后传球有进步",
+        "motive": "日常活动",
+        "chaos": null,
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "西岛对游游说努力装开朗很碍眼",
+        "type": "truth",
+        "timestamp": "借宿派对后某日（具体时间未明确）",
+        "location": "自动贩卖机旁",
+        "action": "西岛嘲讽游游努力装开朗",
+        "motive": "戏弄他人",
+        "chaos": null,
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "主角决定演讲主题为阴郁系与阳光系并准备资料",
+        "type": "truth",
+        "timestamp": "星期五（大型班会前）",
+        "location": "升学就业辅导室/家中",
+        "action": "收集问卷、制作投影片，公布国中照片等",
+        "motive": "为拯救游游而进行演讲准备",
+        "chaos": null,
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "演讲时公布国中时期的照片",
+        "type": "truth",
+        "timestamp": "星期一第四节课（大型班会）",
+        "location": "教室",
+        "action": "在演讲中展示国中时期照片，说明自己是阴郁系",
+        "motive": "传达对阴郁系阳光系的看法并拯救游游",
+        "chaos": null,
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "上田桥汰的命名思考",
+        "type": "truth",
+        "timestamp": "创作初期（未明确具体时间）",
+        "location": null,
+        "action": "作者考虑约五分钟，以“为角色牵线搭桥”的形象作为名字由来，姓氏选用常见姓“上田”",
+        "motive": "塑造角色作为群体连接者的形象",
+        "chaos": null,
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "七草游游的命名逻辑",
+        "type": "truth",
+        "timestamp": "创作初期（未明确具体时间）",
+        "location": null,
+        "action": "名字源自“七草粥”，但作者表示无关联性，因角色头发粉红而取“憨直乖巧”的名字",
+        "motive": "结合视觉特征与性格设定命名",
+        "chaos": null,
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "青前夏绘良的改名经历",
+        "type": "truth",
+        "timestamp": "创作中期（未明确具体时间）",
+        "location": null,
+        "action": "投稿时原名“青前莲”（运动少女设定），改稿后辣妹化后换为“夏绘良”，作者表示喜欢“青前”姓氏",
+        "motive": "根据角色形象调整名字，保留姓氏偏好",
+        "chaos": null,
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民水乃的命名过程",
+        "type": "truth",
+        "timestamp": "创作初期（未明确具体时间）",
+        "location": null,
+        "action": "因脑海中浮现“游游喊‘宇民民’”的场景，先得绰号再正式定名为“宇民水乃”，称命名过程新奇",
+        "motive": "以角色互动场景为灵感确定名字",
+        "chaos": null,
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "三井龙虎的命名挣扎",
+        "type": "truth",
+        "timestamp": "创作初期（未明确具体时间）",
+        "location": null,
+        "action": "名字阳刚但念起来有女性感，姓氏“三井”仅考虑五秒选定，作者表示取名过程烦恼久",
+        "motive": "平衡名字的性别印象与姓氏选择效率",
+        "chaos": null,
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小笠原徒然的命名偏好",
+        "type": "truth",
+        "timestamp": "创作初期（未明确具体时间）",
+        "location": null,
+        "action": "对“徒然”名字中意度高，差点用于男主角，解释“徒然”有“无聊、单调”等含义，认为与角色形成反差感不错",
+        "motive": "基于个人命名偏好与角色设定反差选择名字",
+        "chaos": null,
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "阳光系三人踢足球",
+        "type": "truth",
+        "timestamp": "隔天午休时间（约下午1-2点）",
+        "location": "学校操场",
+        "action": "上田桥汰、青前夏绘良、小笠原徒然三人一起传球踢球，享受阳光系生活",
+        "motive": "通过运动维持阳光系活力，练习足球技巧",
+        "chaos": null,
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "七草头发变粉红色",
+        "type": "truth",
+        "timestamp": "隔天早晨（约上午8-9点）",
+        "location": "教室",
+        "action": "七草游游将墨黑发染成粉红色，改变形象",
+        "motive": "受桥汰提及“喜欢李李音型辣妹”的影响，主动改变外貌符合桥汰喜欢的类型",
+        "chaos": "班上同学惊讶、围观",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "桥汰对七草头发的反应（爆笑）",
+        "type": "truth",
+        "timestamp": "隔天早晨进入教室后（约上午9点）",
+        "location": "教室",
+        "action": "上田桥汰看到七草粉红色头发后，当着她的面发出爆笑",
+        "motive": "认为粉红色头发不符合“阳光系”形象且觉得奇怪，表达个人感受",
+        "chaos": "七草难为情、班上同学困惑",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民水乃被旧识欺凌",
+        "type": "truth",
+        "timestamp": "2024-05-01 14:00",
+        "location": "购物中心广场",
+        "action": "国中时期的同学对宇民进行嘲讽和言语攻击，试图再次伤害她",
+        "motive": "延续旧日霸凌行为，通过贬低宇民制造心理压力",
+        "chaos": null,
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "桥汰假扮宇民的男友",
+        "type": "lie",
+        "timestamp": "2024-05-01 14:30",
+        "motive": "为帮助被欺凌的宇民，制造保护她的假象以震慑对方",
+        "gap": "实际桥汰与宇民并非情侣关系，表演行为暴露后引发游游等人的反应",
+        "bug": "被目睹后（如游游的惊恐反应）破绽明显",
+        "linked_truth_name": "宇民水乃被旧识欺凌",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "夏绘良因讨论《破坏治愈者》与宇民争执",
+        "type": "truth",
+        "timestamp": "2024-05-01 16:00",
+        "location": "美食街回转寿司店",
+        "action": "夏绘良对宇民关于作品观点的轻视引发言语冲突，导致双方不快",
+        "motive": "对不同意见的不满，表达个人观点时未考虑对方感受",
+        "chaos": null,
+        "linked_truth_name": null,
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "午休踢足球事件",
+        "type": "truth",
+        "timestamp": "黄金周假期后第一场午休时间",
+        "location": "学校操场",
+        "action": "上田桥汰、夏绘良等参与足球游戏，宇民水乃加入",
+        "motive": null,
+        "chaos": null,
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小森老师自曝人渣属性",
+        "type": "lie",
+        "timestamp": "放学后",
+        "motive": "解释帮助三井龙虎的理由，转移话题",
+        "gap": "隐瞒自身是排球狂热者、喜欢偷懒等真实性格",
+        "linked_truth_name": null,
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "A班橘等欺负三井事件",
+        "type": "truth",
+        "timestamp": "体育课时（黄金周后）",
+        "location": "体育馆",
+        "action": "橘等轻浮男围堵并嘲讽三井龙虎",
+        "motive": null,
+        "chaos": null,
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "上田带三井去辅导室交谈",
+        "type": "truth",
+        "timestamp": "放学后",
+        "location": "升学就业辅导室",
+        "action": "上田与三井讨论不愿求助的原因及改变计划",
+        "motive": null,
+        "chaos": null,
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "三井改变形象（夹发夹）",
+        "type": "truth",
+        "timestamp": "第二天早上",
+        "location": "教室",
+        "action": "三井用发夹整理过长的浏海，引发A班橘等反应",
+        "motive": null,
+        "chaos": null,
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "三井向主角告白",
+        "type": "lie",
+        "timestamp": "第二天早上（教室）",
+        "motive": "表达对成为朋友的渴望，试图建立联系",
+        "gap": "将“朋友”表述为更亲密的请求（暗示性取向转变），属于主观情感表达中的突破性诉求",
+        "linked_truth_name": null,
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      }
+    ],
+    "wiki": [
+      {
+        "name": "阳光系与阴郁系",
+        "category": "设定",
+        "content": "世界上的人类大抵分为这两种类型，阳光系代表积极开朗、外向的性格；阴郁系则较为内敛或消极。文中以“成为阳光系”为目标进行角色塑造，是故事的核心世界观设定。\n\n【补充】文中核心设定的性格类型，分别代表积极开朗与内向忧郁的群体特征",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "NTR 觉醒",
+        "category": "设定（魔法/技术系统）",
+        "content": "文中主角因国中时期的情感经历，体内“NTR”（指背叛、偷情的负面感受）觉醒，成为其性格转变的契机之一。\n\n【补充】文中提及的一种心理或情境变化（具体指角色经历的情感冲击）",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "蜂蜜小馒头",
+        "category": "物品",
+        "content": "上田同学在班级群组推荐后卖光的日式点心，主角随身携带用于边骑脚踏车边吃早餐，是连接角色日常互动的关键道具。\n\n【补充】一种食品，在文本中作为对话中的提及物",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "鲑鱼干",
+        "category": "物品",
+        "content": "黏附在七草游游头发上的食物，成为两人互动的契机（主角捡起并食用），是推动故事发展的关键物品。\n\n【补充】食品，文中游游携带并提及，与角色互动相关",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "《面包之恋》（漫画）",
+        "category": "物品",
+        "content": "少女漫画作品，七草游游喜欢该作，并将其作为与主角交流的媒介（借阅、讨论角色），是两人情感升温的重要文化符号。\n\n【补充】漫画名称，文中作为夏绘良等人的兴趣内容之一",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "手机保护壳（蓝色/粉红色）",
+        "category": "物品",
+        "content": "主角和七草游游使用的手机保护壳，颜色分别为蓝色和粉红色，成为两人关系发展的细节线索（如保护壳颜色差异暗示身份关联）。\n\n【补充】用于保护手机的配件，在已知设定中提及颜色属性",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "学校",
+        "category": "地点",
+        "content": "故事的主要发生地，包含教室、教学楼、体育馆等场景，是主角从阴郁系转变为阳光系的成长环境。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "教学楼旁的停车棚",
+        "category": "地点",
+        "content": "主角将脚踏车停放的场所，也是与七草游游偶遇并发生鲑鱼干事件的地点之一。\n\n【补充】学校周边用于停放车辆的设施（文中提及为背景场景）",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "绵矢高中一年 B 班",
+        "category": "组织（班级）",
+        "content": "主角所在的高中班级，是故事核心人物（上田桥汰、青前夏绘良等）互动的主要场所，承载着角色性格转变与情感发展的背景。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "购物中心",
+        "category": "地点",
+        "content": "文中提及的购物场所，为黄金周假期第一天主角与宇民相遇、后续活动的主要场景之一\n\n【补充】大型商业综合体，在已知设定中作为背景场景之一",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "回转寿司店",
+        "category": "地点（餐饮设施）",
+        "content": "主角等人解决午餐的场所，提供寿司类料理\n\n【补充】之前已知设定中的餐饮场所，文中作为美食街内的具体店铺提及",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "美食街",
+        "category": "地点",
+        "content": "购物中心内的餐饮区域，为后续夏绘良与宇民因《破坏治愈者》产生分歧的场景地\n\n【补充】集中餐饮店铺的街道区域（文中提及为背景场景）\n\n【补充】之前已知设定中的商业区域，文中作为背景环境出现",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "更衣室",
+        "category": "设施",
+        "content": "购物中心内用于试穿服装的区域，主角等人购买姐妹装后使用",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "大萤幕的广场",
+        "category": "地点（公共区域）",
+        "content": "购物中心内的开放空间，主角与宇民遭遇国中时期曾欺负过她的同学的地方\n\n【补充】校园内具有大屏幕的公共区域，出现在第五章开头场景中",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "电子游乐场",
+        "category": "娱乐场所",
+        "content": "购物中心内设施之一，徒然提及并观察黑辣妹经过\n\n【补充】提供电子游戏等娱乐项目的场所，在已知设定中作为背景场景",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "巨大热狗",
+        "category": "物品（食品）",
+        "content": "徒然在美食街购买的食物，文中作为道具出现\n\n【补充】文中美食街等场景可能出现的食物类型（文本中作为背景设定提及）",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "《破坏治愈者直至世界的终焉》",
+        "category": "作品（奇幻轻小说）",
+        "content": "夏绘良与宇民共同讨论的流行作品，引发两人因剧情观点不同产生分歧\n\n【补充】作品名称，在已知设定中出现，属于角色兴趣或背景内容",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "雌小鬼",
+        "category": "设定概念",
+        "content": "指具有女性化特征、类似小女孩的人设形象（如三井因改变发型/外貌呈现的女性化风格，与“伪娘”结合体现角色女性化伪装属性）\n\n【补充】文中提及的特殊存在（如宇民被归类为“雌小鬼”），具有特定属性",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "升学就业辅导室",
+        "category": "地点",
+        "content": "学校内的特定房间（用于学生咨询或活动，文中作为三井与主角对话的场所）\n\n【补充】学校内为学生提供升学与就业相关咨询服务的场所\n\n【补充】之前已知设定中的教室空间，用于师生交流与演讲准备（如第五章使用该场所制作投影片）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "家庭餐厅",
+        "category": "地点(餐饮场所)",
+        "content": "提供甜点等食物的餐饮场所（文中为学习互助会的聚会地）\n\n【补充】提供餐饮服务的场所，文中作为外宿期间晚餐的地点",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "圣代",
+        "category": "物品(食物)",
+        "content": "冰淇淋类甜点（橘对三井提出邀请时提及的食物）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "龙子妹妹",
+        "category": "昵称/称呼",
+        "content": "A班橘对三井的特定称呼（因三井形象变化被误认为女性而使用）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "三井龙虎",
+        "category": "人物设定",
+        "content": "绵矢高中一年B班的男生，性格内向、外貌白皙瘦弱，因“长得太好看了”而自我封闭（后通过改变形象融入集体）\n\n【补充】取名过程烦恼久，书面阳刚但念起来像女名；姓氏五秒决定",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "A班",
+        "category": "组织(班级)",
+        "content": "学校内的另一个班级（与主角所在B班为邻校或同校不同班级，文中涉及橘等轻浮男的活动）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "轻浮男三人组",
+        "category": "团体/群体",
+        "content": "A班的三个男生（以橘为首，对三井进行骚扰并引发冲突的群体）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "粉红毛事变",
+        "category": "事件/概念",
+        "content": "游游改变发色为粉红色引发的班级氛围变化事件（文中作为三井形象改变的对比参照）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "雌小鬼的伪娘",
+        "category": "设定概念",
+        "content": "结合“雌小鬼”（女性化风格）与“伪娘”（伪装性别角色）的概念，指向具有女性化特征、伪装成男孩的角色形象（文中用于描述三井改变外貌后的状态）",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "超市（百圆商店）",
+        "category": "地点",
+        "content": "提供日常用品、食品等商品的商业场所，文中提及为购买隐形眼镜容器等物品的地点",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "更衣间",
+        "category": "地点",
+        "content": "用于更换衣物、整理仪容的空间（文中提及为洗澡前的准备区域）",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "阴郁系与阳光系",
+        "category": "性格分类/设定",
+        "content": "文中作为核心概念，用于区分性格类型（如主角曾为阴郁系、现努力向阳光系靠拢）",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "自动贩卖机区",
+        "category": "地点",
+        "content": "教学楼内的饮料售卖区域，位于第五章午休时间场景",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "雌小鬼伪娘",
+        "category": "角色身份/类型",
+        "content": "结合“雌小鬼”原有设定，指具有雌小鬼属性的角色（文中提及龙虎对宇民的评价相关表述）",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "牛肉干",
+        "category": "物品",
+        "content": "西岛常吃的零食，在第五章中作为其特征性食物出现",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "大叔遮白发的那种老年人染发剂",
+        "category": "物品",
+        "content": "西岛嘲讽游游时提及的染发产品类型（属于化妆品/个人护理用品范畴）",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "上田桥汰",
+        "category": "人物",
+        "content": "为牵线搭桥的角色形象取名，姓氏是常见姓氏",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "七草游游",
+        "category": "人物",
+        "content": "名字源自“七草粥”，实际无关联性，取其憨直乖巧感",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "青前夏绘良",
+        "category": "人物",
+        "content": "投稿时用“莲”名是爽朗运动少女，后辣妹化改名；个人喜欢“青前”姓氏",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "宇民水乃",
+        "category": "人物",
+        "content": "因脑海中游游喊“宇民民～”的场景而命名，先有绰号再定正式名",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "小笠原徒然",
+        "category": "人物",
+        "content": "对名字中意程度高想给男主用，名字有“无聊/单调”等反差感含义",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      }
+    ],
+    "relationships": [
+      {
+        "source": "上田桥汰",
+        "target": "青前夏绘良",
+        "target_type": "character",
+        "label": "盟友/朋友",
+        "description": "从群聊互动开始，成为阳光系后一起踢足球等，关系亲密。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "小笠原徒然",
+        "target": "上田桥汰",
+        "target_type": "character",
+        "label": "盟友/朋友",
+        "description": "同为阳光系三人组，一起踢足球的伙伴。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "七草游游",
+        "target": "上田桥汰",
+        "target_type": "character",
+        "label": "追求者/情感联系、形象改变（因情感联系）",
+        "description": "从头发粘鲑鱼干事件开始关注，后主动送饼干表达好感，因上田的拒绝而改变形象（粉红色头发）以匹配其偏好。\n\n【补充】受上田关于喜欢李李音（时尚辣妹型）的发言影响，改变发型为粉红色以匹配其偏好。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "Neto子（假名）",
+        "target_type": "character",
+        "label": "过去的暗恋对象",
+        "description": "国中时期阴郁系，因阳光系的经历改变后决心成为阳光系。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "中林",
+        "target": "上田桥汰",
+        "target_type": "character",
+        "label": "榜样/朋友",
+        "description": "国三同学，阳光系中的圣人类型，成为上田改变形象的参考。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "榎本",
+        "target": "青前夏绘良",
+        "target_type": "character",
+        "label": "敌对/竞争者",
+        "description": "向夏绘良表白，试图追求她。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "七草游游",
+        "target_type": "character",
+        "label": "朋友/同学、朋友/伙伴、朋友/情感连接、支持者/拯救对象",
+        "description": "从阴郁系转变为阳光系的伙伴，共同参与足球等活动\n\n【补充】在家庭餐厅互动频繁，游游依赖上田的陪伴\n\n【补充】国中时因暗恋被阳光系抢走，外宿期间洗澡时亲密对话，关系从疏离转向亲近。\n\n【补充】通过演讲等行动帮助游游走出阴郁状态，是核心情感关联",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "小笠原徒然",
+        "target_type": "character",
+        "label": "朋友/同学、朋友/同班同学、朋友（存在冲突）",
+        "description": "一起玩闹的同伴，关系亲近\n\n【补充】一起参与足球游戏等集体活动，关系融洽\n\n【补充】国中同学关系延续，外宿期间一起游戏等互动，关系熟络。\n\n【补充】因嫉妒或冲动行为产生矛盾，但整体为伙伴关系",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "七草游游",
+        "target": "宇民水乃（Neto子）",
+        "target_type": "character",
+        "label": "朋友（从惯性抱团到发展成朋友）",
+        "description": "国中时因被孤立而短暂结伴，后逐渐建立信任",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "宇民水乃（Neto子）",
+        "target_type": "character",
+        "label": "合作/盟友",
+        "description": "为帮助宇民融入集体，主动撒谎扮演其“男朋友”，缓解其社交压力",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "夏绘良",
+        "target": "宇民水乃（Neto子）",
+        "target_type": "character",
+        "label": "冲突后和解",
+        "description": "因讨论《破坏治愈者》时产生分歧引发争执，后通过道歉与和好仪式化解矛盾",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "小笠原徒然",
+        "target": "夏绘良、七草游游等阳光系群体",
+        "target_type": "character",
+        "label": "朋友/同伴",
+        "description": "作为阳光系成员，与夏绘良等人关系融洽，参与集体活动",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "夏绘良",
+        "target_type": "character",
+        "label": "朋友/盟友、恋爱对象倾向/深度朋友",
+        "description": "从最初的不熟悉到成为亲密伙伴，夏绘良理解其过去并支持阳光系转变\n\n【补充】外宿期间独处交流情感，理解彼此从阴郁系到阳光系的转变过程，建立亲密关系。\n\n【补充】共同参与足球活动等日常互动，是B班核心群体成员",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "宇民水乃(Neto子)",
+        "target_type": "character",
+        "label": "朋友/盟友",
+        "description": "从最初的不熟悉到成为学习伙伴，虽有时有矛盾但整体关系稳定\n\n【补充】共同参与活动（如制作演讲资料），是B班核心伙伴",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "三井龙虎",
+        "target_type": "character",
+        "label": "朋友/盟友（引导者）",
+        "description": "主动介入三井被欺负的状况，引导其改变形象并建立友谊\n\n【补充】从孤独到融入的伙伴，共同参与活动",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "三井龙虎",
+        "target": "A班橘等轻浮男",
+        "target_type": "character",
+        "label": "敌对/被欺负者",
+        "description": "因外貌优势持续被A班同学（如橘）骚扰",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "宇民水乃(Neto子)",
+        "target": "夏绘良",
+        "target_type": "character",
+        "label": "朋友/同辈盟友",
+        "description": "黄金周期间有交流，关系稳定",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "宇民水乃",
+        "target_type": "character",
+        "label": "亲密朋友",
+        "description": "从国中暗恋对象转变为外宿共同活动的朋友，关系深化。",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "三井龙虎",
+        "target": "上田桥汰",
+        "target_type": "character",
+        "label": "朋友",
+        "description": "借宿期间一起游戏等互动，从被欺负到建立友谊。",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "A班橘等轻浮男群体",
+        "target": "B班核心（上田桥汰、夏绘良等）",
+        "target_type": "faction",
+        "label": "敌对/冲突关系",
+        "description": "因楼梯间争执等事件产生对立，存在行为上的冲突",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "小森老师",
+        "target": "上田桥汰",
+        "target_type": "character",
+        "label": "师生（辅导）",
+        "description": "作为班主任参与大型班会相关事务，提供指导",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "七草游游",
+        "target": "宇民水乃",
+        "target_type": "character",
+        "label": "命名关联",
+        "description": "角色命名时，作者因脑海中浮现出“游游喊‘宇民民’”的场景而确定宇民水乃的名字",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "上田桥汰",
+        "target": "阳光系群体",
+        "target_type": "faction",
+        "label": "隶属",
+        "description": "作为核心角色，上田桥汰属于故事中“阳光系群体”这一势力范畴",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      },
+      {
+        "source": "三井龙虎",
+        "target": "轻浮男群体",
+        "target_type": "faction",
+        "label": "隶属",
+        "description": "三井龙虎是“轻浮男群体”的核心成员，与橘、西岛等属于同一阵营",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      }
+    ],
+    "style": [
+      {
+        "写作风格": {
+          "content": {
+            "用词": "采用大量口语化、网络化表达（如“唉嘿”“唉嘿唉嘿”作为语气词），增强角色个性与场景的真实感；通过“阳光系/阴郁系”等标签词汇精准区分人物性格，同时融入生活化细节（蜂蜜小馒头、鲑鱼干、面包之恋漫画）强化日常氛围。用词兼具简洁性与情感传递性，如心理描写中“苦闷”“愧疚”等词突出主角情绪。",
+            "句式": "长短句灵活交替，对话部分以短促、口语化的句子为主（如群聊里的“焦糖玛奇朵”“抹茶星冰乐”），叙述段落则通过长短结合调整节奏。长句多用于心理独白或环境描写（如“我的世界只要有轻小说、动漫和游戏就圆满了”），短句则用于快速推进情节（如“我加快脚步冲到七草身边，以一句话打破现状。”）。",
+            "修辞手法": "运用拟人（将“阳光系与阴郁系”类比为人类分类）、比喻（形容主角世界“只要有轻小说、动漫和游戏就圆满了”）等手法塑造形象；反问句增强语气（如“为什么你还随身携带啊？”），强化对话张力。重复使用“唉嘿”作为拟声/语气词，突出角色性格（如七草的紧张感）。",
+            "叙事节奏": "快慢交替，符合轻小说“日常+成长+恋爱”的结构逻辑：开头通过群聊快速引入人物互动（节奏快）；中间详细描写主角转变过程与情感冲突（节奏适中），后期情感转折（喜欢夏绘良 vs 七草的追求）节奏加快；结尾以七草形象改变收尾，节奏放缓。整体节奏贴合年轻读者阅读习惯，兼顾信息传递与情绪渲染。",
+            "氛围营造": "通过环境描写（如“阳光系与阴郁系──世界上的人类大抵分为这两种类”奠定基调）、人物互动（阳光系三人组踢足球的轻松场景）及心理活动（主角从阴郁到阳光的转变带来的积极感），营造校园日常氛围。同时，用词和句式选择（如“粉红色头发反而更阴暗”）强化特定情绪（如七草追求时的紧张与主角的愧疚），形成层次分明的氛围变化。"
+          }
+        },
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "写作风格": {
+          "content": {
+            "用词": "大量使用口语化、年轻化的词汇与语气词（如“唉嘿”、“唉嘿嘿”、“干得好”），结合拟声词（“啊哇、啊哇哇……”）、网络用语（“辣妹”、“阿宅”）及日常感叹词，增强对话的鲜活感与角色性格塑造。例如对宇民水乃的描述中，“略为尖锐”的说话声、“毒舌”的性格通过精准词汇体现；游游的“粉红色头发”搭配“摇摇晃晃的动作”，用词生动还原其运动神经差的形象。",
+            "句式": "句式长短错落，短促感叹句（如“「放马过来呀！」”）与长篇描述句（如对宇民外貌、性格的详细刻画）交替使用。对话部分多采用简短分句或重复结构（如游游的“唉嘿、唉嘿……”），模拟真实交流节奏；叙述段落则通过复合句展开场景与心理描写，如“被夕阳染成橘红色的教室里，只剩下最后一个学生”通过环境细节营造氛围。",
+            "修辞手法": "运用拟人（“粉红色的狸猫在跳舞呢！”）、夸张（“周围的花草尽数枯萎。世界末日来临。”）增强画面感；比喻（“游游已经无法维持人类的模样”）突出角色情绪的极端化；反问/设问（如“我看起来像阳光系吗？”）推动情节或引发思考；对比（阳光系与阴郁系的性格差异，如夏绘良的热闹与宇民的孤僻）强化人物冲突。例如对宇民水乃眼神的描写：“用像是要把人刺穿的锐利目光狠狠瞪着”，通过夸张手法凸显其“阴郁系”特质。",
+            "叙事节奏": "整体节奏明快紧凑，符合轻小说日常向的风格。通过场景快速切换（足球场→教室→购物中心）推动情节发展；对话推动核心事件（宇民与游游的关系、夏绘良的介入），节奏张弛有度——如足球场的轻松互动（短促对话）、宇民水乃情绪爆发时的紧张（密集对话与心理描写），再到黄金周购物的温馨，形成“日常-冲突-和解”的叙事弧线。细节描写（如游游停球后的欢呼、宇民被推倒的反应）控制节奏，避免拖沓。",
+            "氛围营造": "通过环境描写（夕阳教室的暖色调、“人潮汹涌”的购物中心）、角色情绪（游游的紧张/夏绘良的热闹/宇民的阴郁）及细节刻画（如“粉红色头发晃动”、“眼泪盈满眼眸”）共同构建。例如“被夕阳染成橘红色的教室里，只剩下最后一个学生”营造安静孤独的氛围；“宇民长长的睫毛颤抖不已，大大的眼眸瞬间盈满泪水”烘托紧张或悲伤情绪；而“阳光系”角色的活力（夏绘良的雀跃、游游的兴奋）与“阴郁系”角色的孤僻（宇民的独处、眼神的锐利），通过对比强化整体氛围层次。"
+          }
+        },
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "写作风格": {
+          "content": {
+            "用词": "文本采用高度生活化的口语化词汇与语气词，如“喔──！”、“哼哼”、“唉嘿唉嘿”等拟声/语气词贯穿对话，强化日常感；同时混入少量正式词汇（如“格格不入”“宿命牵引”）形成对比，既贴近角色真实表达，又通过词汇差异暗示人物性格或情境层次。例如三井的“都怪我长得太好看了”这类自嘲式口语，精准传递其自卑情绪。",
+            "句式": "以短句为主，对话部分多采用简短、富有节奏感的句式（如“「喔──！宇民民，你踢得很好耶！」”“「哼哼，这点小事又不算什么。」”），快速切换人物互动；场景描写或心理活动时使用长句（如“黄金周假期后的第一场午休时间，参与足球游戏的成员又多了一个人。”），通过长短句结合控制叙事节奏。重复结构（如“唉嘿唉嘿……”）强化语气。",
+            "修辞手法": "运用拟人（“徒然不知死活地在旁喝倒采”）、比喻（“宇民的动作仿佛毫无漏洞”）增强形象感；反问（“一定要搞到每次都失忆才行吗？”）引发思考；夸张（“连记忆都丧失也太恐怖了！”）放大情绪。这些手法既服务于人物塑造，也推动情节推进。",
+            "叙事节奏": "整体节奏快且富有变化：对话与日常场景切换迅速（如从足球场到教室、辅导室），通过短句和快速镜头转换保持紧凑；细节描写（如三井外貌“肤色白皙且身形瘦弱”“浏海长至肩颈”）则放慢节奏，形成“快-慢”交替。例如家庭餐厅的欢乐场景用短促对话推进，而三井被欺负时的紧张氛围通过缓慢环境描写拉长。",
+            "氛围营造": "通过环境与人物情绪联动塑造多维度氛围：轻松愉快（如家庭餐厅“热闹喧哗”“夏绘良悲惨的哀号”）、紧张压抑（如三井被A班围堵时“胆怯不安地呆站原地”）、严肃内敛（如辅导室对话）。例如黄昏时段的家庭餐厅用“霜淇淋吃掉”“粉红色头发散发清香”等细节营造温馨氛围，而三井拒绝帮助时的沉默则烘托压抑感。"
+          }
+        },
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "写作风格": {
+          "用词": "采用大量口语化、生活化的词汇及动漫轻小说圈层用语（如“辣妹”“阴郁系温柔”“阳光系”），对话中频繁使用语气助词（“唉嘿”“咕嘿嘿”）和拟声/感叹词（“哼哼哼哼哼”“嘎——！”）增强角色个性与互动感；同时融入特定文化符号（如“千分之一维兹”“司马斯通”等宅文化元素），体现作者对亚文化的熟悉度。",
+          "句式": "句子结构灵活多变，短句用于营造紧张/活泼氛围（如群体混乱场景的快速切换），长句则用于内心独白或情感深化（如夏绘良对“阳光系”转变的反思）；对话中多采用简短、直接的表达，符合日常交流逻辑，部分段落通过重复或叠词强化语气（如“哼哼哼哼哼”“唉嘿唉嘿”）。",
+          "修辞手法": "运用拟人（“爱情喜剧的味道悄悄混进咖喱味里”）与比喻（形容宇民咖喱“浓郁四溢”），增强场景氛围；反问句（“你到底是什么意思？”）推动情节或引发思考；谐音梗/双关语（如“欧洲七叶树”“南丁格尔”）增添幽默感，符合青春校园喜剧的轻松基调。",
+          "叙事节奏": "整体节奏快且富有变化——群体活动场景通过快速切换（辅导室→周末聚会→超市购物）保持紧凑感，而角色内心描写（如夏绘良的独白、游游的羞耻反应）则放缓节奏；情节推进依赖大量对话与互动，避免冗长叙述，符合青春小说“以人物关系为核心”的叙事逻辑。",
+          "氛围营造": "通过环境细节与人物互动构建多重氛围：温暖治愈感（小森老师的温和态度、三井的转变），热闹混乱感（多人聚会时的喧闹场景），以及脆弱敏感感（夏绘良对“深入接触”的恐惧）。细节描写（如夏绘良穿宽松T恤、游游粉红色头发）强化角色形象，环境变化（从辅导室到浴室再到客厅）推动氛围转换。"
+        },
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "写作风格": {
+          "用词": "采用年轻化、生活化的口语词汇（如“唉嘿唉嘿”“嘎嘎嘎的大笑声”），同时融入特定概念术语（“阴郁系/阳光系”）构建核心叙事框架；对话部分多用简短、自然的表达，内心独白与叙述则结合日常用语与略带正式的表述，体现角色身份差异（如龙虎的直率、徒然的迟钝）。",
+          "句式": "长短句交错使用——对话以短促句为主（“是吗？”“谁理你。”），叙事部分长短句结合，长句用于环境描写或逻辑阐述（如解释大型班会的规则）；存在一定数量的排比与并列结构（如描述西岛嘲讽的连续动作），增强节奏感；整体句式灵活，符合青春文学中人物对话与内心活动的转换需求。",
+          "修辞手法": "运用比喻（将西岛的恶意比作“洒盐”）、拟人（形容世界的“广阔无垠”）强化情感表达；反问（“你为什么要那么做……”）推动情节或引发思考；重复性短语（如“唉嘿唉嘿”）作为固定表达塑造人物性格（如游游的活泼特质）；通过对比手法（阴郁系与阳光系的言行差异）突出主题。",
+          "叙事节奏": "整体节奏平缓，以日常场景（足球、午休）逐步推进情节；关键事件（大型班会演讲主题转变、与游游独处）节奏加快，形成节点式高潮；结尾部分通过环境描写（蓝天、夏日氛围）收束情绪，节奏放缓，回归平静但充满希望的基调。",
+          "氛围营造": "通过环境细节（树荫、自动贩卖机区、教室玻璃窗外的天空）构建具体场景感；人物情绪与言行（龙虎的嫉妒、徒然的真诚、西岛的浮夸）共同营造“阴郁系/阳光系”对立与融合的氛围；对比手法（如游游安静外表下的内心挣扎，西岛张扬外表下的自卑）强化氛围层次，传递青春期的复杂情感。"
+        },
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "写作风格": {
+          "content": {
+            "用词": "采用口语化与书面化结合的词汇体系，既保留‘非常抱歉’、‘还望各位多多指教’等谦逊正式的表达以体现礼貌性，又通过‘牵线搭桥的角色’、‘辣妹化后’等生活化表述增添亲切感，整体语言平实自然且富有个人色彩。",
+            "句式": "长短句交错使用，简短句（如“我是持崎汤叶”）快速切入主题；长句用于解释角色命名过程或情感表达（如关于“青前夏绘良”的改稿说明）；部分段落采用对话体风格（如各角色命名故事的叙述），增强分享感与真实感。",
+            "修辞手法": "主要运用引用、对比等手法。例如七草游游的名字源自“七草粥”（引用文化典故），“徒然”一词本意为负面但用于角色名形成反差感（“不合啊，但这样的反差感不是也很不错吗？”）；通过“像对待自己的孩子般慎重”“全国的上田桑”等表述，强化情感与普遍性对比。",
+            "叙事节奏": "整体节奏舒缓平缓，符合后记的总结性质。以“分享角色命名过程”为核心线索，逐个展开角色故事（上田桥汰、七草游游等），无快速推进或戏剧冲突，类似娓娓道来的个人随笔，节奏稳定且富有生活气息。",
+            "氛围营造": "通过亲切的称呼与真诚的情感表达，营造出温暖、谦逊的氛围。“非常感谢”“还望各位多多指教”传递感恩之情；“为角色命名时的烦恼”“反差感的趣味性”等细节增添轻松感；整体氛围贴近读者，兼具分享的开放性与个人创作的真诚。"
+          }
+        },
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      }
+    ],
+    "summary": [
+      {
+        "剧情回顾": "本章节围绕主角上田桥汰从阴郁系转变为阳光系的经历展开：春假期间通过改造外貌、学习知识（如背网红名字）、练习社交（与店员对话录音调整说话方式）成功融入高中生活，成为一年B班阳光系代表；结识好友夏绘良（辣妹型阳光系）和徒然（搞笑型阳光系），三人组一起踢足球；遇到阴郁系女生七草游游，因帮助其处理头发上的鲑鱼干引发关注，七草主动接近并送心形饼干表达感谢，手机壳与上田同款不同色暗示特殊联系；上田意识到喜欢夏绘良（开学典礼对话后互有好感），拒绝七草示好时通过《面包之恋》角色讨论明确立场，导致七草改变形象（粉红色头发、换隐形眼镜）；伏笔包括三位帮助者（隐形眼镜店员“你不是想要改变吗？”、二手店大叔“这些光碟都会等着你的”、中林“和上田讲话很有意思”）的对话可能影响后续成长，《面包之恋》角色差异暗示未来关系发展。",
+        "chapter_title": "Text/chapter1.xhtml",
+        "_selected": true
+      },
+      {
+        "剧情回顾": "本章（第二章）围绕主角上田桥汰从「阴郁系」转变为「阳光系」后融入集体的日常，以及与阴郁系女孩宇民水乃的互动展开。\n\n第一章已铺垫：桥汰通过春假努力改变性格、外貌，成功与夏绘良、游游等同学交流（如足球活动中游游笨拙但被认可）；同时回忆国中时因暗恋女生Neto子被阳光系男生抢走而决心改变的往事。第二章聚焦宇民水乃——她是娇小带刺的阴郁系，和游游有交集却关系不深；桥汰注意到她在暗处窥视踢球，推测是本人。宇民想染粉发像游游，桥汰劝阻后间接接触她（通过游游）。黄金周期间四人共同出游（购物、回转寿司），关系逐渐缓和，但因夏绘良对《破坏治愈者》的评价引发争执，最终和好；国中同学出现欺负宇民时，桥汰扮演「阳光系男朋友」救场，让宇民感动，推动两人关系发展。",
+        "chapter_title": "Text/chapter2.xhtml",
+        "_selected": true
+      },
+      {
+        "剧情回顾": "本章围绕主角上田从“阴郁系”转变为“阳光系”后的日常展开，他与夏绘良、游游、宇民等同学建立关系（如踢足球、参与学习互助会）；随后发现被A班橘等人欺负的三井龙虎，出手帮助其改变形象（通过剪发/夹浏海），并鼓励三井突破性格壁垒；最终三井向主角告白“当我的朋友吗”，引发班级骚动与夏绘良、宇民的复杂反应，同时冲击主角的性向认知。",
+        "chapter_title": "Text/chapter3.xhtml",
+        "_selected": true
+      },
+      {
+        "剧情回顾": "本章围绕主角邀请朋友来家里过夜展开，发生做饭（宇民做咖喱）、看电影、游戏等日常活动；期间通过对话加深对角色性格的理解（如夏绘良自白对阴郁系阳光系的看法），并出现关键事件（浴室遇虫子）；同时推动龙虎与徒然的关系改善，以及主角与夏绘良的情感交流深化。",
+        "chapter_title": "Text/chapter4.xhtml",
+        "_selected": true
+      },
+      {
+        "剧情回顾": "主角因国中时暗恋女生Neto子被阳光系男生抢走而决心改变自我，春假期间通过学习阳光系知识、调整外貌融入集体；借宿派对后，在足球游戏等互动中与夏绘良、徒然交流，发现宇民偷偷观察并了解其阴郁才女的性格。主角意识到“理想中的阳光系”有压力，开始接受真实自我。游游因鲑鱼干事件、视频中的形象与理想的差距，加上西岛的话而痛苦，主角在辅导室得知后决定通过演讲拯救她——大型班会中，他公布国中时期阴郁系的旧照，解释阴郁系和阳光系不必迎合分类，自由做自己，传达对游游的鼓励。",
+        "chapter_title": "Text/chapter5.xhtml",
+        "_selected": true
+      },
+      {
+        "name": "剧情回顾",
+        "content": "本章围绕主角桥汰的核心事件展开：首先通过与小森老师的升学辅导对话，了解到三井龙虎从孤独内向到融入集体的转变，同时反思自身过往感情用事的问题；随后周末邀请龙虎来家搞宅活时，游游突袭到访暴露了独处计划。接着聚焦演讲准备与足球场互动：桥汰为下周班会演讲做准备，在足球场上三人继续传球时，徒然提及A班橘、西岛一行人引发后续，最终发现龙虎因之前委员会时问西岛的“喜欢怎样的男生类型”而被对方纠缠。期间角色关系动态变化显著——与小森的交流推动自我认知深化，游游从最初到参与宅活等互动逐渐改变态度；伏笔方面，“喜欢怎样的男生类型”的对话成为后续冲突导火索，宅活暴露后与A班的关系发展成为新方向。",
+        "chapter_title": "Text/chapter6.xhtml",
+        "_selected": true
+      }
+    ]
+  },
+  "incremental_state": {
+    "analyzed_hashes": {
+      "characters": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ],
+      "outline": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ],
+      "timeline": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ],
+      "wiki": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ],
+      "relationships": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ],
+      "style": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ],
+      "summary": [
+        "162913aba4ff8769",
+        "18fe4c3841549b8d",
+        "d6fc30c41fc9a203",
+        "2b3cd7f7e2b38bbb",
+        "640f235b1dacdc07",
+        "12e898323e236473"
+      ]
+    },
+    "summary_cache": {
+      "18fe4c3841549b8d": "<think>用户现在需要总结给定的章节内容。首先得抓住核心情节：主要讲主角（徒然/上田同学）从阴郁系转变为阳光系的经历和日常互动。\n\n首先看关键点：\n1. 主要事件：主角作为“阴郁系”转变成“阳光系”，通过努力改变性格、外貌，融入集体。\n2. 角色：主角自己（之前是阴郁系，现在尝试成为阳光系）、夏绘良、桥汰等同学，还有之前的国中同学Neto子。\n3. 重要变化/发现：从阴郁系到阳光系的转变过程，以及过去对“阴郁系”的误解和改变后的感受。\n\n然后需要简洁2-3句话。先理清结构：\n\n第一章主要讲述主角（上田）作为曾经的“阴郁系”（不爱社交、自尊心强），通过春假期间努力改造性格、外貌和学习阳光系知识，成功转变为“阳光系”，并融入高中生活，同时回忆国中时因暗恋女生Neto子被阳光系男生抢走而改变心态的故事。\n\n现在要更简洁，符合要求：\n\n核心情节是主角从阴郁系转变为阳光系的过程及日常；角色包括主角、夏绘良等同学；重要变化是从内向到外向的转变，以及过去对社交的抗拒到主动改变的决心。\n\n然后组织语言：\n\n第一章核心内容是：主角（上田）作为曾经的“阴郁系”通过春假努力改变性格与外貌，成功转变为“阳光系”，融入高中生活，同时回忆国中时因暗恋女生Neto子被阳光系男生抢走而决定改变自我的经历。\n\n或者更简洁：\n\n本章讲述了主角从“阴郁系”转变为“阳光系”的过程——他通过春假期间改造性格、学习阳光系知识并调整外貌，成功融入高中集体；同时回顾了国中时因暗恋女生Neto子被阳光系男生抢走而决心改变的往事。\n\n检查是否符合要求：主要事件（转变过程）、角色（主角、夏绘良等同学、Neto子）、重要变化（从阴郁到阳光的转变）。\n\n现在输出简洁的2-3句话。</think>\n本章讲述了主角从“阴郁系”转变为“阳光系”——他通过春假期间改造性格、学习阳光系知识并调整外貌，成功融入高中集体；同时回顾了国中时因暗恋女生Neto子被阳光系男生抢走而决心改变的往事。",
+      "162913aba4ff8769": "<think>用户现在需要总结给定的章节内容。首先得理解核心情节：主要事件是主角（桥汰）和夏绘良、徒然在午休踢足球，游游参与但运动神经差；然后发现宇民水乃偷偷观察他们；接着介绍宇民是成绩好但阴郁的才女，和游游有交流但不亲密；最后通过对话了解两人聊漫画动画，宇民有时会发飙。\n\n需要提取主要事件：午休踢足球时发生互动（游游停球、与徒然冲突），发现宇民在暗中观察，介绍宇民的性格（阴郁、毒舌但擅长学习）和与游游的关系（勉强的朋友，聊漫画等）。\n\n然后组织语言，符合2-3句话的要求，涵盖主要事件、角色参与、重要变化或发现。比如：\n\n“本章围绕午休时主角与夏绘良、徒然踢足球展开，游游虽运动神经差却参与其中；同时发现宇民水乃在暗中观察，并介绍其阴郁性格（毒舌但成绩好）及与游游的勉强友谊（多聊漫画动画）。”\n\n检查是否覆盖主要事件：午休踢球是核心活动，角色有游游、夏绘良、徒然、宇民；重要发现是宇民的存在和她的性格。这样应该可以。</think>\n本章围绕午休时主角与夏绘良、徒然踢足球展开，游游虽运动神经差却参与其中；同时发现宇民水乃在暗中观察，并介绍其阴郁性格（毒舌但成绩好）及与游游的勉强友谊（多聊漫画动画）。",
+      "2b3cd7f7e2b38bbb": "<think>用户现在需要总结给定的章节内容。首先得抓住核心情节：主要事件是关于足球游戏里加入新成员宇民（其实是雌小鬼的伪娘），然后角色有夏绘良、宇民、游游等，还有班主任小森老师的出现和她的“人渣”自白。\n\n首先，确定关键点：\n1. 主要发生了什么事：黄金周后午休时足球游戏新增宇民参与，她动作精准但性格平静带威胁（失忆打人）。\n2. 角色参与：夏绘良、宇民、游游、我（上田）、小森老师等。\n3. 重要变化或发现：宇民是“雌小鬼的伪娘”；小森老师自曝是“认真路线的人渣”，真实性格与表面形象反差大。\n\n然后组织语言，简洁2-3句话。需要涵盖主要事件、角色和关键变化/发现。\n\n现在整理：\n\n第三章核心内容围绕黄金周后足球游戏新增宇民（实际为雌小鬼伪娘），她动作精准却带威胁性；同时班主任小森老师现身并自曝“人渣”真实性格，与表面亲切形象形成反差。 \n\n检查是否符合要求：主要事件（足球游戏加新成员宇民）、角色（夏绘良、宇民等，还有小森老师）、重要变化/发现（宇民身份、小森老师的真面目）。\n\n再调整更简洁：\n\n黄金周后午休时足球游戏新增宇民参与，她是雌小鬼的伪娘且动作精准却带威胁性；班主任小森老师现身并自曝“认真路线的人渣”真实性格，与表面形象形成反差。 \n\n这样应该符合要求了。</think>\n黄金周后午休时足球游戏新增宇民（实际为雌小鬼的伪娘）参与，她动作精准却带威胁性；同时班主任小森老师现身并自曝“认真路线的人渣”真实性格，与表面形象形成反差。",
+      "12e898323e236473": "<think>用户现在需要总结给定的章节内容，首先得理清楚核心情节、角色和关键变化。首先看文本结构：\n\n主要事件是第四章的内容，涉及主角（应该是“我”，比如桥汰？）和小森老师的对谈，然后转到周末和龙虎的宅活，以及游游突然到访。\n\n首先提取关键点：\n1. 主要发生了什么事：主角与老师小森进行升学辅导，讨论三井龙虎的变化（从孤独变完美伪娘），以及主角自己过去坦白感情用事；之后周末邀请龙虎来家里搞宅活，结果游游突然到来。\n2. 角色：主角、小森老师、三井龙虎、夏绘良、宇民、游游、妹妹小凪等。\n3. 重要变化或发现：主角意识到自己“理想中的阳光系”其实有压力，开始接受真实的自己；龙虎被妹妹误认成女生，引发事件；游游突然到访，说明她偷听到宅活计划。\n\n现在需要用2-3句话简洁总结。首先确定核心情节：主角在辅导室与老师讨论三井的转变和自己的过去，随后周末邀请龙虎来家搞宅活时，游游突袭来访，暴露了宅活的秘密。\n\n然后组织语言：\n\n第四章中，主角与小森老师谈三井龙虎的融入及自身过往坦白，后周末邀龙虎来家搞宅活，却遭游游突袭到访，暴露计划。\n\n检查是否符合要求：主要事件（辅导、宅活、游游到来）、角色（小森、三井、夏绘良等，重点主角、龙虎、游游）、变化（主角接受真实自我，宅活被暴露）。\n\n再调整更简洁：\n\n第四章里，主角与小森老师讨论三井的转变和自身过往，随后周末邀请龙虎来家搞宅活时，游游突袭到访，暴露了独处计划。\n\n这样应该符合要求。</think>\n第四章中，主角与小森老师谈三井的融入及自身过往坦白后，周末邀龙虎来家搞宅活却遭游游突袭到访，暴露宅活计划。",
+      "640f235b1dacdc07": "<think>用户现在需要总结给定的章节内容。首先得理清楚核心情节：主要事件是关于主角（桥汰）准备下周演讲，同时涉及足球小队、与A班橘和西岛的关系，还有龙虎被纠缠的事件。\n\n首先确定关键点：\n- 主要发生了什么事：桥汰要准备下周的班会演讲；足球场上男生的互动，以及龙虎被A班的橘和西岛纠缠的事件。\n- 角色：桥汰（主角）、徒然、龙虎、橘、西岛、夏绘良等。\n- 重要变化或发现：发现龙虎被A班的人纠缠，涉及之前委员会时龙虎问西岛的“你喜欢怎样的男生类型”的问题；游游态度的变化。\n\n然后需要简洁地概括这些信息。要覆盖主要事件（演讲准备、足球互动、龙虎被纠缠）、角色参与（桥汰、徒然、龙虎、橘、西岛等）、重要变化（发现龙虎被A班找麻烦，源于之前委员会的对话）。\n\n现在组织语言，控制在2-3句话：\n\n比如：“本章围绕主角桥汰准备下周班会演讲展开，同时涉及足球小队的日常互动与龙虎被A班橘和西岛纠缠的事件。在足球场上，三人继续传球时，徒然提及橘一行人并引发后续；随后发现龙虎因之前委员会时问西岛的‘喜欢怎样的男生类型’而被对方找麻烦，暴露了之前的对话影响。”\n\n不过要更简洁，符合用户要求“简洁的语言总结核心情节和关键信息”。再调整：\n\n“本章主要讲述桥汰准备下周班会演讲，足球场上三人继续传球；同时龙虎被A班橘、西岛纠缠，起因是之前委员会时龙虎问西岛的‘喜欢怎样的男生类型’。此外还涉及游游态度变化及与橘等人的互动细节。”\n\n检查是否符合要求：主要事件（演讲准备、足球、龙虎被纠缠）、角色（桥汰、徒然、龙虎、橘、西岛）、重要变化/发现（龙虎被纠缠的起因，游游的态度变化）。\n\n再精简：\n\n“本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的‘喜欢怎样的男生类型’，还提及游游态度变化及与橘等人的互动。”\n\n或者更简洁的版本：\n\n“本章主要讲述桥汰准备下周班会演讲，足球场上三人继续传球；龙虎因之前问A班西岛‘喜欢怎样的男生类型’而被对方纠缠，同时涉及游游态度变化及与橘等人的互动细节。”\n\n不过可能需要更聚焦核心情节和关键信息。再梳理：\n\n核心事件：1. 桥汰准备下周演讲；2. 足球场上三人传球，徒然提及橘一行人引发后续；3. 龙虎被A班橘、西岛纠缠（起因是之前委员会对话）。\n\n角色参与：桥汰、徒然、龙虎、橘、西岛、夏绘良等。\n\n重要变化/发现：龙虎被纠缠的起因，游游态度的变化。\n\n现在整合成2-3句话：\n\n“本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的‘喜欢怎样的男生类型’，还提及游游态度变化及与橘等人的互动。”\n\n这样应该符合要求了。</think>\n本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的“喜欢怎样的男生类型”，还提及游游态度变化及与橘等人的互动。",
+      "d6fc30c41fc9a203": "<think>用户现在需要总结给定的文本内容。首先看文本是后记部分，作者持崎汤叶分享为角色命名的过程，每个角色的名字由来和变化。\n\n首先确定核心情节：这是小说的后记，作者是持崎汤叶，主要讲述为书中各角色命名的思考过程（如上田桥汰、七草游游等），并表达对编辑、画师等的感谢。\n\n然后提取关键信息：\n- 主要事件：作者分享为书中角色命名的过程。\n- 角色：上田桥汰、七草游游、青前夏绘良、宇民水乃、三井龙虎、小笠原徒然（以及男主角？不过后记里主要讲这些角色的命名）。\n- 重要变化/发现：比如青前莲改名为青前夏绘良，名字的由来和反差感（如小笠原徒然的“徒然”与角色性格的反差），还有作者对名字取名的烦恼和思考。\n\n现在需要用2-3句话简洁总结。首先明确这是后记，作者是持崎汤叶，分享为各角色命名的细节（每个角色的命名由来或变化），并致谢。\n\n组织语言：这段后记中，作者持崎汤叶分享了为书中角色命名的过程与思考，如上田桥汰、七草游游等角色的名字由来及部分角色的改名情况；同时表达了对画师、编辑等人的感谢。或者更简洁：这是小说《...》的后记（不过文本里没书名？但根据上下文是某本书），作者持崎汤叶分享为各角色命名的细节（如上田桥汰、七草游游等的命名由来及部分角色的改名），并致谢。\n\n检查要求：“主要发生了什么事”“哪些角色参与”“重要变化或发现”。所以总结要包含这些点。\n\n最终输出：这段后记里，作者持崎汤叶分享了为书中各角色命名的思考过程（如上田桥汰、七草游游等角色的名字由来及部分角色的改名情况），并表达了对画师、编辑等的感谢。</think>\n这段后记中，作者持崎汤叶分享了为书中各角色命名的细节（如上田桥汰、七草游游等角色的名字由来及青前莲改名为青前夏绘良等情况），同时表达了对画师、编辑等人的感谢。"
+    }
+  },
+  "source_file": "F:/资料/素材/书籍/Ebooks/1.epub",
+  "context": {
+    "known_characters": [
+      "上田桥汰",
+      "夏绘良",
+      "小笠原徒然",
+      "七草游游",
+      "中林",
+      "Neto子",
+      "青前夏绘良",
+      "Neto子（假名）",
+      "榎本",
+      "宇民水乃",
+      "宇民水乃（Neto子）",
+      "夏绘良、七草游游等阳光系群体",
+      "宇民水乃（小森老师）",
+      "三井龙虎",
+      "橘",
+      "宇民水乃(Neto子)",
+      "夏绘良、小笠原徒然、七草游游、宇民水乃",
+      "A班橘等轻浮男",
+      "小森老师",
+      "小凪",
+      "橘（A班橘）",
+      "西岛（辣妹西岛）",
+      "Neto子（雌小鬼的伪娘）",
+      "A班橘等轻浮男群体",
+      "にゅむ大人",
+      "编辑部",
+      "责任编辑",
+      "读者们"
+    ],
+    "known_entities": [
+      "阳光系与阴郁系",
+      "NTR 觉醒",
+      "蜂蜜小馒头",
+      "鲑鱼干",
+      "《面包之恋》（漫画）",
+      "手机保护壳（蓝色/粉红色）",
+      "学校",
+      "教学楼旁的停车棚",
+      "绵矢高中一年 B 班",
+      "购物中心",
+      "回转寿司店",
+      "美食街",
+      "更衣室",
+      "大萤幕的广场",
+      "电子游乐场",
+      "巨大热狗",
+      "《破坏治愈者直至世界的终焉》",
+      "雌小鬼",
+      "升学就业辅导室",
+      "家庭餐厅",
+      "圣代",
+      "龙子妹妹",
+      "三井龙虎",
+      "A班",
+      "轻浮男三人组",
+      "粉红毛事变",
+      "雌小鬼的伪娘",
+      "超市（百圆商店）",
+      "更衣间",
+      "阴郁系与阳光系",
+      "自动贩卖机区",
+      "雌小鬼伪娘",
+      "牛肉干",
+      "大叔遮白发的那种老年人染发剂",
+      "上田桥汰",
+      "七草游游",
+      "青前夏绘良",
+      "宇民水乃",
+      "小笠原徒然"
+    ],
+    "rolling_summary": "首先得理清楚核心情节：主要事件是关于主角（桥汰）准备下周演讲，同时涉及足球小队、与A班橘和西岛的关系，还有龙虎被纠缠的事件。\n\n首先确定关键点：\n- 主要发生了什么事：桥汰要准备下周的班会演讲；足球场上男生的互动，以及龙虎被A班的橘和西岛纠缠的事件。\n- 角色：桥汰（主角）、徒然、龙虎、橘、西岛、夏绘良等。\n- 重要变化或发现：发现龙虎被A班的人纠缠，涉及之前委员会时龙虎问西岛的“你喜欢怎样的男生类型”的问题；游游态度的变化。\n\n然后需要简洁地概括这些信息。要覆盖主要事件（演讲准备、足球互动、龙虎被纠缠）、角色参与（桥汰、徒然、龙虎、橘、西岛等）、重要变化（发现龙虎被A班找麻烦，源于之前委员会的对话）。\n\n现在组织语言，控制在2-3句话：\n\n比如：“本章围绕主角桥汰准备下周班会演讲展开，同时涉及足球小队的日常互动与龙虎被A班橘和西岛纠缠的事件。在足球场上，三人继续传球时，徒然提及橘一行人并引发后续；随后发现龙虎因之前委员会时问西岛的‘喜欢怎样的男生类型’而被对方找麻烦，暴露了之前的对话影响。”\n\n不过要更简洁，符合用户要求“简洁的语言总结核心情节和关键信息”。再调整：\n\n“本章主要讲述桥汰准备下周班会演讲，足球场上三人继续传球；同时龙虎被A班橘、西岛纠缠，起因是之前委员会时龙虎问西岛的‘喜欢怎样的男生类型’。此外还涉及游游态度变化及与橘等人的互动细节。”\n\n检查是否符合要求：主要事件（演讲准备、足球、龙虎被纠缠）、角色（桥汰、徒然、龙虎、橘、西岛）、重要变化/发现（龙虎被纠缠的起因，游游的态度变化）。\n\n再精简：\n\n“本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的‘喜欢怎样的男生类型’，还提及游游态度变化及与橘等人的互动。”\n\n或者更简洁的版本：\n\n“本章主要讲述桥汰准备下周班会演讲，足球场上三人继续传球；龙虎因之前问A班西岛‘喜欢怎样的男生类型’而被对方纠缠，同时涉及游游态度变化及与橘等人的互动细节。”\n\n不过可能需要更聚焦核心情节和关键信息。再梳理：\n\n核心事件：1. 桥汰准备下周演讲；2. 足球场上三人传球，徒然提及橘一行人引发后续；3. 龙虎被A班橘、西岛纠缠（起因是之前委员会对话）。\n\n角色参与：桥汰、徒然、龙虎、橘、西岛、夏绘良等。\n\n重要变化/发现：龙虎被纠缠的起因，游游态度的变化。\n\n现在整合成2-3句话：\n\n“本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的‘喜欢怎样的男生类型’，还提及游游态度变化及与橘等人的互动。”\n\n这样应该符合要求了。</think>\n本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的“喜欢怎样的男生类型”，还提及游游态度变化及与橘等人的互动。\n【Text/chapter6.xhtml】<think>用户现在需要总结给定的文本内容。首先看文本是后记部分，作者持崎汤叶分享为角色命名的过程，每个角色的名字由来和变化。\n\n首先确定核心情节：这是小说的后记，作者是持崎汤叶，主要讲述为书中各角色命名的思考过程（如上田桥汰、七草游游等），并表达对编辑、画师等的感谢。\n\n然后提取关键信息：\n- 主要事件：作者分享为书中角色命名的过程。\n- 角色：上田桥汰、七草游游、青前夏绘良、宇民水乃、三井龙虎、小笠原徒然（以及男主角？不过后记里主要讲这些角色的命名）。\n- 重要变化/发现：比如青前莲改名为青前夏绘良，名字的由来和反差感（如小笠原徒然的“徒然”与角色性格的反差），还有作者对名字取名的烦恼和思考。\n\n现在需要用2-3句话简洁总结。首先明确这是后记，作者是持崎汤叶，分享为各角色命名的细节（每个角色的命名由来或变化），并致谢。\n\n组织语言：这段后记中，作者持崎汤叶分享了为书中角色命名的过程与思考，如上田桥汰、七草游游等角色的名字由来及部分角色的改名情况；同时表达了对画师、编辑等人的感谢。或者更简洁：这是小说《...》的后记（不过文本里没书名？但根据上下文是某本书），作者持崎汤叶分享为各角色命名的细节（如上田桥汰、七草游游等的命名由来及部分角色的改名），并致谢。\n\n检查要求：“主要发生了什么事”“哪些角色参与”“重要变化或发现”。所以总结要包含这些点。\n\n最终输出：这段后记里，作者持崎汤叶分享了为书中各角色命名的思考过程（如上田桥汰、七草游游等角色的名字由来及部分角色的改名情况），并表达了对画师、编辑等的感谢。</think>\n这段后记中，作者持崎汤叶分享了为书中各角色命名的细节（如上田桥汰、七草游游等角色的名字由来及青前莲改名为青前夏绘良等情况），同时表达了对画师、编辑等人的感谢。",
+    "chapter_summaries": [
+      {
+        "title": "Text/chapter2.xhtml",
+        "summary": "<think>用户现在需要总结给定的章节内容。首先得理解核心情节：主要事件是主角（桥汰）和夏绘良、徒然在午休踢足球，游游参与但运动神经差；然后发现宇民水乃偷偷观察他们；接着介绍宇民是成绩好但阴郁的才女，和游游有交流但不亲密；最后通过对话了解两人聊漫画动画，宇民有时会发飙。\n\n需要提取主要事件：午休踢足球时发生互动（游游停球、与徒然冲突），发现宇民在暗中观察，介绍宇民的性格（阴郁、毒舌但擅长学习）和与游游的关系（勉强的朋友，聊漫画等）。\n\n然后组织语言，符合2-3句话的要求，涵盖主要事件、角色参与、重要变化或发现。比如：\n\n“本章围绕午休时主角与夏绘良、徒然踢足球展开，游游虽运动神经差却参与其中；同时发现宇民水乃在暗中观察，并介绍其阴郁性格（毒舌但成绩好）及与游游的勉强友谊（多聊漫画动画）。”\n\n检查是否覆盖主要事件：午休踢球是核心活动，角色有游游、夏绘良、徒然、宇民；重要发现是宇民的存在和她的性格。这样应该可以。</think>\n本章围绕午休时主角与夏绘良、徒然踢足球展开，游游虽运动神经差却参与其中；同时发现宇民水乃在暗中观察，并介绍其阴郁性格（毒舌但成绩好）及与游游的勉强友谊（多聊漫画动画）。"
+      },
+      {
+        "title": "Text/chapter3.xhtml",
+        "summary": "<think>用户现在需要总结给定的章节内容。首先得抓住核心情节：主要事件是关于足球游戏里加入新成员宇民（其实是雌小鬼的伪娘），然后角色有夏绘良、宇民、游游等，还有班主任小森老师的出现和她的“人渣”自白。\n\n首先，确定关键点：\n1. 主要发生了什么事：黄金周后午休时足球游戏新增宇民参与，她动作精准但性格平静带威胁（失忆打人）。\n2. 角色参与：夏绘良、宇民、游游、我（上田）、小森老师等。\n3. 重要变化或发现：宇民是“雌小鬼的伪娘”；小森老师自曝是“认真路线的人渣”，真实性格与表面形象反差大。\n\n然后组织语言，简洁2-3句话。需要涵盖主要事件、角色和关键变化/发现。\n\n现在整理：\n\n第三章核心内容围绕黄金周后足球游戏新增宇民（实际为雌小鬼伪娘），她动作精准却带威胁性；同时班主任小森老师现身并自曝“人渣”真实性格，与表面亲切形象形成反差。 \n\n检查是否符合要求：主要事件（足球游戏加新成员宇民）、角色（夏绘良、宇民等，还有小森老师）、重要变化/发现（宇民身份、小森老师的真面目）。\n\n再调整更简洁：\n\n黄金周后午休时足球游戏新增宇民参与，她是雌小鬼的伪娘且动作精准却带威胁性；班主任小森老师现身并自曝“认真路线的人渣”真实性格，与表面形象形成反差。 \n\n这样应该符合要求了。</think>\n黄金周后午休时足球游戏新增宇民（实际为雌小鬼的伪娘）参与，她动作精准却带威胁性；同时班主任小森老师现身并自曝“认真路线的人渣”真实性格，与表面形象形成反差。"
+      },
+      {
+        "title": "Text/chapter4.xhtml",
+        "summary": "<think>用户现在需要总结给定的章节内容，首先得理清楚核心情节、角色和关键变化。首先看文本结构：\n\n主要事件是第四章的内容，涉及主角（应该是“我”，比如桥汰？）和小森老师的对谈，然后转到周末和龙虎的宅活，以及游游突然到访。\n\n首先提取关键点：\n1. 主要发生了什么事：主角与老师小森进行升学辅导，讨论三井龙虎的变化（从孤独变完美伪娘），以及主角自己过去坦白感情用事；之后周末邀请龙虎来家里搞宅活，结果游游突然到来。\n2. 角色：主角、小森老师、三井龙虎、夏绘良、宇民、游游、妹妹小凪等。\n3. 重要变化或发现：主角意识到自己“理想中的阳光系”其实有压力，开始接受真实的自己；龙虎被妹妹误认成女生，引发事件；游游突然到访，说明她偷听到宅活计划。\n\n现在需要用2-3句话简洁总结。首先确定核心情节：主角在辅导室与老师讨论三井的转变和自己的过去，随后周末邀请龙虎来家搞宅活时，游游突袭来访，暴露了宅活的秘密。\n\n然后组织语言：\n\n第四章中，主角与小森老师谈三井龙虎的融入及自身过往坦白，后周末邀龙虎来家搞宅活，却遭游游突袭到访，暴露计划。\n\n检查是否符合要求：主要事件（辅导、宅活、游游到来）、角色（小森、三井、夏绘良等，重点主角、龙虎、游游）、变化（主角接受真实自我，宅活被暴露）。\n\n再调整更简洁：\n\n第四章里，主角与小森老师讨论三井的转变和自身过往，随后周末邀请龙虎来家搞宅活时，游游突袭到访，暴露了独处计划。\n\n这样应该符合要求。</think>\n第四章中，主角与小森老师谈三井的融入及自身过往坦白后，周末邀龙虎来家搞宅活却遭游游突袭到访，暴露宅活计划。"
+      },
+      {
+        "title": "Text/chapter5.xhtml",
+        "summary": "<think>用户现在需要总结给定的章节内容。首先得理清楚核心情节：主要事件是关于主角（桥汰）准备下周演讲，同时涉及足球小队、与A班橘和西岛的关系，还有龙虎被纠缠的事件。\n\n首先确定关键点：\n- 主要发生了什么事：桥汰要准备下周的班会演讲；足球场上男生的互动，以及龙虎被A班的橘和西岛纠缠的事件。\n- 角色：桥汰（主角）、徒然、龙虎、橘、西岛、夏绘良等。\n- 重要变化或发现：发现龙虎被A班的人纠缠，涉及之前委员会时龙虎问西岛的“你喜欢怎样的男生类型”的问题；游游态度的变化。\n\n然后需要简洁地概括这些信息。要覆盖主要事件（演讲准备、足球互动、龙虎被纠缠）、角色参与（桥汰、徒然、龙虎、橘、西岛等）、重要变化（发现龙虎被A班找麻烦，源于之前委员会的对话）。\n\n现在组织语言，控制在2-3句话：\n\n比如：“本章围绕主角桥汰准备下周班会演讲展开，同时涉及足球小队的日常互动与龙虎被A班橘和西岛纠缠的事件。在足球场上，三人继续传球时，徒然提及橘一行人并引发后续；随后发现龙虎因之前委员会时问西岛的‘喜欢怎样的男生类型’而被对方找麻烦，暴露了之前的对话影响。”\n\n不过要更简洁，符合用户要求“简洁的语言总结核心情节和关键信息”。再调整：\n\n“本章主要讲述桥汰准备下周班会演讲，足球场上三人继续传球；同时龙虎被A班橘、西岛纠缠，起因是之前委员会时龙虎问西岛的‘喜欢怎样的男生类型’。此外还涉及游游态度变化及与橘等人的互动细节。”\n\n检查是否符合要求：主要事件（演讲准备、足球、龙虎被纠缠）、角色（桥汰、徒然、龙虎、橘、西岛）、重要变化/发现（龙虎被纠缠的起因，游游的态度变化）。\n\n再精简：\n\n“本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的‘喜欢怎样的男生类型’，还提及游游态度变化及与橘等人的互动。”\n\n或者更简洁的版本：\n\n“本章主要讲述桥汰准备下周班会演讲，足球场上三人继续传球；龙虎因之前问A班西岛‘喜欢怎样的男生类型’而被对方纠缠，同时涉及游游态度变化及与橘等人的互动细节。”\n\n不过可能需要更聚焦核心情节和关键信息。再梳理：\n\n核心事件：1. 桥汰准备下周演讲；2. 足球场上三人传球，徒然提及橘一行人引发后续；3. 龙虎被A班橘、西岛纠缠（起因是之前委员会对话）。\n\n角色参与：桥汰、徒然、龙虎、橘、西岛、夏绘良等。\n\n重要变化/发现：龙虎被纠缠的起因，游游态度的变化。\n\n现在整合成2-3句话：\n\n“本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的‘喜欢怎样的男生类型’，还提及游游态度变化及与橘等人的互动。”\n\n这样应该符合要求了。</think>\n本章围绕桥汰准备下周班会演讲展开，同时涉及足球小队日常与龙虎被A班橘、西岛纠缠的事件。龙虎被纠缠源于之前委员会时问西岛的“喜欢怎样的男生类型”，还提及游游态度变化及与橘等人的互动。"
+      },
+      {
+        "title": "Text/chapter6.xhtml",
+        "summary": "<think>用户现在需要总结给定的文本内容。首先看文本是后记部分，作者持崎汤叶分享为角色命名的过程，每个角色的名字由来和变化。\n\n首先确定核心情节：这是小说的后记，作者是持崎汤叶，主要讲述为书中各角色命名的思考过程（如上田桥汰、七草游游等），并表达对编辑、画师等的感谢。\n\n然后提取关键信息：\n- 主要事件：作者分享为书中角色命名的过程。\n- 角色：上田桥汰、七草游游、青前夏绘良、宇民水乃、三井龙虎、小笠原徒然（以及男主角？不过后记里主要讲这些角色的命名）。\n- 重要变化/发现：比如青前莲改名为青前夏绘良，名字的由来和反差感（如小笠原徒然的“徒然”与角色性格的反差），还有作者对名字取名的烦恼和思考。\n\n现在需要用2-3句话简洁总结。首先明确这是后记，作者是持崎汤叶，分享为各角色命名的细节（每个角色的命名由来或变化），并致谢。\n\n组织语言：这段后记中，作者持崎汤叶分享了为书中角色命名的过程与思考，如上田桥汰、七草游游等角色的名字由来及部分角色的改名情况；同时表达了对画师、编辑等人的感谢。或者更简洁：这是小说《...》的后记（不过文本里没书名？但根据上下文是某本书），作者持崎汤叶分享为各角色命名的细节（如上田桥汰、七草游游等的命名由来及部分角色的改名），并致谢。\n\n检查要求：“主要发生了什么事”“哪些角色参与”“重要变化或发现”。所以总结要包含这些点。\n\n最终输出：这段后记里，作者持崎汤叶分享了为书中各角色命名的思考过程（如上田桥汰、七草游游等角色的名字由来及部分角色的改名情况），并表达了对画师、编辑等的感谢。</think>\n这段后记中，作者持崎汤叶分享了为书中各角色命名的细节（如上田桥汰、七草游游等角色的名字由来及青前莲改名为青前夏绘良等情况），同时表达了对画师、编辑等人的感谢。"
+      }
+    ]
+  }
+}

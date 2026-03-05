@@ -1,0 +1,165 @@
+class EventHistoryDialog(tk.Toplevel):
+
+    """\m)["kX锟斤拷Uv_e锟斤拷p05pEx=v锟結?""
+
+
+
+    def __init__(self, parent, history: List[Dict]):
+
+        super().__init__(parent)
+
+        self.title("\m)["ke锟斤拷p0")
+
+        self.geometry("500x600")
+
+        self.history = history
+
+        self._setup_ui()
+
+        self.transient(parent)
+
+        self.grab_set()
+
+
+
+    def _setup_ui(self):
+
+        ttk.Label(self, text=f"{get_icon('book', '锟斤拷Id')} 蛽3 /m\m)["k锟絶?, 
+
+                  font=("Microsoft YaHei", 12, "bold")).pack(pady=10)
+
+
+
+        # X锟斤拷Uv_R锟紻i0
+
+        list_frame = ttk.Frame(self)
+
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+
+
+        canvas = tk.Canvas(list_frame, highlightthickness=0)
+
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=canvas.yview)
+
+        scrollable_frame = ttk.Frame(canvas)
+
+
+
+        scrollable_frame.bind("<Configure>",
+
+                               lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+
+
+        # 葥锟絫nJZ3l锟絬
+b~u
+
+        def _bind_mousewheel(event):
+
+            canvas.bind_all("<MouseWheel>",
+
+                                  lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
+
+
+        def _unbind_mousewheel(event):
+
+            canvas.unbind_all("<MouseWheel>")
+
+
+
+        canvas.bind("<Enter>", _bind_mousewheel)
+
+        canvas.bind("<Leave>", _unbind_mousewheel)
+
+
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+
+
+        if not self.history:
+
+            ttk.Label(scrollable_frame, text="茡锟絇锟絟\m)["k锟絫g锟絵...", font=("Microsoft YaHei", 10), foreground="gray").pack(pady=20)
+
+        else:
+
+            for entry in self.history:
+
+                self._create_history_card(scrollable_frame, entry)
+
+
+
+        # O锟斤拷b锟絟锟斤拷Y3c
+
+        ttk.Button(self, text="O锟斤拷b锟絟", command=self.destroy).pack(pady=10)
+
+
+
+    def _create_history_card(self, parent, entry):
+
+        """R锟斤拷mX锟斤拷Uv_锟絫g锟絵W锟�锟斤拷X"""
+
+        card = ttk.Frame(parent, relief="solid", borderwidth=1)
+
+        card.pack(fill=tk.X, padx=5, pady=5)
+
+
+
+        # 蛽锟絍}锟�t?        header = ttk.Frame(card)
+
+        header.pack(fill=tk.X, padx=5, pady=2)
+
+        
+
+        try:
+
+            ts = datetime.fromisoformat(entry.get("timestamp", ""))
+
+            time_str = ts.strftime("%Y-%m-%d %H:%M")
+
+        except:
+
+            time_str = entry.get("timestamp", "")
+
+
+
+        ttk.Label(header, text=entry.get("title", "葥F锟絘q\m)["k"), font=("Microsoft YaHei", 10, "bold")).pack(side=tk.LEFT)
+
+        ttk.Label(header, text=time_str, font=("Microsoft YaHei", 8), foreground="gray").pack(side=tk.RIGHT)
+
+
+
+        # P锟絤T锟斤拷
+
+        content = ttk.Frame(card)
+
+        content.pack(fill=tk.X, padx=10, pady=2)
+
+        
+
+        ttk.Label(content, text=f"cm锟絩锟絢锟斤拷
+Y锟絑: {entry.get('choice_text', '')}", font=("Microsoft YaHei", 9), foreground="#555").pack(anchor=tk.W)
+
+        
+
+        outcome = entry.get("outcome_text", "")
+
+        # Truncate if too long
+
+        if len(outcome) > 50:
+
+            outcome = outcome[:50] + "..."
+
+            
+
+        ttk.Label(content, text=f"锟絛Ip: {outcome}", font=("Microsoft YaHei", 9), wraplength=400).pack(anchor=tk.W)

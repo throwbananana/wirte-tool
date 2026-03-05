@@ -1,0 +1,58 @@
+2026-01-17 15:51:21,410 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-17 15:51:21,412 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-01-17 15:51:26,818 ERROR Import failed
+Traceback (most recent call last):
+  File "C:\Users\123\Downloads\writer tool - 1.02\start_assistant_event_editor.py", line 57, in main
+    from writer_app.ui.floating_assistant.event_config_editor import run_editor
+  File "C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config_editor.py", line 22, in <module>
+    from .event_config import (
+    ...<4 lines>...
+    )
+ImportError: cannot import name 'DEFAULT_EVENT_CONFIG' from 'writer_app.ui.floating_assistant.event_config' (C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config.py)
+2026-01-17 15:51:38,817 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-17 15:51:38,819 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-01-17 15:51:40,740 ERROR Import failed
+Traceback (most recent call last):
+  File "C:\Users\123\Downloads\writer tool - 1.02\start_assistant_event_editor.py", line 57, in main
+    from writer_app.ui.floating_assistant.event_config_editor import run_editor
+  File "C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config_editor.py", line 22, in <module>
+    from .event_config import (
+    ...<4 lines>...
+    )
+ImportError: cannot import name 'DEFAULT_EVENT_CONFIG' from 'writer_app.ui.floating_assistant.event_config' (C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config.py)
+2026-01-23 20:16:41,176 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-23 20:16:41,176 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-01-23 20:16:46,281 ERROR Import failed
+Traceback (most recent call last):
+  File "C:\Users\123\Downloads\writer tool - 1.02\start_assistant_event_editor.py", line 57, in main
+    from writer_app.ui.floating_assistant.event_config_editor import run_editor
+  File "C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config_editor.py", line 22, in <module>
+    from .event_config import (
+    ...<4 lines>...
+    )
+ImportError: cannot import name 'DEFAULT_EVENT_CONFIG' from 'writer_app.ui.floating_assistant.event_config' (C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config.py)
+2026-01-23 20:17:28,447 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-23 20:17:28,448 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-01-23 20:17:38,581 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-23 20:17:38,582 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-01-23 20:21:25,907 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-23 20:21:25,907 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-01-23 20:23:10,415 ERROR Run failed
+Traceback (most recent call last):
+  File "C:\Users\123\Downloads\writer tool - 1.02\start_assistant_event_editor.py", line 65, in main
+    run_editor()
+    ~~~~~~~~~~^^
+  File "C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config_editor.py", line 523, in run_editor
+    """Entry point for the editor."""
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config_editor.py", line 115, in __init__
+    self._setup_menu()
+    ~~~~~~~~~~~~~~~~^^
+  File "C:\Users\123\Downloads\writer tool - 1.02\writer_app\ui\floating_assistant\event_config_editor.py", line 193, in _setup_status_bar
+    status_frame,
+    
+AttributeError: 'str' object has no attribute 'name'
+2026-01-23 20:23:19,061 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-01-23 20:23:19,061 INFO Loaded font: FluentSystemIcons-Filled.ttf
+2026-02-03 19:32:07,048 INFO Loaded font: FluentSystemIcons-Regular.ttf
+2026-02-03 19:32:07,051 INFO Loaded font: FluentSystemIcons-Filled.ttf

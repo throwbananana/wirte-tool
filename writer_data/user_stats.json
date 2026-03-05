@@ -1,0 +1,21 @@
+{
+    "level": 1,
+    "xp": 0,
+    "points": 0,
+    "total_words_tracked": 0,
+    "pomodoros_completed": 0,
+    "submissions_made": 0,
+    "highest_submission_score": 0,
+    "history": [],
+    "achievements": [],
+    "daily_activity": {},
+    "focus_sessions": 1,
+    "focus_time_minutes": 1,
+    "zen_time_minutes": 0,
+    "longest_focus_minutes": 1,
+    "focus_streak_days": 1,
+    "last_focus_date": "2026-01-02",
+    "daily_focus": {
+        "2026-01-02": 1
+    }
+}

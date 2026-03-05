@@ -1,0 +1,20 @@
+{
+    "sayaka": {
+        "name": "坂本纱夜香",
+        "role": "Best Friend",
+        "description": "助手的同班好友，性格开朗直率，经常神助攻。",
+        "color": "#FFD700"
+    },
+    "ren": {
+        "name": "桐生 莲",
+        "role": "Rival",
+        "description": "文学部部长，性格严谨高傲，视助手为竞争对手。",
+        "color": "#9370DB"
+    },
+    "sensei": {
+        "name": "南 老师",
+        "role": "Mentor",
+        "description": "温柔的文学老师，经常给助手人生建议。",
+        "color": "#20B2AA"
+    }
+}

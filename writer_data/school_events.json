@@ -1,0 +1,1771 @@
+[
+    {
+        "id": "library_encounter",
+        "title": "图书馆偶遇",
+        "description": "午后静谧的图书馆里，金色的阳光透过窗帘洒在书架间。\n你在角落里发现助手正捧着一本厚厚的文学书，神情专注，偶尔轻轻蹙眉，偶尔又露出恍然大悟的微笑。",
+        "choices": [
+            {
+                "text": "悄悄坐到旁边陪读",
+                "outcome_text": "你轻手轻脚地在她身旁坐下，拿出自己的书。\n她察觉到了你的存在，转头看见是你，眼中闪过一丝惊喜。\n她没有说话，只是把椅子往你这边挪了挪，两人在书香中度过了宁静的时光。",
+                "affection_change": 4,
+                "mood_change": 3
+            },
+            {
+                "text": "拍拍肩膀吓她一跳",
+                "outcome_text": "你坏心眼地拍了拍她的肩膀。\n「呀！！」她惊呼一声，手中的书差点掉落，惹来图书管理员严厉的目光。\n「前、前辈！真是的...吓死我了！」她鼓起脸颊，虽然在生气，但耳朵却红红的。",
+                "affection_change": 2,
+                "mood_change": -2
+            },
+            {
+                "text": "不打扰她，悄悄离开",
+                "outcome_text": "看着她专注的样子，你不忍心打扰，在远处默默注视了一会儿后便离开了。\n这种守护的感觉，似乎也不错。",
+                "affection_change": 0,
+                "mood_change": 0
+            }
+        ],
+        "weight": 12
+    },
+    {
+        "id": "rooftop_lunch",
+        "title": "天台午餐时光",
+        "description": "午休的铃声响起，你来到约定俗成的秘密基地——教学楼天台。\n助手早已等候多时，身旁的便当盒散发着诱人的香气。\n「前辈！这里这里！今天的风很舒服呢~",
+        "choices": [
+            {
+                "text": "交换便当配菜",
+                "outcome_text": "「诶？前辈想尝尝这个玉子烧吗？那我也要前辈的炸鸡块！」\n你们像小孩子一样交换着菜肴。\n「唔...前辈的这个...真的很好吃呢！」她露出了幸福的笑容。",
+                "affection_change": 5,
+                "mood_change": 5,
+                "unlock_achievement": "shared_lunch"
+            },
+            {
+                "text": "聊聊最近的小说构思",
+                "outcome_text": "「原来如此...把主角设定成反派吗？很有趣的想法！」\n你们一边吃饭一边热烈地讨论着剧情，直到上课铃声响起才意犹未尽地收拾餐具。",
+                "affection_change": 4,
+                "mood_change": 4
+            },
+            {
+                "text": "默默享受微风和美食",
+                "outcome_text": "两人并没有过多的交谈，只是静静地吃着午饭，感受着微风拂过脸颊。\n这种无需言语的默契，让你们的心靠得更近了。",
+                "affection_change": 3,
+                "mood_change": 2
+            }
+        ],
+        "min_affection": 20,
+        "weight": 10
+    },
+    {
+        "id": "rainy_day_drama",
+        "title": "突如其来的暴雨",
+        "description": "放学时刻，天空突然被乌云笼罩，倾盆大雨瞬间落下。\n你刚走到玄关，就看到助手正望着外面的雨幕发愁，她似乎忘记带伞了。\n在这嘈杂的雨声中，她的背影显得有些单薄。",
+        "choices": [
+            {
+                "text": "共撑一把伞",
+                "outcome_text": "你撑开伞，自然地将她揽入伞下。\n「谢、谢谢前辈...」\n雨点敲打着伞面，狭小的空间里充满了暧昧的气息。\n为了不让她淋湿，你悄悄将伞向她倾斜，虽然半边肩膀湿透了，但看到她微红的脸庞，一切都值得。",
+                "affection_change": 8,
+                "mood_change": 6,
+                "required_affection": 50
+            },
+            {
+                "text": "把伞借给她，自己跑回去",
+                "outcome_text": "你二话不说把伞塞到她手里，转身冲进雨幕。\n「前辈？！等一下！...笨蛋...」\n虽然淋成了落汤鸡，但第二天她在桌上放了一盒感冒药和一张写着「谢谢」的便签。",
+                "affection_change": 6,
+                "mood_change": 3
+            },
+            {
+                "text": "提议等雨停再走",
+                "outcome_text": "「那就再待一会儿吧。」\n你们坐在玄关的长椅上，看着雨滴落下，聊着漫无边际的话题。\n这场雨，似乎也没有那么讨厌了。",
+                "affection_change": 3,
+                "mood_change": 2
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "lit_club_anthology",
+        "title": "文学部：合集企划",
+        "description": "文学部的活动室里，大家正围坐在一起讨论学园祭的社刊主题。\n部长提议：「这次我们要不要挑战『悬疑』主题？」\n助手似乎有些犹豫，转头看向你，等待你的意见。",
+        "choices": [
+            {
+                "text": "支持悬疑主题",
+                "outcome_text": "「我也觉得悬疑很有挑战性！」你投了赞成票。\n助手受到你的鼓舞，也点了点头：「那...我也想尝试写写看侦探故事！」\n她看起来对接下来的挑战充满了期待。",
+                "affection_change": 3,
+                "mood_change": 4
+            },
+            {
+                "text": "提议恋爱主题",
+                "outcome_text": "「难得的学园祭，还是恋爱故事比较受欢迎吧？」\n助手立刻两眼放光：「对吧对吧！我也想写甜甜的故事！」\n看来比起悬疑，她更擅长捕捉细腻的情感呢。",
+                "affection_change": 4,
+                "mood_change": 5
+            },
+            {
+                "text": "保持中立",
+                "outcome_text": "你表示听从大家的安排。\n最终讨论决定采用自由主题，助手虽然松了口气，但似乎有点遗憾没能听到你的具体建议。",
+                "affection_change": 1,
+                "mood_change": 0
+            }
+        ],
+        "weight": 10
+    },
+    {
+        "id": "lit_club_sprint",
+        "title": "文学部：拼字大赛",
+        "description": "今天的社团活动是「一小时限时写作挑战」！\n黑板上写着今日关键词：『黄昏』。\n「前辈，我们来比比谁写得更有感觉吧！」助手握着笔，向你发起了挑战。",
+        "choices": [
+            {
+                "text": "全力以赴，绝不放水",
+                "outcome_text": "你火力全开，笔走龙蛇，构思精妙的短篇让全员惊叹。\n助手读完你的文章，眼中闪烁着崇拜的光芒：「不愧是前辈...我果然还差得远呢。但我不会认输的！」",
+                "affection_change": 5,
+                "mood_change": 3,
+                "required_affection": 30
+            },
+            {
+                "text": "专注于描写两人的互动",
+                "outcome_text": "你写了一个关于黄昏下两人并肩回家的温馨故事，其中的细节暗示了你们的关系。\n助手读着读着，脸渐渐红了：「这、这个情节...怎么感觉有点熟悉...」",
+                "affection_change": 6,
+                "mood_change": 6,
+                "required_affection": 60
+            },
+            {
+                "text": "稍微让让她",
+                "outcome_text": "你故意写得比较平淡。助手赢得了小奖品，开心得像个孩子。\n虽然她后来似乎察觉到了你的用意，偷偷对你做了个鬼脸。",
+                "affection_change": 3,
+                "mood_change": 5
+            }
+        ],
+        "weight": 10
+    },
+    {
+        "id": "lit_club_poetry",
+        "title": "文学部：诗歌朗诵",
+        "description": "社团活动结束前，部长提议每人分享一首自己喜欢的诗。\n轮到助手时，她显得非常紧张，手指紧紧捏着衣角。\n「我、我要读的是...",
+        "choices": [
+            {
+                "text": "用眼神鼓励她",
+                "outcome_text": "你温柔地注视着她，微微点头。\n她深吸一口气，声音渐渐平稳，朗读了一首关于初恋的短诗。\n读完后，她如释重负地看向你，露出了灿烂的笑容。",
+                "affection_change": 4,
+                "mood_change": 4
+            },
+            {
+                "text": "主动替她解围",
+                "outcome_text": "「我先来吧！」你站起来，朗诵了一首激情澎湃的诗歌，活跃了气氛。\n虽然帮她解了围，但她似乎有点失落：「其实...我也准备好了的...",
+                "affection_change": 2,
+                "mood_change": -1
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "strict_librarian",
+        "title": "严厉的图书管理员",
+        "description": "因为讨论剧情稍微激动了一点，那位以严厉著称的图书管理员推着眼镜走了过来。\n「图书馆内请保持安静！」\n她严厉的目光让助手缩了缩脖子，像只受惊的小兔子。",
+        "choices": [
+            {
+                "text": "主动承担责任",
+                "outcome_text": "「抱歉，是我太激动了。」你挡在助手面前道歉。\n管理员推了推眼镜离开了。助手扯了扯你的衣袖：「前辈好帅气...谢谢。",
+                "affection_change": 5,
+                "mood_change": 3
+            },
+            {
+                "text": "一起乖乖道歉",
+                "outcome_text": "你们像做错事的孩子一样低头认错。\n管理员走后，你们对视一眼，忍不住偷偷笑了起来。\n这也是一种特别的回忆呢。",
+                "affection_change": 3,
+                "mood_change": 2
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "popular_student",
+        "title": "现充的搭讪",
+        "description": "你在走廊等助手时，看到班上那位人气很高的男生正在和她搭话。\n「周末有空吗？要不要一起去卡拉OK？」\n助手看起来有些困扰，正四处张望寻找救援。",
+        "choices": [
+            {
+                "text": "直接走过去宣示主权",
+                "outcome_text": "你大步走过去，自然地牵起她的手：「抱歉，她周末要陪我采风。」\n男生识趣地离开了。助手的脸红得像苹果：「前、前辈...牵手...太突然了...",
+                "affection_change": 8,
+                "mood_change": 7,
+                "required_affection": 80
+            },
+            {
+                "text": "以社团活动为由叫走她",
+                "outcome_text": "「文学部要开会了，快点。」\n「啊！好的！」助手如获大赦，连忙跟上你的脚步。\n「呼...得救了。果然还是和前辈在一起最轻松。」",
+                "affection_change": 4,
+                "mood_change": 4
+            },
+            {
+                "text": "静观其变",
+                "outcome_text": "你决定看看她怎么处理。\n只见她礼貌但坚定地拒绝了：「抱歉，我要等前辈一起回家。」\n听到这话，你心里暖暖的。",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 6
+    },
+    {
+        "id": "teacher_request",
+        "title": "老师的委托",
+        "description": "走廊上，抱着一大摞作业本的语文老师叫住了你们。\n「哎呀，正好。能不能帮我搬到办公室去？」",
+        "choices": [
+            {
+                "text": "接过所有作业本",
+                "outcome_text": "「这种体力活交给我吧。」你接过了所有的本子。\n助手在一旁崇拜地看着你，还不时帮你擦汗。\n到了办公室，老师奖励了你们两张电影票！",
+                "affection_change": 6,
+                "mood_change": 5
+            },
+            {
+                "text": "两人分工合作",
+                "outcome_text": "你们一人抱一半，并肩走在走廊上。\n虽然只是简单的搬运工作，但只要和她在一起，似乎也变得有趣起来。",
+                "affection_change": 3,
+                "mood_change": 3
+            },
+            {
+                "text": "假装没听见溜走",
+                "outcome_text": "你拉着助手飞快地跑掉了。\n「前辈！这样不好吧...哈哈...」\n虽然有点愧疚，但这种共犯的感觉意外地刺激。",
+                "affection_change": 2,
+                "mood_change": 4
+            }
+        ],
+        "weight": 7
+    },
+    {
+        "id": "transfer_student_ask",
+        "title": "转校生的问路",
+        "description": "一位刚转来的男生正拿着地图向助手问路。\n「那个...请问图书馆怎么走？」\n他靠得很近，助手似乎有点害羞，正不知所措地比划着。",
+        "choices": [
+            {
+                "text": "大方地走过去帮忙",
+                "outcome_text": "「我带你去吧。」你自然地站在两人中间。\n男生感激地道谢后离开了。助手偷偷松了口气：「呼...他气场好强...还好前辈来了。」",
+                "affection_change": 5,
+                "mood_change": 3
+            },
+            {
+                "text": "在远处观察",
+                "outcome_text": "你看着助手努力地指路。\n虽然费了一番功夫，但她还是成功帮到了对方。\n「前辈！我做到了！」她发现你后，开心地跑来求表扬。",
+                "affection_change": 3,
+                "mood_change": 5
+            },
+            {
+                "text": "假装吃醋地打断",
+                "outcome_text": "你走过去揽住助手的肩膀：「聊什么呢这么开心？」\n男生吓了一跳赶紧溜了。助手脸红红的：「前、前辈...那是新同学啦...不过...嘻嘻。」",
+                "affection_change": 6,
+                "mood_change": 4,
+                "required_affection": 60
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "backyard_cat",
+        "title": "后院的流浪猫",
+        "description": "学校后院的草丛里传来「喵~」的一声。\n助手正蹲在地上，试图用手中的火腿肠引诱一只橘色的小猫。\n「前辈快看！它好可爱...但是好像很怕人。」",
+        "choices": [
+            {
+                "text": "一起蹲下来喂猫",
+                "outcome_text": "你们并肩蹲着，耐心地等待。\n终于，小猫试探着吃掉了火腿肠，还蹭了蹭助手的手指。\n「哇...它喜欢我们！」她惊喜地握住你的手，掌心温暖。",
+                "affection_change": 5,
+                "mood_change": 6,
+                "unlock_achievement": "cat_friend"
+            },
+            {
+                "text": "模仿猫叫吸引它",
+                "outcome_text": "「喵~」你学了一声猫叫，意外地像。\n小猫歪着头看了看你，助手则忍不住笑出了声：「噗...前辈好像啊！太可爱了！」",
+                "affection_change": 4,
+                "mood_change": 5
+            },
+            {
+                "text": "站在一旁守护",
+                "outcome_text": "你站在风口帮她们挡风。\n看着她和猫咪互动的温馨画面，你觉得这就是最美好的风景。",
+                "affection_change": 3,
+                "mood_change": 3
+            }
+        ],
+        "weight": 10
+    },
+    {
+        "id": "cafeteria_bonus",
+        "title": "食堂阿姨的馈赠",
+        "description": "「哎呀，这不是经常一起来的小情侣吗？」\n热情的食堂阿姨突然叫住了你们，勺子里满满当当的肉。\n「今天剩下的炸猪排，多给你们一块！要好好相处哦！」",
+        "choices": [
+            {
+                "text": "大方承认并道谢",
+                "outcome_text": "「谢谢阿姨！我们会好好相处的！」\n你笑着接过了盘子。助手羞得满脸通红，却也没有反驳，只是默默地把猪排分了一半给你。",
+                "affection_change": 6,
+                "mood_change": 5,
+                "required_affection": 50
+            },
+            {
+                "text": "解释只是社团前后辈",
+                "outcome_text": "「阿姨你误会了...」\n「哎哟害羞什么！懂的懂的！」阿姨完全没听进去。\n你们端着满满的盘子面面相觑，最后相视一笑。",
+                "affection_change": 3,
+                "mood_change": 4
+            },
+            {
+                "text": "把多余的份给助手",
+                "outcome_text": "「她在长身体，给她吧。」\n助手感动地看着你，然后...一口气吃光了。\n「前辈真好！嗝~」",
+                "affection_change": 5,
+                "mood_change": 6
+            }
+        ],
+        "weight": 7
+    },
+    {
+        "id": "ending_debate",
+        "title": "文学部：结局的哲学",
+        "description": "活动室里气氛热烈，大家正在争论小说的结局设计。\n助手抱着笔记本，眉头紧锁：「悲剧虽然深刻，但大团圆才能给人力量吧？\n可是...强行大团圆又很假...前辈，你觉得呢？」",
+        "choices": [
+            {
+                "text": "支持悲剧美学",
+                "outcome_text": "「悲剧是将美好的东西毁灭给人看。」你引用了鲁迅的名言。\n助手若有所思：「深刻的遗憾确实更让人铭记...我试着写写看！」\n她似乎对文学的理解加深了。",
+                "affection_change": 4,
+                "mood_change": 2
+            },
+            {
+                "text": "坚持大团圆结局",
+                "outcome_text": "「生活已经很辛苦了，小说里就让大家幸福吧。」\n助手用力点头，眼中闪着光：「嗯！我也想写出能温暖人心的故事！\n谢谢前辈的支持！」",
+                "affection_change": 5,
+                "mood_change": 5
+            },
+            {
+                "text": "提议开放式结局",
+                "outcome_text": "「留白才是艺术，让读者自己去想象。」\n助手眼睛一亮：「就像《盗梦空间》的陀螺吗？好高级！\n这个思路太棒了，前辈果然厉害！」",
+                "affection_change": 6,
+                "mood_change": 4,
+                "required_affection": 30
+            }
+        ],
+        "weight": 9
+    },
+    {
+        "id": "plot_hole_rescue",
+        "title": "文学部：逻辑黑洞",
+        "description": "助手正对着稿纸抓狂，头发都被揉乱了。\n「呜呜...主角被困在密室里，但是我完全想不到怎么让他合理地逃出来...\n机械降神会被读者骂的吧？」",
+        "choices": [
+            {
+                "text": "利用伏笔：之前的道具",
+                "outcome_text": "「记得第一章他捡到的那根铁丝吗？」你提醒道。\n「啊！契诃夫之枪！我完全忘了！」助手激动地抓住你的手，「前辈记忆力太好了！得救了！」",
+                "affection_change": 6,
+                "mood_change": 5,
+                "required_affection": 40
+            },
+            {
+                "text": "头脑风暴：设计新机关",
+                "outcome_text": "你们一起在黑板上画起了密室平面图，讨论各种可能性。\n虽然最后方案很离谱（挖地道），但过程非常开心。\n「虽然用不上，但感觉思路打开了呢！」",
+                "affection_change": 4,
+                "mood_change": 4
+            },
+            {
+                "text": "建议：把密室炸了",
+                "outcome_text": "「遇事不决，量子力学...或者C4炸药？」你开玩笑道。\n助手噗嗤一笑：「前辈真是的...不过，如果是动作片风格，好像也不错？」\n心情变好了。",
+                "affection_change": 3,
+                "mood_change": 6
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "scifi_challenge",
+        "title": "文学部：科幻挑战",
+        "description": "部长心血来潮：「下期主题是『赛博朋克』！」\n助手一脸茫然：「义体？仿生人？网络空间？\n我完全没接触过这类题材啊...前辈懂这个吗？」",
+        "choices": [
+            {
+                "text": "科普经典设定",
+                "outcome_text": "你从《神经漫游者》讲到《银翼杀手》，滔滔不绝。\n助手听得入迷，笔记记了满满一页：「高科技，低生活...好酷的概念！\n前辈懂得真多，像百科全书一样！」",
+                "affection_change": 6,
+                "mood_change": 4,
+                "unlock_achievement": "scifi_mentor"
+            },
+            {
+                "text": "推荐几部电影一起看",
+                "outcome_text": "「百闻不如一见，周末来我家看电影吧？」\n助手脸红了：「去、去前辈家...看电影...好的！」\n虽然重点似乎偏了，但她确实对科幻产生了兴趣。",
+                "affection_change": 8,
+                "mood_change": 6,
+                "required_affection": 70
+            },
+            {
+                "text": "鼓励写软科幻",
+                "outcome_text": "「不一定要硬核技术，侧重情感的人文科幻也很棒。」\n助手松了口气：「像《鲜花献给阿尔吉侬》那样吗？那我好像有信心了！\n谢谢前辈的指点！」",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "cat_meeting",
+        "title": "流浪猫：初遇 (连续事件1)",
+        "description": "草丛里有一双警惕的眼睛盯着你。是一只脏兮兮的小橘猫。\n它看起来很饿，但不敢靠近。",
+        "choices": [
+            {
+                "text": "留下一点面包",
+                "outcome_text": "你把面包放在地上，退后几步。\n小猫迅速叼起面包跑掉了。\n看来它记住了你的善意。",
+                "affection_change": 3,
+                "mood_change": 2
+            },
+            {
+                "text": "试图靠近",
+                "outcome_text": "你刚迈出一步，它就「哈」了一声跑没影了。\n看来不能操之过急。",
+                "affection_change": 0,
+                "mood_change": -1
+            }
+        ],
+        "weight": 10,
+        "repeatable": false
+    },
+    {
+        "id": "cat_feeding",
+        "title": "流浪猫：投喂 (连续事件2)",
+        "description": "那只小橘猫又出现了。这次它没有立刻跑开，而是期待地看着你。",
+        "choices": [
+            {
+                "text": "喂它火腿肠",
+                "outcome_text": "它开心地吃完了，还允许你摸了一下头。\n助手在一旁看着，露出了温柔的笑容。",
+                "affection_change": 4,
+                "mood_change": 4
+            },
+            {
+                "text": "陪它玩一会儿",
+                "outcome_text": "你用狗尾巴草逗它，它开心地扑腾着。\n虽然没吃的，但它似乎很享受陪伴。",
+                "affection_change": 3,
+                "mood_change": 3
+            }
+        ],
+        "weight": 8,
+        "repeatable": true,
+        "prerequisites": [
+            "cat_meeting"
+        ]
+    },
+    {
+        "id": "cat_adoption",
+        "title": "流浪猫：收养 (连续事件终)",
+        "description": "暴雨天，你在纸箱里发现了瑟瑟发抖的小橘猫。\n它看起来很虚弱。助手心疼得快哭了：「前辈，我们可以帮帮它吗？」",
+        "choices": [
+            {
+                "text": "带回家收养！",
+                "outcome_text": "「我会负责照顾它的！」\n你们一起把猫咪带回了家，给它洗澡、取名。\n从此，你们之间多了一个名为「橘子」的羁绊。",
+                "affection_change": 10,
+                "mood_change": 10,
+                "unlock_achievement": "cat_adopter"
+            },
+            {
+                "text": "送到宠物医院找领养",
+                "outcome_text": "你们把猫咪送到了医院。医生说它会康复的。\n虽然没能收养，但你们拯救了一条小生命。",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 5,
+        "repeatable": false,
+        "prerequisites": [
+            "cat_feeding"
+        ]
+    },
+    {
+        "id": "writer_slump_start",
+        "title": "创作瓶颈",
+        "description": "你盯着屏幕已经发呆了半小时，光标在空白文档上不停闪烁，仿佛在嘲笑你的无能。\n助手端着一杯热茶走过来，关切地看着你。\n「前辈，眉头皱得很紧哦...是卡文了吗？」",
+        "choices": [
+            {
+                "text": "叹气承认，想休息一下",
+                "outcome_text": "「果然是这样呢...那就强制休息！」\n她放下茶杯，拉起你的手。\n「走吧，我们去校园里散散步，换个心情！」",
+                "affection_change": 2,
+                "mood_change": 5,
+                "next_event_id": "writer_slump_walk"
+            },
+            {
+                "text": "逞强继续写",
+                "outcome_text": "「不行！前辈现在的状态效率太低了。」\n她强行把你的椅子转过来面对她。\n「如果不介意的话...可以跟我说说你的想法吗？也许我能帮上忙。」",
+                "affection_change": 3,
+                "mood_change": 2,
+                "next_event_id": "writer_slump_discuss"
+            }
+        ],
+        "weight": 15,
+        "repeatable": true
+    },
+    {
+        "id": "writer_slump_walk",
+        "title": "校园散步",
+        "description": "被助手拉到了操场上，微风拂面，操场上能听到远处社团活动的喧闹声。\n你的心情似乎稍微平静了一些。",
+        "choices": [
+            {
+                "text": "请她吃冰淇淋",
+                "outcome_text": "你们坐在看台上吃着便利店买来的冰淇淋。\n「好凉！好甜！」她眯起眼睛，嘴角沾了一点奶油。\n看着她的笑脸，你突然觉得之前的焦虑都烟消云散了。",
+                "affection_change": 5,
+                "mood_change": 10
+            },
+            {
+                "text": "在草地上躺下",
+                "outcome_text": "你直接躺在草地上看着蓝天。\n过了一会儿，视线中出现了她倒着的脸庞。\n「前辈...你看，那朵云像不像你小说里的那条龙？」\n灵感突然击中了你。",
+                "affection_change": 3,
+                "mood_change": 8
+            }
+        ],
+        "weight": 0,
+        "repeatable": true,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "writer_slump_discuss",
+        "title": "头脑风暴",
+        "description": "你开始向她讲述目前卡住的剧情段落。\n她听得很认真，时不时在笔记本上记录着什么。",
+        "choices": [
+            {
+                "text": "询问她的看法",
+                "outcome_text": "「我觉得...如果是那个角色的话，这时候应该不会逃跑吧？」\n她的一句话点醒了你。\n原来是你为了剧情强行扭曲了人设，难怪写不下去！",
+                "affection_change": 5,
+                "mood_change": 5,
+                "unlock_achievement": "brainstorm_master"
+            },
+            {
+                "text": "只是单纯的倾诉",
+                "outcome_text": "把心里的纠结说出来后，你感觉轻松多了。\n「只要前辈需要，我随时都是最好的听众哦。」她温柔地注视着你。",
+                "affection_change": 4,
+                "mood_change": 4
+            }
+        ],
+        "weight": 0,
+        "repeatable": true,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "festival_announce",
+        "title": "学园祭预告",
+        "description": "班会上宣布了下个月即将举办学园祭的消息。\n整个教室瞬间沸腾起来，大家都在讨论要办什么活动。\n助手转过头，眼睛亮晶晶地看着你。",
+        "choices": [
+            {
+                "text": "提议办女仆咖啡厅",
+                "outcome_text": "「诶？！女、女仆装吗...」\n她瞬间涨红了脸，想象了一下那个画面。\n「如果是前辈希望的话...我也不是不能穿...」声音越来越小。",
+                "affection_change": 5,
+                "mood_change": 5
+            },
+            {
+                "text": "提议办鬼屋",
+                "outcome_text": "「鬼屋！好刺激的感觉！」\n她兴奋地拍手。\n「我可以负责扮鬼吓人！或者...负责尖叫？」",
+                "affection_change": 3,
+                "mood_change": 5
+            },
+            {
+                "text": "没什么兴趣，想睡觉",
+                "outcome_text": "「前辈真是的！这可是青春啊青春！」\n她不满地戳了戳你的手臂。\n「不过...如果我们班真的办成了，前辈一定要来帮忙哦。」",
+                "affection_change": 1,
+                "mood_change": 0
+            }
+        ],
+        "weight": 8,
+        "repeatable": false
+    },
+    {
+        "id": "festival_prep",
+        "title": "学园祭准备",
+        "description": "放学后，教室里堆满了纸板和颜料。\n大家都在为了学园祭忙碌着。\n你看到助手正费力地搬着一箱道具，摇摇晃晃。",
+        "choices": [
+            {
+                "text": "立刻上去帮忙",
+                "outcome_text": "你接过她手中的箱子。\n「呼...得救了！谢谢前辈！」\n她擦了擦额头的汗水，递给你一瓶冰镇乌龙茶。\n「这是谢礼！我们要加油哦！」",
+                "affection_change": 4,
+                "mood_change": 3
+            },
+            {
+                "text": "在旁边偷懒指挥",
+                "outcome_text": "「前辈！不要光动嘴不动手啊！」\n她气呼呼地把一个画笔塞进你手里。\n「罚你把这块背景板涂满！涂不完不许回家！」\n结果你们两个一起画到了天黑。",
+                "affection_change": 3,
+                "mood_change": 4
+            }
+        ],
+        "weight": 10,
+        "prerequisites": [
+            "festival_announce"
+        ],
+        "repeatable": false
+    },
+    {
+        "id": "festival_day",
+        "title": "学园祭开幕！",
+        "description": "终于到了学园祭当天！\n校园里彩旗飘飘，到处都是热闹的摊位和游客。\n助手今天穿得格外可爱（或者是班级活动的服装）。\n「前辈！我们去哪里逛逛吧？」",
+        "choices": [
+            {
+                "text": "去鬼屋探险",
+                "outcome_text": "「好、好的...我不怕...」\n才进去五分钟，她就紧紧抓住了你的衣角。\n在这个黑暗狭窄的空间里，你们的距离无限拉近。",
+                "affection_change": 5,
+                "mood_change": -2,
+                "next_event_id": "festival_haunted_house"
+            },
+            {
+                "text": "去操场看表演",
+                "outcome_text": "舞台上乐队正在演出热血的动漫歌曲。\n你们挤在人群中，随着节奏挥舞着荧光棒。\n她开心的侧脸在灯光下闪闪发光。",
+                "affection_change": 4,
+                "mood_change": 8
+            },
+            {
+                "text": "只想在教室休息",
+                "outcome_text": "「真是拿前辈没办法...」\n她虽然嘴上抱怨，还是陪你在角落坐下了。\n「那我去买点章鱼烧回来，我们就在这里野餐吧。」",
+                "affection_change": 3,
+                "mood_change": 3
+            }
+        ],
+        "weight": 10,
+        "min_affection": 30,
+        "prerequisites": [
+            "festival_prep"
+        ],
+        "repeatable": false
+    },
+    {
+        "id": "festival_haunted_house",
+        "title": "鬼屋惊魂",
+        "description": "鬼屋里一片漆黑，突然一个僵尸模型弹了出来！\n「呀啊啊啊！」助手发出了短促的尖叫，整个人缩成一团。",
+        "choices": [
+            {
+                "text": "牵住她的手",
+                "outcome_text": "你在这个瞬间握住了她冰凉的手。\n「别怕，我在。」\n她颤抖了一下，然后反手紧紧扣住了你的手指。\n剩下的路程，你们的手再也没有松开过。",
+                "affection_change": 10,
+                "mood_change": 5,
+                "required_affection": 100,
+                "unlock_achievement": "festival_date"
+            },
+            {
+                "text": "大声嘲笑她",
+                "outcome_text": "「哈哈哈这都是假的啦！」\n「前、前辈最讨厌了！」\n她虽然生气，但为了不再被吓到，还是紧紧抓着你的袖子不放。",
+                "affection_change": 2,
+                "mood_change": -5
+            },
+            {
+                "text": "挡在她前面",
+                "outcome_text": "你走到了她前面，挡住了所有恐怖的视线。\n「...前辈的背影，意外地很可靠呢。」\n她在你身后小声说道。",
+                "affection_change": 6,
+                "mood_change": 2
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "late_night_work",
+        "title": "深夜加班",
+        "description": "时钟的指针已经悄悄划过了十二点。\n教室里只剩下你和助手两个人。\n安静得只剩下键盘敲击的声音和窗外的虫鸣。",
+        "choices": [
+            {
+                "text": "伸个懒腰，准备收工",
+                "outcome_text": "「辛苦啦前辈！」\n她像是有感应一样，立刻递过来一条温热的毛巾。\n「稍微擦擦脸吧？回去路上要小心哦。」",
+                "affection_change": 3,
+                "mood_change": 3
+            },
+            {
+                "text": "肚子饿了...",
+                "outcome_text": "「我就知道！」\n她变戏法似的从书包里拿出一个保温盒。\n「当当当——深夜特供关东煮！我们一人一半吧？」",
+                "affection_change": 5,
+                "mood_change": 8,
+                "next_event_id": "midnight_snack"
+            }
+        ],
+        "weight": 10,
+        "repeatable": true
+    },
+    {
+        "id": "midnight_snack",
+        "title": "深夜食堂",
+        "description": "热腾腾的关东煮驱散了深夜的寒意。\n你们并排坐在课桌上，看着窗外的月亮。",
+        "choices": [
+            {
+                "text": "把唯一的萝卜让给她",
+                "outcome_text": "「诶？前辈不吃吗？这是最好吃的！」\n她虽然推辞了一下，但吃的时候脸上洋溢着无比幸福的表情。\n「作为回报...这个福袋给你！」",
+                "affection_change": 6,
+                "mood_change": 5
+            },
+            {
+                "text": "抢走她的丸子",
+                "outcome_text": "「啊！那个是限定的！」\n你们在深夜的教室里像个孩子一样打闹起来。\n这种轻松的氛围，比任何提神饮料都管用。",
+                "affection_change": 4,
+                "mood_change": 6
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "mystery_book_find",
+        "title": "神秘的借书卡",
+        "description": "你在图书馆整理旧书时，偶然发现一本积灰的《福尔摩斯探案集》。\n借书卡上只有一个名字，而且借阅日期是...20年前？\n更奇怪的是，那个名字和助手很像。",
+        "choices": [
+            {
+                "text": "拿去问助手",
+                "outcome_text": "「诶？这个名字...确实很像我母亲的名字呢。」\n她惊讶地接过书。\n「不过母亲她...从来没提过她喜欢推理小说啊？」\n她似乎对这本书产生了浓厚的兴趣。",
+                "affection_change": 4,
+                "mood_change": 2,
+                "unlock_achievement": "detective_start"
+            },
+            {
+                "text": "默默放回去",
+                "outcome_text": "也许只是巧合吧。\n你把书放回了书架深处，但心里总觉得错过了一个故事。",
+                "affection_change": 0,
+                "mood_change": 0
+            }
+        ],
+        "weight": 5,
+        "repeatable": false
+    },
+    {
+        "id": "mystery_book_read",
+        "title": "书中的暗号",
+        "description": "几天后，助手神神秘秘地找到你。\n「前辈！那本书里...好像藏着什么东西！」\n她指着书页边缘若隐若现的铅笔痕迹。\n「这会不会是某种暗号？」",
+        "choices": [
+            {
+                "text": "和她一起解谜",
+                "outcome_text": "你们头碰头地研究了一整个午休。\n终于，你发现这些痕迹连起来是一张校园地图！\n「终点好像是...旧校舍的音乐教室？」\n她的眼里闪烁着探险的光芒。",
+                "affection_change": 6,
+                "mood_change": 5
+            },
+            {
+                "text": "觉得只是乱涂乱画",
+                "outcome_text": "「什么嘛，前辈真没劲。」\n她鼓着脸把书收了起来。\n「我自己去调查！」",
+                "affection_change": 1,
+                "mood_change": -2
+            }
+        ],
+        "weight": 8,
+        "prerequisites": [
+            "mystery_book_find"
+        ],
+        "repeatable": false
+    },
+    {
+        "id": "mystery_book_solve",
+        "title": "跨越时光的宝藏",
+        "description": "你们按照地图来到了旧音乐教室的地板下。\n在那里，你们发现了一个生锈的铁盒。\n打开后，里面是一张泛黄的照片和一封未寄出的信。",
+        "choices": [
+            {
+                "text": "让助手来读信",
+                "outcome_text": "信里写着：「致未来的我们。希望此时的你，已经找到了那个愿意陪你解谜的人。」\n助手读着读着，眼眶湿润了。\n「原来母亲年轻时...也有过这么浪漫的故事啊。」\n她抬起头，深深地看了你一眼。",
+                "affection_change": 10,
+                "mood_change": 10,
+                "unlock_achievement": "mystery_solved",
+                "required_affection": 80
+            },
+            {
+                "text": "只看照片",
+                "outcome_text": "照片上是两个穿着旧式校服的学生，笑容灿烂。\n虽然不知道他们是谁，但这种青春的感觉，似乎穿越时空传达给了你们。",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 8,
+        "prerequisites": [
+            "mystery_book_read"
+        ],
+        "repeatable": false
+    },
+    {
+        "id": "weekend_invite",
+        "title": "周末的邀约",
+        "description": "周五放学路上，助手一直欲言又止。\n终于，在路口要分开的时候，她鼓起勇气拉住了你的衣角。\n「那个...前辈！这周末有空吗？」",
+        "choices": [
+            {
+                "text": "去新开的水族馆吧",
+                "outcome_text": "「水族馆！我一直想去！」\n她的眼睛瞬间亮了起来。\n「那...周六上午九点，在车站见！不见不散！」\n说完她就红着脸跑掉了。",
+                "affection_change": 5,
+                "mood_change": 8,
+                "next_event_id": "date_aquarium"
+            },
+            {
+                "text": "去看那部热门电影",
+                "outcome_text": "「我也正想看那部呢！」\n她开心地比了个耶的手势。\n「听说结局很感人，我会多带点纸巾的！」",
+                "affection_change": 5,
+                "mood_change": 6,
+                "next_event_id": "date_movie"
+            },
+            {
+                "text": "这周末要赶稿...",
+                "outcome_text": "「啊...也是呢，前辈的小说比较重要。」\n她眼中的光芒黯淡了一些。\n「那...前辈加油！我在精神上支持你！」\n虽然很懂事，但背影看起来有点落寞。",
+                "affection_change": -2,
+                "mood_change": -5
+            }
+        ],
+        "weight": 10,
+        "min_affection": 60,
+        "repeatable": true
+    },
+    {
+        "id": "date_aquarium",
+        "title": "水族馆之约",
+        "description": "蓝色的水光映在她的脸上，显得格外梦幻。\n你们站在巨大的落地水槽前，看着鱼群游过。",
+        "choices": [
+            {
+                "text": "偷偷牵她的手",
+                "outcome_text": "借着昏暗的灯光，你的手背轻轻碰到了她的手。\n她僵硬了一下，但并没有躲开。\n慢慢地，她的手指滑入你的指缝，十指相扣。\n「前辈的手...好暖和...」",
+                "affection_change": 12,
+                "mood_change": 10,
+                "required_affection": 120,
+                "unlock_achievement": "sweet_date"
+            },
+            {
+                "text": "给她讲解鱼类知识",
+                "outcome_text": "你滔滔不绝地讲着这是什么鱼、那是什么鱼。\n她虽然听不太懂，但一直崇拜地看着你。\n「前辈真的什么都知道呢！」",
+                "affection_change": 6,
+                "mood_change": 5
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "date_movie",
+        "title": "电影散场后",
+        "description": "电影确实很感人，散场时她还在不停地擦眼泪。\n「呜呜...为什么男主最后要死掉啊...」",
+        "choices": [
+            {
+                "text": "递纸巾安慰她",
+                "outcome_text": "「谢谢前辈...」\n她不好意思地吸了吸鼻子。\n「如果是前辈写的故事，一定会给主角一个幸福的结局吧？」",
+                "affection_change": 5,
+                "mood_change": 4
+            },
+            {
+                "text": "带她去吃甜点",
+                "outcome_text": "「甜食是治愈悲伤的良药！」\n面对草莓巴菲，她瞬间破涕为笑。\n「只要有前辈和甜点在，我就复活了！」",
+                "affection_change": 7,
+                "mood_change": 8
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "sports_day_training",
+        "title": "运动会特训",
+        "description": "为了在即将到来的运动会借物赛跑中不丢脸，助手拉着你在放学后的操场特训。\n「前辈！跑起来！别偷懒！」\n她穿着运动服，马尾辫随着动作一甩一甩的。",
+        "choices": [
+            {
+                "text": "全力冲刺追上她",
+                "outcome_text": "你爆发出了惊人的毅力，不仅追上了她，还超过去半个身位。\n「哈...哈...前辈还挺厉害的嘛...」\n两人都气喘吁吁地躺在草坪上大笑。",
+                "affection_change": 5,
+                "mood_change": 5
+            },
+            {
+                "text": "假装扭到脚",
+                "outcome_text": "「痛痛痛...」你蹲了下来。\n「前辈？！没事吧？让我看看！」\n她一脸焦急地跑过来检查，发现你是在装病后气得锤了你一下。\n「笨蛋前辈！害我白担心了！」",
+                "affection_change": 3,
+                "mood_change": 2,
+                "next_event_id": "sports_day_injury"
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "sports_day_injury",
+        "title": "不仅是假装？",
+        "description": "虽然刚才是装的，但你站起来时真的感觉到脚踝一阵刺痛。\n看来是刚才动作太大真的扭到了。",
+        "choices": [
+            {
+                "text": "试图隐瞒",
+                "outcome_text": "「没、没事...走吧回家。」\n但你一瘸一拐的动作立刻出卖了你。\n她二话不说架起了你的胳膊。\n「逞强禁止！去保健室！」",
+                "affection_change": 4,
+                "mood_change": -2
+            },
+            {
+                "text": "乖乖接受搀扶",
+                "outcome_text": "在去保健室的路上，她一直紧紧抓着你的手臂。\n「下次...不许再开这种玩笑了。」\n她的声音闷闷的，听起来真的很内疚。",
+                "affection_change": 6,
+                "mood_change": 3
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "study_invite",
+        "title": "考前危机",
+        "description": "期末考试临近，助手拿着一张惨不忍睹的数学卷子找到了你。\n「呜...前辈...救救我...」\n看来如果不想办法，补考是在所难免了。",
+        "choices": [
+            {
+                "text": "在图书馆补习",
+                "outcome_text": "虽然图书馆氛围很好，但这孩子总是走神。\n「那边的云好像棉花糖...啊！对不起！我会专心的！」",
+                "affection_change": 3,
+                "mood_change": 2
+            },
+            {
+                "text": "去我家特训吧",
+                "outcome_text": "「诶？！去、去前辈家里吗？」\n她的脸瞬间红透了。\n「既、既然是为了学习...那就打扰了！」",
+                "affection_change": 8,
+                "mood_change": 10,
+                "required_affection": 80,
+                "next_event_id": "study_session_home"
+            }
+        ],
+        "weight": 10,
+        "repeatable": false
+    },
+    {
+        "id": "study_session_home",
+        "title": "家庭教师体验",
+        "description": "你的房间里。\n两个人隔着小矮桌面对面坐着，空气中弥漫着微妙的紧张感。\n除此之外，只有自动铅笔写字的沙沙声。",
+        "choices": [
+            {
+                "text": "严厉斯巴达式教学",
+                "outcome_text": "「这道题讲过三遍了！」\n在你的魔鬼训练下，她终于掌握了公式。\n「前辈...虽然很凶，但教得真的很好懂呢。」",
+                "affection_change": 5,
+                "mood_change": -5
+            },
+            {
+                "text": "温柔鼓励式教学",
+                "outcome_text": "「没错，就是这样，很聪明嘛。」\n被夸奖的她开心地晃着腿。\n不知不觉间，学习效率意外地高。",
+                "affection_change": 6,
+                "mood_change": 5,
+                "next_event_id": "study_break_nap"
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "study_break_nap",
+        "title": "午后的困意",
+        "description": "讲完最后一道大题，你松了一口气，转头却发现她趴在桌子上睡着了。\n阳光洒在她长长的睫毛上，呼吸均匀而安稳。",
+        "choices": [
+            {
+                "text": "给她披上毯子",
+                "outcome_text": "你轻轻把毯子盖在她身上。\n她在睡梦中蹭了蹭毯子，嘴角露出了一丝安心的微笑。\n「...前辈...喜欢...」\n是梦话吗？",
+                "affection_change": 10,
+                "mood_change": 5,
+                "unlock_achievement": "home_tutor"
+            },
+            {
+                "text": "趁机在她脸上画乌龟",
+                "outcome_text": "你拿起马克笔，坏笑着伸向她的脸。\n虽然很想这么做，但看着这毫无防备的睡颜，最后还是没忍心下手。",
+                "affection_change": 2,
+                "mood_change": 2
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "gaming_invite",
+        "title": "周末的游戏局",
+        "description": "「前辈！这个新出的双人游戏，陪我一起玩嘛！」\n助手举着两个游戏手柄，一脸期待地看着你。\n「听说通关很难，但我相信前辈的技术！」",
+        "choices": [
+            {
+                "text": "接受挑战",
+                "outcome_text": "「好耶！那就是我的最佳搭档了！」\n她熟练地把手柄塞给你，打开了电视。\n「准备好了吗？Start！」",
+                "affection_change": 5,
+                "mood_change": 5,
+                "next_event_id": "gaming_session"
+            },
+            {
+                "text": "我要写稿子...",
+                "outcome_text": "「啊...好吧...」\n她失望地垂下肩膀。\n「那我自己玩单人模式好了...」\n听到这种声音，你的良心隐隐作痛。",
+                "affection_change": -2,
+                "mood_change": -5
+            }
+        ],
+        "weight": 10,
+        "repeatable": true
+    },
+    {
+        "id": "gaming_session",
+        "title": "配合默契？",
+        "description": "游戏进入了最后的Boss战。\n「左边左边！小心火球！」\n「前辈救我！我要没血了！」\n局势非常焦灼。",
+        "choices": [
+            {
+                "text": "牺牲自己保护她",
+                "outcome_text": "你操纵的角色挡下了致命一击，倒在了血泊中。\n但这也为她争取到了输出时间。\n「前辈！！！我为你报仇！」\n随着Boss倒下，屏幕上显示出大大的VICTORY。",
+                "affection_change": 8,
+                "mood_change": 10,
+                "unlock_achievement": "game_partner"
+            },
+            {
+                "text": "卖队友保命",
+                "outcome_text": "你一个滑铲躲到了她身后。\n「诶？前、前辈？！」\nGAME OVER。\n「怎么这样！前辈大笨蛋！」她气得把抱枕扔了过来。",
+                "affection_change": -5,
+                "mood_change": -10
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "cherry_blossom_viewing",
+        "title": "樱花树下的约定",
+        "description": "春天的风卷起漫天樱花瓣。\n在放学后的坡道上，她突然停下脚步，转身看着你。\n粉色的花瓣落在她的发梢，美得像一幅画。",
+        "choices": [
+            {
+                "text": "帮她摘下花瓣",
+                "outcome_text": "你的手指轻轻拂过她的发丝。\n她有些慌乱地低下头，但没有躲开。\n「明年的这个时候...也能和前辈一起看樱花吗？」",
+                "affection_change": 10,
+                "mood_change": 8,
+                "required_affection": 150
+            },
+            {
+                "text": "感叹景色真美",
+                "outcome_text": "「是啊...真美呢。」\n她看着飞舞的花瓣，眼神有些迷离。\n「总觉得，春天是个适合开始新故事的季节呢。」",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 5,
+        "repeatable": false
+    },
+    {
+        "id": "lit_club_deadline",
+        "title": "文学部的危机",
+        "description": "放学后的社团教室一片混乱。\n「怎么办...文集明早就要送印了，可是这篇稿子还是有一堆语病...」\n作为文学部员的助手急得快哭出来了，桌上堆满了校对纸。",
+        "choices": [
+            {
+                "text": "展现专业作家的实力",
+                "outcome_text": "「交给我吧。」你拿起红笔，笔走龙蛇。\n不到半小时，所有的错别字和语病都被精准修正。\n「好、好厉害...这就是职业作家的速度吗...」她看呆了。",
+                "affection_change": 6,
+                "mood_change": 5,
+                "next_event_id": "lit_club_success"
+            },
+            {
+                "text": "帮她一起整理",
+                "outcome_text": "两个人分工合作，一直忙到夕阳西下。\n虽然很累，但看着整齐的稿件，成就感油然而生。",
+                "affection_change": 4,
+                "mood_change": 3
+            }
+        ],
+        "weight": 10,
+        "repeatable": true
+    },
+    {
+        "id": "lit_club_success",
+        "title": "文集出版",
+        "description": "几天后，印刷好的文集发到了每个人手里。\n她在后记里特别提到了你的名字。",
+        "choices": [
+            {
+                "text": "收藏这一本文集",
+                "outcome_text": "「嘿嘿，这是专门留给前辈的『特别版』哦！」\n她翻开扉页，上面写着一行娟秀的小字：\n『致我最尊敬的前辈，谢谢你守护了文学部。』",
+                "affection_change": 5,
+                "mood_change": 8,
+                "unlock_achievement": "lit_club_savior"
+            },
+            {
+                "text": "夸奖排版很好看",
+                "outcome_text": "「是吧是吧！排版我也花了很多心思呢！」\n被夸奖的她像只骄傲的小孔雀。",
+                "affection_change": 3,
+                "mood_change": 4
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "assistant_absent",
+        "title": "空荡荡的座位",
+        "description": "早自习的铃声响过很久了，那个熟悉的座位依然空着。\n平日里总是第一个甚至会给你带早餐的她，今天居然迟到了？\n不，也许是请假了。",
+        "choices": [
+            {
+                "text": "发消息询问情况",
+                "outcome_text": "过了很久才收到回复：\n『抱歉前辈...今天头好痛，起不来了...』\n文字看起来都很虚弱的样子。",
+                "affection_change": 2,
+                "mood_change": -2,
+                "next_event_id": "sick_visit_decision"
+            },
+            {
+                "text": "专心做自己的事",
+                "outcome_text": "虽然试图专心，但视线总是忍不住飘向那个空座位。\n总觉得心里空落落的。",
+                "affection_change": 0,
+                "mood_change": -1
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "sick_visit_decision",
+        "title": "放学后的抉择",
+        "description": "终于熬到了放学。\n看着手机里她发来的那个虚弱的表情包，你决定...？",
+        "choices": [
+            {
+                "text": "去她家探病",
+                "outcome_text": "你在便利店买了宝矿力、果冻和退热贴。\n凭着之前的记忆（或者问了班主任），你来到了她家门口。\n按响门铃的手，稍微有点紧张。",
+                "affection_change": 5,
+                "mood_change": 2,
+                "required_affection": 100,
+                "next_event_id": "sick_visit_home"
+            },
+            {
+                "text": "那是私闯民宅吧...",
+                "outcome_text": "犹豫再三，你还是只发了一条「好好休息」的消息。\n有时候，保持距离也是一种温柔吧。",
+                "affection_change": 1,
+                "mood_change": 0
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "sick_visit_home",
+        "title": "病弱的她",
+        "description": "门开了，穿着宽大睡衣的她扶着门框，脸烧得通红。\n「前、前辈？！你怎么来了...咳咳...」\n因为发烧，她的眼神湿漉漉的，比平时多了几分柔弱。",
+        "choices": [
+            {
+                "text": "强行把她按回床上",
+                "outcome_text": "「别说话，去躺着。」\n你展现出了不容置疑的强硬。\n给她换了退热贴，又煮了简单的白粥。\n她乖乖地缩在被子里，眼睛一眨不眨地看着你忙碌。",
+                "affection_change": 10,
+                "mood_change": 10,
+                "unlock_achievement": "caretaker"
+            },
+            {
+                "text": "把东西放下就走",
+                "outcome_text": "「不想把感冒传给前辈...」\n「所以我放下东西就走。快点好起来，没有你在学校很无聊。」\n听到这句话，她在门后轻轻地笑了。",
+                "affection_change": 6,
+                "mood_change": 5
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "cafeteria_war",
+        "title": "食堂大战争",
+        "description": "午休铃声就像是发令枪。\n全校学生都在向食堂冲刺，目标只有一个——\n每月限定一次的「幻之炒面面包」！\n「前辈！那个看起来很好吃！我们要去抢吗？」",
+        "choices": [
+            {
+                "text": "为了她，冲啊！",
+                "outcome_text": "你深吸一口气，化身为橄榄球运动员。\n在人海中左突右闪，终于杀出一条血路！\n手伸向了最后一个面包...",
+                "affection_change": 3,
+                "mood_change": 5,
+                "next_event_id": "cafeteria_result"
+            },
+            {
+                "text": "太危险了，放弃",
+                "outcome_text": "「也是呢...看起来会被踩扁的样子...」\n你们看着那团混战的人群，明智地选择了普通的拉面。",
+                "affection_change": 1,
+                "mood_change": 0
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "cafeteria_result",
+        "title": "战果确认",
+        "description": "你带着一身汗回到了座位上，手里紧紧攥着那个传说中的面包。",
+        "choices": [
+            {
+                "text": "一人一半",
+                "outcome_text": "「呜哇...这就是传说的味道吗！」\n其实味道很普通，但因为是辛苦抢来的，吃起来格外香。\n「下次换我帮前辈去抢！」",
+                "affection_change": 5,
+                "mood_change": 5
+            },
+            {
+                "text": "全都给她吃",
+                "outcome_text": "「诶？全都给我？可是前辈...」\n看着她大口吃面包满足的样子，你觉得这身汗没白流。\n就像投喂小动物一样有成就感。",
+                "affection_change": 6,
+                "mood_change": 6
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "gossip_encounter",
+        "title": "奇怪的流言",
+        "description": "最近走在走廊上，总感觉有人在背后指指点点。\n「看，就是那两个人...听说在交往...」\n「真的假的？好羡慕...」\n助手显然也听到了，她抱着书本，头低得快埋进胸口了。",
+        "choices": [
+            {
+                "text": "大方地向对方打招呼",
+                "outcome_text": "你若无其事地向那几个窃窃私语的同学微笑着打招呼。\n这种坦荡的态度反而让流言不攻自破（或者坐实了？）。\n助手抬起头看了你一眼，似乎松了一口气，又有点小失望？",
+                "affection_change": 4,
+                "mood_change": 2
+            },
+            {
+                "text": "趁机牵起她的手",
+                "outcome_text": "既然都被误会了，那就让误会更深一点吧。\n在众目睽睽之下，你拉起她的手腕快步走过。\n「前、前辈？！」\n虽然她在挣扎，但并没有真的甩开。",
+                "affection_change": 8,
+                "mood_change": 5,
+                "required_affection": 120
+            },
+            {
+                "text": "刻意保持距离",
+                "outcome_text": "你稍微往旁边挪了两步，拉开了距离。\n她注意到了你的动作，眼神黯淡了下去。\n接下来的路程，你们谁都没有说话。",
+                "affection_change": -5,
+                "mood_change": -5
+            }
+        ],
+        "weight": 8,
+        "min_affection": 50,
+        "repeatable": true
+    },
+    {
+        "id": "sayaka_setup",
+        "title": "好友的神助攻",
+        "description": "放学路上，助手的闺蜜坂本纱夜香突然拦住了你的去路。\n「喂，那个...这周末游乐园的票多出来了两张。」\n她眼神飘忽，演技非常拙劣。\n「我和男朋友去不了了，既然你和那孩子都很闲，不如...」",
+        "choices": [
+            {
+                "text": "感激地收下",
+                "outcome_text": "「谢啦！我会好好利用的！」\n纱夜香露出了计划通的笑容，给你比了个大拇指。\n「要是敢让她哭，我可饶不了你哦！」",
+                "affection_change": 5,
+                "mood_change": 5,
+                "npc_affection_change": {
+                    "sayaka": 5
+                },
+                "next_event_id": "weekend_invite"
+            },
+            {
+                "text": "怀疑这是陷阱",
+                "outcome_text": "「什么嘛！人家好心好意...真是个木头！」\n她气呼呼地把票塞回口袋走了。\n看来是错失良机了。",
+                "affection_change": 0,
+                "mood_change": 0,
+                "npc_affection_change": {
+                    "sayaka": -2
+                }
+            }
+        ],
+        "weight": 10,
+        "repeatable": true
+    },
+    {
+        "id": "ren_challenge",
+        "title": "部长的挑战状",
+        "description": "文学部活动室里气氛凝重。\n部长桐生莲双手抱胸，居高临下地看着助手。\n「这次的校刊征文，如果我们输了，废部！」\n助手被她的气势吓得瑟瑟发抖。",
+        "choices": [
+            {
+                "text": "挺身而出维护助手",
+                "outcome_text": "「如果你要比，我来做你的对手。」\n你挡在助手面前。\n桐生莲挑了挑眉，嘴角勾起一丝冷笑。\n「呵，有点意思。那就让我看看你的实力吧。」",
+                "affection_change": 8,
+                "mood_change": 5,
+                "npc_affection_change": {
+                    "ren": 2
+                },
+                "unlock_achievement": "rival_acknowledged"
+            },
+            {
+                "text": "赞同部长的严格",
+                "outcome_text": "「确实，最近大家有点松懈了。」\n桐生莲满意地点点头：「看来这里还是有明白人的。」\n助手委屈地看了你一眼，默默低下了头。",
+                "affection_change": -3,
+                "mood_change": -5,
+                "npc_affection_change": {
+                    "ren": 5
+                }
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "sensei_talk",
+        "title": "教师办公室的谈话",
+        "description": "被南老师叫到了办公室。\n她端着茶杯，透过眼镜片温柔地注视着你。\n「最近和那个孩子相处得怎么样？老师可是都看在眼里哦。」",
+        "choices": [
+            {
+                "text": "认真请教相处之道",
+                "outcome_text": "「呵呵，青春真好啊...」\n老师放下了茶杯，眼神变得深远。\n「最重要的是坦诚。不要等到错过了才后悔...就像老师当年一样。」\n总觉得听到了什么不得了的八卦。",
+                "affection_change": 3,
+                "mood_change": 3,
+                "npc_affection_change": {
+                    "sensei": 5
+                }
+            },
+            {
+                "text": "装傻充愣",
+                "outcome_text": "「哎呀，还在害羞吗？」\n老师笑着摇了摇头。\n「不过，那孩子看你的眼神是不一样的。别让她等太久哦。」",
+                "affection_change": 2,
+                "mood_change": 2,
+                "npc_affection_change": {
+                    "sensei": 2
+                }
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "lit_club_debate",
+        "title": "纯文学与轻小说的战争",
+        "description": "今天的社团活动室充满了火药味。\n部长桐生莲坚持「文学必须有深度」，而助手则认为「有趣才是正义」。\n两人争执不下，齐齐看向了你。\n「前辈/你 觉得呢？」",
+        "choices": [
+            {
+                "text": "支持桐生莲的深度论",
+                "outcome_text": "「看吧，我就说。」桐生莲得意地扬起下巴。\n助手鼓起了脸颊：「什么嘛，前辈这个老古董...」\n虽然赢得了部长的认可，但助手似乎有点不开心。",
+                "affection_change": 0,
+                "mood_change": -3,
+                "npc_affection_change": {
+                    "ren": 6
+                },
+                "trigger_narrative_id": "rivalry_support_ren"
+            },
+            {
+                "text": "支持助手的娱乐论",
+                "outcome_text": "「好耶！前辈最懂我了！」助手开心地击掌。\n桐生莲叹了口气：「没想到连你也...真是世风日下。」\n虽然被部长鄙视了，但守护了助手的笑容。",
+                "affection_change": 5,
+                "mood_change": 5,
+                "npc_affection_change": {
+                    "ren": -2
+                },
+                "trigger_narrative_id": "rivalry_support_assistant"
+            },
+            {
+                "text": "提出「雅俗共赏」的中庸之道",
+                "outcome_text": "你洋洋洒洒地发表了一番关于「深度与娱乐性共存」的理论。\n桐生莲推了推眼镜：「...哼，虽然狡猾，但不无道理。」\n助手也连连点头：「不愧是前辈，太狡猾了！」",
+                "affection_change": 3,
+                "mood_change": 3,
+                "npc_affection_change": {
+                    "ren": 3
+                }
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "sayaka_club_visit",
+        "title": "不速之客",
+        "description": "「呀吼~！还在写这种闷闷的东西吗？」\n伴随着巨大的开门声，坂本纱夜香闯进了安静的文学部。\n桐生莲手中的笔「咔嚓」一声断了。\n空气瞬间凝固。",
+        "choices": [
+            {
+                "text": "赶紧把纱夜香请出去",
+                "outcome_text": "「这里是神圣的文学部，闲人免进。」\n你把还在大呼小叫的纱夜香推了出去。\n桐生莲脸色稍微好转：「做得好。那种吵闹的家伙最讨厌了。」",
+                "affection_change": 0,
+                "mood_change": 0,
+                "npc_affection_change": {
+                    "ren": 5,
+                    "sayaka": -5
+                }
+            },
+            {
+                "text": "邀请她当「普通读者」",
+                "outcome_text": "「既然来了，不如帮忙看看这篇稿子？」\n纱夜香读完后直言不讳：「太长了！看不懂！这里好无聊！」\n虽然评价很毒舌，但桐生莲意外地在认真记笔记。\n「...普通人的视角，或许也有参考价值。」",
+                "affection_change": 3,
+                "mood_change": 4,
+                "npc_affection_change": {
+                    "ren": 2,
+                    "sayaka": 5
+                }
+            }
+        ],
+        "weight": 6,
+        "repeatable": true
+    },
+    {
+        "id": "lit_club_tea_party",
+        "title": "部长的红茶时间",
+        "description": "今天的桐生莲有些反常，带来了一套精致的茶具。\n「只是...家里寄来的茶叶太多了，帮我消耗一点。」\n她一边说着傲娇的台词，一边动作优雅地泡茶。\n茶香四溢。",
+        "choices": [
+            {
+                "text": "称赞红茶的香气",
+                "outcome_text": "「算、算你有眼光。这可是大吉岭的...」\n她脸红了一下，借着喝茶掩饰表情。\n「既然喜欢，下次...再给你泡。」",
+                "affection_change": 2,
+                "mood_change": 2,
+                "npc_affection_change": {
+                    "ren": 8
+                },
+                "unlock_achievement": "tea_time"
+            },
+            {
+                "text": "拿出零食分享",
+                "outcome_text": "「红茶就是要配粗点心！」\n你拿出了便利店的薯片。\n虽然桐生莲一脸嫌弃，但最后还是吃得津津有味。\n文学部难得充满了轻松的空气。",
+                "affection_change": 5,
+                "mood_change": 5,
+                "npc_affection_change": {
+                    "ren": 3
+                }
+            }
+        ],
+        "weight": 5,
+        "repeatable": true
+    },
+    {
+        "id": "script_disagreement",
+        "title": "剧情分歧：角色的命运",
+        "description": "「不行！绝对不行！」\n助手猛地拍了一下桌子，眼眶红红的。\n「为什么要让艾莉亚死掉？她那么努力...前辈明明给了她希望！」\n关于女二号的结局，你们产生了严重的分歧。",
+        "choices": [
+            {
+                "text": "坚持悲剧美学",
+                "outcome_text": "「这是为了剧情的张力，她的牺牲是必要的。」\n你试图理性分析，但助手捂住耳朵根本不听。\n「前辈是大笨蛋！冷血动物！」\n她抓起书包冲出了活动室。",
+                "affection_change": -5,
+                "mood_change": -10,
+                "next_event_id": "script_reconciliation"
+            },
+            {
+                "text": "妥协修改结局",
+                "outcome_text": "看着她难过的样子，你叹了口气。\n「好吧...那改成重伤昏迷？」\n她破涕为笑：「嗯！只要活着就有希望！」\n虽然剧情张力弱了点，但...算了。",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 10,
+        "repeatable": true
+    },
+    {
+        "id": "script_reconciliation",
+        "title": "冷战后的和解",
+        "description": "第二天，你们在走廊相遇了。\n尴尬的沉默持续了三秒。\n她低着头，手指搅在一起。",
+        "choices": [
+            {
+                "text": "主动道歉并递上新大纲",
+                "outcome_text": "「昨天是我态度太强硬了。这是我想的折中方案。」\n她接过稿子，看到你也做了让步，眼泪又下来了。\n「呜...其实我昨晚也反省了...剧情逻辑上确实前辈是对的...」",
+                "affection_change": 8,
+                "mood_change": 5,
+                "unlock_achievement": "creative_partner"
+            },
+            {
+                "text": "等她先开口",
+                "outcome_text": "「那、那个...昨天的奶茶钱...」\n她找了个蹩脚的借口搭话。\n虽然没有直接道歉，但这已经是她最大的让步了。\n既然如此，就借坡下驴吧。",
+                "affection_change": 3,
+                "mood_change": 2
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate"
+    },
+    {
+        "id": "collaborative_flow",
+        "title": "心流时刻",
+        "description": "放学后的电脑室。\n你们并肩坐着，共用一个键盘修改剧本。\n「这里...这句台词改短一点比较好？」\n「对！就像这样！」\n思维在这一刻完全同步，手指敲击键盘的声音如同二重奏。",
+        "choices": [
+            {
+                "text": "称赞她的灵感",
+                "outcome_text": "「刚才那个点子简直是神来之笔！」\n被专业作家夸奖，她开心得脸都亮了。\n「嘿嘿...都是被前辈带动的啦！」",
+                "affection_change": 6,
+                "mood_change": 6
+            },
+            {
+                "text": "顺势靠在她肩上",
+                "outcome_text": "写完最后一行字，你脱力地靠在了她肩膀上。\n「辛苦了...」\n她身体僵硬了一下，然后轻轻伸手摸了摸你的头。\n「前辈，做得好。」",
+                "affection_change": 8,
+                "mood_change": 8,
+                "required_affection": 150
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    },
+    {
+        "id": "lit_club_sketching",
+        "title": "文学部：户外采风",
+        "description": "为了寻找描写秋天的灵感，部长提议大家去学校后山采风。\n满地金黄的银杏叶铺成了地毯。\n助手正拿着笔记本，仰头观察一片飘落的叶子。",
+        "choices": [
+            {
+                "text": "悄悄把落叶放到她头上",
+                "outcome_text": "「哇！什么东西？」\n她摸到头顶的银杏叶，转头看到你恶作剧的笑容。\n「前辈！真是的...」\n她也抓起一把叶子向你撒来，两人在金色雨中追逐。",
+                "affection_change": 6,
+                "mood_change": 8,
+                "unlock_achievement": "autumn_memory"
+            },
+            {
+                "text": "和她一起观察",
+                "outcome_text": "「你看，叶脉的纹路像不像城市的地图？」\n你们肩并肩坐着，从一片叶子聊到了宏大的世界观。\n果然和她聊天总能迸发出新的灵感。",
+                "affection_change": 5,
+                "mood_change": 5
+            },
+            {
+                "text": "独自去远处寻找灵感",
+                "outcome_text": "你走到湖边独自思考。\n虽然收获了不少好句子，但回头看到她和别人聊得很开心的样子，\n心里稍微有点落寞。",
+                "affection_change": 0,
+                "mood_change": 2
+            }
+        ],
+        "weight": 8
+    },
+    {
+        "id": "art_club_collab",
+        "title": "社团联谊：插画委托",
+        "description": "为了给新刊配图，你们来到了隔壁的美术部。\n美术部的部长正对着画架发愁，看到助手后眼睛一亮。\n「这孩子的气质...正好是我需要的模特！」",
+        "choices": [
+            {
+                "text": "鼓励助手尝试",
+                "outcome_text": "「既然是为了新刊...那我试试！」\n助手有些害羞地摆好了姿势。\n看着她在画布上逐渐成型的美丽身影，你不禁看得入迷了。",
+                "affection_change": 5,
+                "mood_change": 4
+            },
+            {
+                "text": "因为不想她被别人画而拒绝",
+                "outcome_text": "「不行，她还要帮我校对。」\n你拉着她离开了美术部。\n助手看着你紧握的手，脸红红的：「前辈...是在吃醋吗？」",
+                "affection_change": 8,
+                "mood_change": 6,
+                "required_affection": 100
+            }
+        ],
+        "weight": 7
+    },
+    {
+        "id": "drama_club_help",
+        "title": "戏剧部的求救",
+        "description": "戏剧部的编剧突然病倒了，距离公演只剩三天。\n他们哭着求到了文学部：「无论如何请帮帮忙！只要改几句台词就好！」\n助手看着那本破破烂烂的剧本，有些动摇。",
+        "choices": [
+            {
+                "text": "接下这个委托",
+                "outcome_text": "「既然是前辈决定的...我们一起加油吧！」\n你们通宵达旦地修改剧本。\n公演当天，听到台下雷鸣般的掌声，她激动地握住了你的手。",
+                "affection_change": 6,
+                "mood_change": 8,
+                "unlock_achievement": "script_savior"
+            },
+            {
+                "text": "婉拒，专注本社活动",
+                "outcome_text": "「抱歉，我们这边也自顾不暇。」\n虽然有点残忍，但文学部的截稿日也近在眼前。\n专注也是一种美德。",
+                "affection_change": 2,
+                "mood_change": 0
+            }
+        ],
+        "weight": 6
+    },
+    {
+        "id": "club_room_locked",
+        "title": "密室危机？！",
+        "description": "就在你们整理完最后的社刊准备离开时，门外传来了「咔嚓」一声。\n门打不开了。\n看来是巡逻的保安大叔以为没人，顺手把门锁了。\n窗外天色已晚，活动室里只有你们两个人。",
+        "choices": [
+            {
+                "text": "惊慌失措地拍门",
+                "outcome_text": "「有人吗——！」\n喊了半天也没人答应。\n助手缩在角落里：「前辈...我们会不会困死在这里...」\n气氛变得恐怖起来了。",
+                "affection_change": -2,
+                "mood_change": -5
+            },
+            {
+                "text": "淡定地坐下聊天",
+                "outcome_text": "「既来之则安之，反正明天一早就开门了。」\n你点亮了台灯，拿出了私藏的零食。\n在这与世隔绝的小小空间里，你们聊了很多平时不会聊的真心话。",
+                "affection_change": 10,
+                "mood_change": 5,
+                "required_affection": 120,
+                "unlock_achievement": "secret_night"
+            },
+            {
+                "text": "尝试撬锁（物理）",
+                "outcome_text": "你拿出一根回形针，模仿电影里的样子捣鼓半天。\n「...放弃吧，还是给老师打电话吧。」\n助手一脸「我就知道」的表情看着你，但嘴角带着笑意。",
+                "affection_change": 4,
+                "mood_change": 3
+            }
+        ],
+        "weight": 5,
+        "repeatable": false
+    },
+    {
+        "id": "recruitment_drive",
+        "title": "新部员招募大作战",
+        "description": "春天到了，又是招新的季节。\n文学部的摊位前门可罗雀。\n「这样下去不行啊...」助手穿着社团的马甲，手里拿着厚厚一叠传单，一脸愁容。",
+        "choices": [
+            {
+                "text": "大声吆喝",
+                "outcome_text": "「走过路过不要错过！这里有美少女（指助手）和天才作家（指你）哦！」\n虽然很羞耻，但确实吸引了不少人。\n助手羞得躲在你身后，但还是努力地递出传单。",
+                "affection_change": 5,
+                "mood_change": 4
+            },
+            {
+                "text": "现场写诗送给路人",
+                "outcome_text": "你发挥特长，为每一个路过的同学即兴写诗。\n这一手绝活震惊了全场。\n「前辈好帅...」助手看着你的眼神里充满了星星。",
+                "affection_change": 6,
+                "mood_change": 6
+            },
+            {
+                "text": "佛系招新",
+                "outcome_text": "「姜太公钓鱼，愿者上钩。」\n你们两个坐在摊位后看书。\n结果...真的招到了一个同樣喜欢安静的新生！",
+                "affection_change": 3,
+                "mood_change": 3
+            }
+        ],
+        "weight": 10
+    },
+    {
+        "id": "block_start",
+        "title": "严重的卡文",
+        "description": "你的文档已经空白了三个小时。光标闪烁的频率仿佛在嘲笑你。\n助手担忧地看着你抓狂的样子。",
+        "choices": [
+            {
+                "text": "向她求助",
+                "outcome_text": "「那个...虽然我不专业，但我可以当听众！」\n她搬着椅子坐到了你旁边，拿出了笔记本。",
+                "affection_change": 3,
+                "mood_change": 2,
+                "next_event_id": "block_brainstorm"
+            },
+            {
+                "text": "出门转换心情",
+                "outcome_text": "「好主意！一直闷在屋里大脑会缺氧的。」\n她立刻跑去拿外套。\n「我们去哪里？咖啡店？还是公园？」",
+                "affection_change": 2,
+                "mood_change": 4,
+                "next_event_id": "block_outing"
+            }
+        ],
+        "weight": 12,
+        "repeatable": true
+    },
+    {
+        "id": "block_brainstorm",
+        "title": "头脑风暴会",
+        "description": "你向她倾诉了剧情的死结。\n她听得很认真，咬着笔杆思考着。",
+        "choices": [
+            {
+                "text": "采纳她天马行空的点子",
+                "outcome_text": "「如果主角这时候突然会飞呢？」\n虽然听起来很离谱，但...好像意外地能打破僵局？\n你试着写了一段，居然顺畅了！",
+                "affection_change": 5,
+                "mood_change": 5,
+                "next_event_id": "block_success"
+            },
+            {
+                "text": "反驳她的逻辑漏洞",
+                "outcome_text": "「不行，这不符合物理学...」\n你下意识地开始挑刺。\n她的眼神黯淡了下去：「对不起...我果然帮不上忙...」",
+                "affection_change": -2,
+                "mood_change": -3,
+                "next_event_id": "block_argument"
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "block_outing",
+        "title": "外出取材",
+        "description": "外面的空气很清新。",
+        "choices": [
+            {
+                "text": "去常去的咖啡店",
+                "outcome_text": "咖啡的香气让你放松下来。\n看着她在对面吃蛋糕的样子，你突然想到了一个绝妙的日常桥段。",
+                "affection_change": 4,
+                "mood_change": 5,
+                "next_event_id": "block_success"
+            },
+            {
+                "text": "去公园观察路人",
+                "outcome_text": "你们坐在长椅上猜测路人的身份。\n「那个人一定是间谍！」\n「那个是外星人！」\n虽然没写字，但想象力得到了极大的锻炼。",
+                "affection_change": 3,
+                "mood_change": 6,
+                "next_event_id": "block_success"
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "block_success",
+        "title": "灵感爆发",
+        "description": "回到书桌前，你的手指在键盘上飞舞。\n那种阻塞感完全消失了！",
+        "choices": [
+            {
+                "text": "一鼓作气写完",
+                "outcome_text": "「前辈好厉害...键盘都要冒烟了！」\n写完最后一行字，你长舒一口气。\n多亏了她，你找回了状态。",
+                "affection_change": 6,
+                "mood_change": 8,
+                "unlock_achievement": "flow_master"
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "block_argument",
+        "title": "尴尬的沉默",
+        "description": "因为刚才的争执，房间里的空气很凝重。\n她低头看着自己的脚尖，你也觉得自己话说重了。",
+        "choices": [
+            {
+                "text": "诚恳地道歉",
+                "outcome_text": "「刚才是我太急躁了，对不起。你的建议其实很有启发性。」\n她抬起头，眼眶红红的：「没关系...我也知道前辈是太着急了...」\n雨过天晴。",
+                "affection_change": 5,
+                "mood_change": 2
+            },
+            {
+                "text": "给她买赔罪布丁",
+                "outcome_text": "没有什么是一个布丁解决不了的，如果有，就两个。\n看着她吃布丁的样子，你知道原谅你了。",
+                "affection_change": 4,
+                "mood_change": 5
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": true
+    },
+    {
+        "id": "study_result",
+        "title": "成绩公布日",
+        "description": "考试成绩出来了。助手拿着成绩单向你跑来。\n「前辈！前辈！快看！」",
+        "choices": [
+            {
+                "text": "查看她的成绩",
+                "outcome_text": "「及格了！数学居然及格了！」\n虽然只是低空飞过，但对她来说是巨大的进步。\n「多亏了前辈的斯巴达特训！」",
+                "affection_change": 5,
+                "mood_change": 8,
+                "unlock_achievement": "study_success"
+            },
+            {
+                "text": "向她索要奖励",
+                "outcome_text": "「既然及格了，是不是该请老师吃饭？」\n「好！便利店的饭团随便挑！」\n真是个容易满足的孩子。",
+                "affection_change": 4,
+                "mood_change": 6
+            }
+        ],
+        "weight": 0,
+        "prerequisites": [
+            "study_session_home"
+        ],
+        "repeatable": false,
+        "type": "chain_conditional"
+    },
+    {
+        "id": "festival_afterparty",
+        "title": "学园祭：后夜祭",
+        "description": "喧闹的学园祭结束了，操场上燃起了篝火。\n据说在后夜祭的篝火旁跳舞的情侣会永远在一起。\n助手看着火光，脸被映得红红的。",
+        "choices": [
+            {
+                "text": "邀请她跳舞",
+                "outcome_text": "「诶？我也没关系吗？」\n你牵起她的手，在有些笨拙的舞步中，两人的心跳渐渐重合。",
+                "affection_change": 8,
+                "mood_change": 8,
+                "required_affection": 80,
+                "next_event_id": "festival_rooftop_confession"
+            },
+            {
+                "text": "就在远处看着",
+                "outcome_text": "「真漂亮啊...」\n虽然没有加入人群，但此刻的宁静也足够美好了。",
+                "affection_change": 3,
+                "mood_change": 3
+            }
+        ],
+        "weight": 0,
+        "prerequisites": [
+            "festival_day"
+        ],
+        "repeatable": false,
+        "type": "chain_conditional"
+    },
+    {
+        "id": "festival_rooftop_confession",
+        "title": "天台的星空",
+        "description": "跳完舞，你们为了躲避人群来到了天台。\n星空璀璨，楼下的欢呼声仿佛来自另一个世界。\n气氛刚好到了临界点。",
+        "choices": [
+            {
+                "text": "趁着气氛告白？",
+                "outcome_text": "话到嘴边，你看着她清澈的眼睛，最后变成了一句：\n「明年的学园祭，也要一起来哦。」\n她愣了一下，然后笑靥如花：「嗯！约定好了！」\n（虽然没有说出口，但心意已经相通了）",
+                "affection_change": 15,
+                "mood_change": 10,
+                "required_affection": 150,
+                "unlock_achievement": "starry_promise"
+            },
+            {
+                "text": "一起数星星",
+                "outcome_text": "在这宁静的夜晚，你们并肩数着星星。\n虽然什么都没说，但这就是最好的答案。",
+                "affection_change": 5,
+                "mood_change": 5
+            }
+        ],
+        "weight": 0,
+        "type": "chain_immediate",
+        "repeatable": false
+    },
+    {
+        "id": "mystery_novel_club",
+        "title": "推理小说同好会？",
+        "description": "助手正对着一本封面阴森的小说发呆。\n「这个作家的手法好独特...但是结局总觉得有点意难平。」",
+        "choices": [
+            {
+                "text": "我也看过，结局确实很微妙",
+                "outcome_text": "「是吧是吧！明明前面铺垫得那么好...」\n仿佛找到了知音，她拉着你吐槽了十分钟。\n「不过...也许作者有别的深意？」",
+                "affection_change": 5,
+                "mood_change": 3,
+                "trigger_narrative_id": "mystery_discussion"
+            },
+            {
+                "text": "没看过，借我看看？",
+                "outcome_text": "「给！一定要看哦！然后告诉我感想！」\n她郑重其事地把书交到了你手里。\n看来今晚有事做了。",
+                "affection_change": 3,
+                "mood_change": 4
+            }
+        ],
+        "weight": 8,
+        "repeatable": true
+    }
+]
