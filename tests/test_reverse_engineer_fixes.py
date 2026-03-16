@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import unittest
 
 from writer_app.core.reverse_engineer import ReverseEngineeringManager, AnalysisContext
@@ -5,7 +12,7 @@ from writer_app.core.reverse_engineer import ReverseEngineeringManager, Analysis
 
 class DummyAIClient:
     def call_lm_studio_with_prompts(self, **kwargs):
-        return '{"characters": []}'
+        return '[{"name": "林舟", "role": "主角", "description": "", "tags": []}]'
 
     def extract_json_from_text(self, text):
         import json
@@ -42,6 +49,19 @@ class ReverseEngineerFixTests(unittest.TestCase):
         )
         self.assertEqual(len(merged), 2)
         self.assertEqual({item["type"] for item in merged}, {"truth", "lie"})
+
+
+    def test_analyze_chunk_accepts_cancel_event(self):
+        import threading
+
+        result = self.manager.analyze_chunk(
+            "林舟走进房间。",
+            "characters",
+            {"model": "model-a", "api_url": "http://localhost:1234", "api_key": ""},
+            cancel_event=threading.Event(),
+        )
+        self.assertIsInstance(result, list)
+        self.assertEqual(result[0]["name"], "林舟")
 
     def test_relationship_faction_enters_known_entities(self):
         context = AnalysisContext()

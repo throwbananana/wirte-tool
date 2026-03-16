@@ -827,7 +827,8 @@ class ReverseEngineeringManager:
         analysis_type: str,
         config: Dict,
         context: Optional[AnalysisContext] = None,
-        request_timeout: Optional[int] = None
+        request_timeout: Optional[int] = None,
+        cancel_event=None
     ) -> Any:
         """
         Sends a chunk to AI for specific analysis with optional accumulated context.
