@@ -5,6 +5,7 @@ import threading
 import time
 import uuid
 import difflib
+import re
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from writer_app.core.reverse_engineer import ReverseEngineeringManager, AnalysisContext
@@ -15,7 +16,8 @@ from writer_app.core.commands import (
     AddLinkCommand,
     AddTimelineEventCommand,
     AddSceneCommand,
-    EditSceneCommand
+    EditSceneCommand,
+    EditTimelineEventCommand
 )
 from writer_app.core.event_bus import get_event_bus, Events
 
@@ -591,7 +593,7 @@ class ReverseEngineeringView(ttk.Frame):
     def stop_analysis(self):
         self.stop_event.set()
         self.is_analyzing = False
-        self.log("Stopping analysis...")
+        self.log("Stopping analysis... pending AI requests will be ignored as soon as the current polling cycle ends.")
 
     def _get_ai_config(self):
         if self.config_manager and hasattr(self.config_manager, "get_ai_config"):
@@ -710,7 +712,6 @@ class ReverseEngineeringView(ttk.Frame):
 
             unit_title = unit["title"]
             unit_content = unit["content"]
-            content_hash = self.manager._compute_hash(unit_content)
 
             self.log(f"\n=== Chapter {unit_idx + 1}/{len(processing_units)}: {unit_title} ===")
 
@@ -727,11 +728,18 @@ class ReverseEngineeringView(ttk.Frame):
                 if self.stop_event.is_set():
                     break
 
+                analysis_cache_key = self.manager.get_analysis_cache_key(
+                    unit_content,
+                    analysis_type,
+                    config=ai_config,
+                    context_enabled=use_context
+                )
+
                 # 增量检查
                 if use_incremental:
                     if analysis_type not in self.manager._analyzed_hashes:
                         self.manager._analyzed_hashes[analysis_type] = set()
-                    if content_hash in self.manager._analyzed_hashes[analysis_type]:
+                    if analysis_cache_key in self.manager._analyzed_hashes[analysis_type]:
                         skipped_count += 1
                         current_step += 1
                         progress = (current_step / total_units) * 100
@@ -747,7 +755,8 @@ class ReverseEngineeringView(ttk.Frame):
                         analysis_type,
                         ai_config,
                         context=context,  # 传递累积上下文
-                        request_timeout=getattr(self, "_analysis_request_timeout", None)
+                        request_timeout=getattr(self, "_analysis_request_timeout", None),
+                        cancel_event=self.stop_event
                     )
 
                     if result is not None:
@@ -763,7 +772,7 @@ class ReverseEngineeringView(ttk.Frame):
                             self.log("    ⚠ No items found")
 
                         # 标记为已分析
-                        self.manager.mark_analyzed(content_hash, analysis_type)
+                        self.manager.mark_analyzed(analysis_cache_key, analysis_type)
                         any_analysis_done = True
                     else:
                         self.log("    ✗ No valid JSON output")
@@ -780,11 +789,18 @@ class ReverseEngineeringView(ttk.Frame):
 
             # 4b. 更新累积上下文（基于本章节的分析结果）
             if use_context and context:
-                chapter_summary = self.manager.get_cached_summary(content_hash)
+                summary_cache_key = self.manager.get_summary_cache_key(
+                    unit_content, unit_title, config=ai_config, context_enabled=use_context
+                )
+                chapter_summary = self.manager.get_cached_summary(summary_cache_key)
                 if any_analysis_done and not chapter_summary:
                     self.log("  [context] Generating chapter summary...")
                     chapter_summary = self.manager.generate_chapter_summary(
-                        unit_content, unit_title, ai_config
+                        unit_content,
+                        unit_title,
+                        ai_config,
+                        request_timeout=getattr(self, "_analysis_request_timeout", None),
+                        cancel_event=self.stop_event
                     )
                     if chapter_summary:
                         self.log(f"    ? Summary: {chapter_summary[:80]}...")
@@ -801,7 +817,7 @@ class ReverseEngineeringView(ttk.Frame):
                                 chapter_summary = (item.get("content") or "")[:500].strip()
 
                 if chapter_summary:
-                    self.manager.set_cached_summary(content_hash, chapter_summary)
+                    self.manager.set_cached_summary(summary_cache_key, chapter_summary)
 
                 context_results = chapter_results
                 if "summary" in chapter_results:
@@ -983,17 +999,28 @@ class ReverseEngineeringView(ttk.Frame):
         # 4. Dual Timeline (使用 Command 模式)
         sel_timeline = self.result_trees["timeline"].get_selected_items()
         if sel_timeline:
-            # 首先导入所有真相事件并记录名称到UID的映射
             truth_name_to_uid = {}
+            truth_candidates = []
+            scene_candidates = self._build_scene_candidates()
             added_events = 0
-            def _normalize_truth_key(name):
-                return "".join(str(name).split()).lower()
 
-            # 第一轮：导入真相事件
+            def _normalize_truth_key(name):
+                return self._normalize_match_key(name)
+
+            # 第一轮：导入真相事件，并尽量直接关联到已有场景
             for item in sel_timeline:
                 event_type = item.get("type", "truth").lower()
                 if event_type != "truth":
                     continue
+
+                linked_scene_name, linked_scene_uid, scene_score = self._find_best_match(
+                    item.get("name", ""),
+                    scene_candidates,
+                    item=item,
+                    mode="truth_to_scene"
+                )
+                if scene_score < 0.78:
+                    linked_scene_uid = ""
 
                 event_data = {
                     "name": item.get("name", "未命名事件"),
@@ -1002,7 +1029,8 @@ class ReverseEngineeringView(ttk.Frame):
                     "action": item.get("action", item.get("description", "")),
                     "motive": item.get("motive", ""),
                     "chaos": item.get("chaos", ""),
-                    "linked_scene_uid": ""  # 使用 UID 而非索引
+                    "chapter_title": item.get("chapter_title", ""),
+                    "linked_scene_uid": linked_scene_uid
                 }
 
                 cmd = AddTimelineEventCommand(
@@ -1012,26 +1040,34 @@ class ReverseEngineeringView(ttk.Frame):
                     "反推导导入真相事件"
                 )
                 if self._execute_command(cmd):
-                    truth_name_to_uid[_normalize_truth_key(event_data["name"])] = cmd.added_uid
                     added_events += 1
+                    truth_key = _normalize_truth_key(event_data["name"])
+                    truth_name_to_uid[truth_key] = cmd.added_uid
+                    truth_candidates.append({
+                        **event_data,
+                        "uid": cmd.added_uid,
+                        "name": event_data["name"]
+                    })
 
-            # 第二轮：导入谎言事件并尝试关联真相事件
+            # 第二轮：导入谎言事件并关联到最接近的真相事件
             for item in sel_timeline:
                 event_type = item.get("type", "truth").lower()
                 if event_type != "lie":
                     continue
 
-                # 尝试查找关联的真相事件
                 linked_truth_name = item.get("linked_truth_name", "")
                 linked_truth_key = _normalize_truth_key(linked_truth_name)
                 linked_truth_uid = truth_name_to_uid.get(linked_truth_key, "")
-                if not linked_truth_uid and linked_truth_key:
-                    matches = {
-                        uid for key, uid in truth_name_to_uid.items()
-                        if linked_truth_key in key or key in linked_truth_key
-                    }
-                    if len(matches) == 1:
-                        linked_truth_uid = matches.pop()
+
+                if not linked_truth_uid:
+                    _best_name, linked_truth_uid, truth_score = self._find_best_match(
+                        linked_truth_name or item.get("name", ""),
+                        truth_candidates,
+                        item=item,
+                        mode="lie_to_truth"
+                    )
+                    if truth_score < 0.76:
+                        linked_truth_uid = ""
 
                 event_data = {
                     "name": item.get("name", "未命名谎言"),
@@ -1039,6 +1075,8 @@ class ReverseEngineeringView(ttk.Frame):
                     "motive": item.get("motive", "反推导提取"),
                     "gap": item.get("gap", item.get("description", "")),
                     "bug": item.get("bug", ""),
+                    "chapter_title": item.get("chapter_title", ""),
+                    "linked_truth_name": linked_truth_name,
                     "linked_truth_event_uid": linked_truth_uid
                 }
 
@@ -1584,42 +1622,37 @@ class ReverseEngineeringView(ttk.Frame):
         return result_count
 
     def _auto_link_timeline_to_scenes(self):
-        """自动关联时间轴事件与场景（基于名称匹配）。"""
+        """自动关联时间轴事件与场景（优先章节名/时间戳，其次名称相似度）。"""
         linked_count = 0
 
         timelines = self.project_manager.project_data.get("timelines", {})
         truth_events = timelines.get("truth_events", [])
-        scenes = self.project_manager.get_scenes()
+        scene_candidates = self._build_scene_candidates()
 
-        if not truth_events or not scenes:
+        if not truth_events or not scene_candidates:
             return 0
 
-        # 建立场景名称到UID的映射
-        scene_name_to_uid = {}
-        for scene in scenes:
-            name = scene.get("name", "").strip().lower()
-            if name:
-                scene_name_to_uid[name] = scene.get("uid", "")
-
-        # 尝试匹配
         for evt in truth_events:
             if evt.get("linked_scene_uid"):
-                continue  # 已关联
-
-            evt_name = evt.get("name", "").strip().lower()
-
-            # 精确匹配
-            if evt_name in scene_name_to_uid:
-                evt["linked_scene_uid"] = scene_name_to_uid[evt_name]
-                linked_count += 1
                 continue
 
-            # 模糊匹配（事件名包含在场景名中，或反之）
-            for scene_name, scene_uid in scene_name_to_uid.items():
-                if evt_name in scene_name or scene_name in evt_name:
-                    evt["linked_scene_uid"] = scene_uid
-                    linked_count += 1
-                    break
+            _best_name, best_uid, score = self._find_best_match(
+                evt.get("name", ""),
+                scene_candidates,
+                item=evt,
+                mode="truth_to_scene"
+            )
+            if score < 0.72 or not best_uid:
+                continue
+
+            new_evt = dict(evt)
+            new_evt["linked_scene_uid"] = best_uid
+            cmd = EditTimelineEventCommand(
+                self.project_manager, "truth", evt.get("uid"), evt, new_evt, "自动关联真相事件到场景"
+            )
+            if self._execute_command(cmd):
+                evt.update(new_evt)
+                linked_count += 1
 
         if linked_count > 0:
             self.project_manager.mark_modified("timelines")
@@ -1629,46 +1662,123 @@ class ReverseEngineeringView(ttk.Frame):
 
     @staticmethod
     def _normalize_match_key(text):
-        return "".join(str(text or "").split()).lower()
+        text = str(text or "").strip().lower()
+        text = re.sub(r"[\s\-_:：，,。.!！？?、()（）\[\]{}]+", "", text)
+        return text
 
-    def _find_best_match(self, name, candidates):
-        base = self._normalize_match_key(name)
+    @staticmethod
+    def _normalize_timestamp(text):
+        return re.sub(r"\s+", "", str(text or "").strip().lower())
+
+    def _candidate_to_record(self, candidate):
+        if isinstance(candidate, dict):
+            return candidate
+        if isinstance(candidate, (list, tuple)) and len(candidate) >= 2:
+            return {"name": candidate[0], "uid": candidate[1]}
+        return {"name": "", "uid": ""}
+
+    def _score_match(self, item, candidate, mode="generic"):
+        candidate = self._candidate_to_record(candidate)
+        candidate_name = candidate.get("name", "")
+        query_name = item.get("name", "") if isinstance(item, dict) else str(item or "")
+        if mode == "lie_to_truth" and isinstance(item, dict) and item.get("linked_truth_name"):
+            query_name = item.get("linked_truth_name", "")
+
+        base = self._normalize_match_key(query_name)
+        cand_key = self._normalize_match_key(candidate_name)
+        if not base or not cand_key:
+            return 0.0
+
+        score = difflib.SequenceMatcher(None, base, cand_key).ratio()
+        if base == cand_key:
+            score = max(score, 0.98)
+        elif base in cand_key or cand_key in base:
+            score = max(score, 0.90)
+
+        if isinstance(item, dict):
+            item_timestamp = self._normalize_timestamp(item.get("timestamp", ""))
+            cand_timestamp = self._normalize_timestamp(candidate.get("timestamp", ""))
+            if item_timestamp and cand_timestamp:
+                if item_timestamp == cand_timestamp:
+                    score += 0.12
+                elif item_timestamp in cand_timestamp or cand_timestamp in item_timestamp:
+                    score += 0.05
+
+            item_chapter = self._normalize_match_key(item.get("chapter_title", ""))
+            cand_chapter = self._normalize_match_key(candidate.get("chapter_title", ""))
+            if item_chapter and cand_chapter and item_chapter == cand_chapter:
+                score += 0.10
+
+            if mode == "truth_to_scene":
+                if item_chapter and item_chapter == cand_key:
+                    score += 0.18
+            elif mode == "lie_to_truth":
+                linked_truth = self._normalize_match_key(item.get("linked_truth_name", ""))
+                if linked_truth:
+                    if linked_truth == cand_key:
+                        score += 0.20
+                    elif linked_truth in cand_key or cand_key in linked_truth:
+                        score += 0.08
+
+        return min(score, 1.0)
+
+    def _find_best_match(self, name, candidates, item=None, mode="generic"):
         best_score = 0.0
         best_name = ""
         best_uid = ""
-        if not base:
-            return best_name, best_uid, best_score
+        query_item = item if isinstance(item, dict) else {"name": name}
 
-        for cand_name, cand_uid in candidates:
-            cand_key = self._normalize_match_key(cand_name)
-            if not cand_key:
+        for candidate in candidates:
+            record = self._candidate_to_record(candidate)
+            cand_name = record.get("name", "")
+            cand_uid = record.get("uid", "")
+            if not cand_name:
                 continue
-            score = difflib.SequenceMatcher(None, base, cand_key).ratio()
+            score = self._score_match(query_item, record, mode=mode)
             if score > best_score:
                 best_score = score
                 best_name = cand_name
                 best_uid = cand_uid
         return best_name, best_uid, best_score
 
+    def _build_scene_candidates(self):
+        scenes = self.project_manager.get_scenes()
+        return [
+            {
+                "name": s.get("name", ""),
+                "uid": s.get("uid", ""),
+                "chapter_title": s.get("name", "")
+            }
+            for s in scenes
+        ]
+
     def _build_linkage_candidates(self):
         timelines = self.project_manager.project_data.get("timelines", {})
         truth_events = timelines.get("truth_events", []) or []
         lie_events = timelines.get("lie_events", []) or []
-        scenes = self.project_manager.get_scenes()
 
-        scene_candidates = [(s.get("name", ""), s.get("uid", "")) for s in scenes]
-        truth_candidates = [(e.get("name", ""), e.get("uid", "")) for e in truth_events]
+        scene_candidates = self._build_scene_candidates()
+        truth_candidates = [
+            {
+                "name": e.get("name", ""),
+                "uid": e.get("uid", ""),
+                "timestamp": e.get("timestamp", ""),
+                "chapter_title": e.get("chapter_title", ""),
+                "location": e.get("location", "")
+            }
+            for e in truth_events
+        ]
 
         unlinked_truth = [e for e in truth_events if not e.get("linked_scene_uid")]
         unlinked_lie = [e for e in lie_events if not e.get("linked_truth_event_uid")]
 
         return unlinked_truth, unlinked_lie, scene_candidates, truth_candidates
 
-    def _suggest_linkage_items(self, items, candidates, threshold=0.5):
+    def _suggest_linkage_items(self, items, candidates, threshold=0.5, mode="generic"):
         suggestions = []
         for item in items:
             name = item.get("name", "")
-            best_name, best_uid, score = self._find_best_match(name, candidates)
+            best_name, best_uid, score = self._find_best_match(name, candidates, item=item, mode=mode)
             if score < threshold:
                 best_name = ""
                 best_uid = ""
@@ -1688,16 +1798,35 @@ class ReverseEngineeringView(ttk.Frame):
         unlinked_truth, unlinked_lie, scene_candidates, truth_candidates = self._build_linkage_candidates()
 
         for evt in unlinked_truth:
-            best_name, best_uid, score = self._find_best_match(evt.get("name", ""), scene_candidates)
+            best_name, best_uid, score = self._find_best_match(
+                evt.get("name", ""), scene_candidates, item=evt, mode="truth_to_scene"
+            )
             if score >= threshold and best_uid:
-                evt["linked_scene_uid"] = best_uid
-                resolved_truth += 1
+                new_evt = dict(evt)
+                new_evt["linked_scene_uid"] = best_uid
+                cmd = EditTimelineEventCommand(
+                    self.project_manager, "truth", evt.get("uid"), evt, new_evt, "自动关联真相事件到场景"
+                )
+                if self._execute_command(cmd):
+                    evt.update(new_evt)
+                    resolved_truth += 1
 
         for evt in unlinked_lie:
-            best_name, best_uid, score = self._find_best_match(evt.get("name", ""), truth_candidates)
+            best_name, best_uid, score = self._find_best_match(
+                evt.get("linked_truth_name", "") or evt.get("name", ""),
+                truth_candidates,
+                item=evt,
+                mode="lie_to_truth"
+            )
             if score >= threshold and best_uid:
-                evt["linked_truth_event_uid"] = best_uid
-                resolved_lie += 1
+                new_evt = dict(evt)
+                new_evt["linked_truth_event_uid"] = best_uid
+                cmd = EditTimelineEventCommand(
+                    self.project_manager, "lie", evt.get("uid"), evt, new_evt, "自动关联谎言事件到真相事件"
+                )
+                if self._execute_command(cmd):
+                    evt.update(new_evt)
+                    resolved_lie += 1
 
         if resolved_truth or resolved_lie:
             self.project_manager.mark_modified("timelines")
@@ -1718,8 +1847,8 @@ class ReverseEngineeringView(ttk.Frame):
         notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
         unlinked_truth, unlinked_lie, scene_candidates, truth_candidates = self._build_linkage_candidates()
-        truth_suggestions = self._suggest_linkage_items(unlinked_truth, scene_candidates)
-        lie_suggestions = self._suggest_linkage_items(unlinked_lie, truth_candidates)
+        truth_suggestions = self._suggest_linkage_items(unlinked_truth, scene_candidates, mode="truth_to_scene")
+        lie_suggestions = self._suggest_linkage_items(unlinked_lie, truth_candidates, mode="lie_to_truth")
 
         def _build_tab(title, suggestions, target_label):
             frame = ttk.Frame(notebook)
@@ -2021,7 +2150,7 @@ class ReverseEngineeringView(ttk.Frame):
             return
 
         session_data = {
-            "version": "3.0",  # 新版本格式（包含长上下文）
+            "version": "4.0",  # 新版本格式（包含改进后的缓存键与长上下文）
             "results": {},
             "incremental_state": self.manager.export_analysis_state(),
             "source_file": self.file_path_var.get(),
@@ -2063,7 +2192,7 @@ class ReverseEngineeringView(ttk.Frame):
             ctx_info = ""
 
             # 支持多个版本格式
-            if version in ("2.0", "3.0"):
+            if version in ("2.0", "3.0", "4.0"):
                 # 新格式
                 results = session_data.get("results", {})
                 incremental_state = session_data.get("incremental_state", {})
@@ -2078,8 +2207,8 @@ class ReverseEngineeringView(ttk.Frame):
                 if source_file:
                     self.file_path_var.set(source_file)
 
-                # 恢复累积上下文（v3.0新增）
-                if version == "3.0":
+                # 恢复累积上下文（v3.0+）
+                if version in ("3.0", "4.0"):
                     context_data = session_data.get("context")
                     if context_data:
                         self._saved_context = context_data

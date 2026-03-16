@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 import re
 import time
+import threading
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple, Set
 from dataclasses import dataclass, field
@@ -568,13 +569,88 @@ class ReverseEngineeringManager:
     # --- 增量分析支持 ---
     @staticmethod
     def _compute_hash(content: str) -> str:
-        """计算内容的哈希值用于增量检测。"""
-        return hashlib.md5(content.encode('utf-8')).hexdigest()[:16]
+        """兼容旧逻辑的纯内容哈希。"""
+        return hashlib.md5((content or "").encode('utf-8')).hexdigest()[:16]
+
+    @staticmethod
+    def _stable_serialize(value: Any) -> Any:
+        """将配置值转换为可稳定序列化的形式。"""
+        if isinstance(value, dict):
+            return {str(k): ReverseEngineeringManager._stable_serialize(v) for k, v in sorted(value.items())}
+        if isinstance(value, (list, tuple, set)):
+            return [ReverseEngineeringManager._stable_serialize(v) for v in value]
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        return str(value)
+
+    @classmethod
+    def build_cache_fingerprint(
+        cls,
+        content: str,
+        analysis_type: Optional[str] = None,
+        config: Optional[Dict[str, Any]] = None,
+        extra: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """构建与分析配置绑定的缓存键，避免只改模型/提示词时错误复用旧结果。"""
+        payload = {
+            "content": content or "",
+            "analysis_type": analysis_type or "",
+        }
+
+        if config:
+            payload["config"] = cls._stable_serialize({
+                "api_url": config.get("api_url"),
+                "model": config.get("model"),
+                "temperature": config.get("temperature"),
+                "top_p": config.get("top_p"),
+                "max_tokens": config.get("max_tokens"),
+                "prompt_version": config.get("prompt_version"),
+                "system_prompt_version": config.get("system_prompt_version"),
+            })
+
+        if extra:
+            payload["extra"] = cls._stable_serialize(extra)
+
+        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.md5(serialized.encode("utf-8")).hexdigest()[:16]
+
+    def get_analysis_cache_key(
+        self,
+        content: str,
+        analysis_type: str,
+        config: Optional[Dict[str, Any]] = None,
+        context_enabled: bool = False
+    ) -> str:
+        return self.build_cache_fingerprint(
+            content,
+            analysis_type=analysis_type,
+            config=config,
+            extra={"context_enabled": bool(context_enabled)}
+        )
+
+    def get_summary_cache_key(
+        self,
+        content: str,
+        chapter_title: str = "",
+        config: Optional[Dict[str, Any]] = None,
+        context_enabled: bool = False
+    ) -> str:
+        return self.build_cache_fingerprint(
+            content,
+            analysis_type="_internal_summary",
+            config=config,
+            extra={
+                "chapter_title": chapter_title or "",
+                "context_enabled": bool(context_enabled)
+            }
+        )
 
     def get_incremental_units(
         self,
         processing_units: List[Dict[str, str]],
-        analysis_type: str
+        analysis_type: str,
+        config: Optional[Dict[str, Any]] = None,
+        context_enabled: bool = False
     ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
         """
         将处理单元分为新增和已分析两部分。
@@ -590,7 +666,9 @@ class ReverseEngineeringManager:
         skipped_units = []
 
         for unit in processing_units:
-            content_hash = self._compute_hash(unit["content"])
+            content_hash = self.get_analysis_cache_key(
+                unit["content"], analysis_type, config=config, context_enabled=context_enabled
+            )
             unit["_hash"] = content_hash  # 记录哈希供后续使用
 
             if content_hash in analyzed_set:
@@ -900,14 +978,18 @@ class ReverseEngineeringManager:
         last_error = None
         for attempt in range(self.max_retries):
             try:
-                response_text = self.ai_client.call_lm_studio_with_prompts(
+                response_text, was_cancelled = self._call_ai_with_cancel(
                     api_url=config.get("api_url"),
                     model=config.get("model"),
                     api_key=config.get("api_key"),
                     system_prompt=prompt_def["system"],
                     user_prompt=user_prompt,
-                    timeout=request_timeout
+                    timeout=request_timeout,
+                    cancel_event=cancel_event
                 )
+                if was_cancelled:
+                    logger.info("Analysis for %s cancelled by user.", analysis_type)
+                    return None
                 raw_result = self.ai_client.extract_json_from_text(response_text)
                 if raw_result is not None:
                     normalized = self._normalize_result(raw_result, analysis_type)
@@ -1009,18 +1091,69 @@ class ReverseEngineeringManager:
             tgt_type = item.get("target_type", "character")
             if src and tgt:
                 return (src, tgt, tgt_type)
-        elif analysis_type in ("outline", "timeline"):
-            # 大纲和时间线：使用名称+时间戳作为键（允许同名不同时间的事件）
+        elif analysis_type == "outline":
             name = item.get("name", "").strip()
             timestamp = item.get("timestamp", "")
             if name:
                 return (name, timestamp) if timestamp else (name, item.get("chapter_title", ""))
+        elif analysis_type == "timeline":
+            # 时间线必须把 truth / lie 区分开，避免双线事件被错误合并
+            name = item.get("name", "").strip()
+            timestamp = item.get("timestamp", "")
+            event_type = str(item.get("type", "truth") or "truth").strip().lower()
+            if name:
+                return (event_type, name, timestamp) if timestamp else (event_type, name, item.get("chapter_title", ""))
         else:
             # 角色、设定等：按名称去重
             name = item.get("name", "").strip()
             if name:
                 return (name,)
         return None
+
+    def _call_ai_with_cancel(
+        self,
+        *,
+        api_url: Optional[str],
+        model: Optional[str],
+        api_key: Optional[str],
+        system_prompt: str,
+        user_prompt: str,
+        timeout: Optional[int] = None,
+        cancel_event=None
+    ) -> Tuple[Optional[str], bool]:
+        """在不改 ai_client 的前提下提供协作式停止。
+
+        返回值：
+            (response_text, was_cancelled)
+        """
+        result: Dict[str, Any] = {}
+        done_event = threading.Event()
+
+        def _worker():
+            try:
+                result["response"] = self.ai_client.call_lm_studio_with_prompts(
+                    api_url=api_url,
+                    model=model,
+                    api_key=api_key,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    timeout=timeout
+                )
+            except Exception as exc:
+                result["error"] = exc
+            finally:
+                done_event.set()
+
+        worker = threading.Thread(target=_worker, daemon=True)
+        worker.start()
+
+        while not done_event.wait(0.2):
+            if cancel_event is not None and cancel_event.is_set():
+                return None, True
+
+        if "error" in result:
+            raise result["error"]
+        return result.get("response"), False
 
     def _merge_item_fields(self, existing: Dict, new_item: Dict, analysis_type: str):
         """智能合并两个条目的字段。"""
@@ -1087,7 +1220,9 @@ class ReverseEngineeringManager:
         self,
         chunk: str,
         chapter_title: str,
-        config: Dict
+        config: Dict,
+        request_timeout: Optional[int] = None,
+        cancel_event=None
     ) -> Optional[str]:
         """
         为单个章节生成简短摘要（用于滚动上下文）。
@@ -1109,17 +1244,23 @@ class ReverseEngineeringManager:
         }
 
         try:
-            response_text = self.ai_client.call_lm_studio_with_prompts(
+            response_text, was_cancelled = self._call_ai_with_cancel(
                 api_url=config.get("api_url"),
                 model=config.get("model"),
                 api_key=config.get("api_key"),
                 system_prompt=prompt_def["system"],
-                user_prompt=prompt_def["user"]
+                user_prompt=prompt_def["user"],
+                timeout=request_timeout,
+                cancel_event=cancel_event
             )
+            if was_cancelled:
+                logger.info("Chapter summary generation cancelled for %s.", chapter_title)
+                return None
             # 简短摘要不需要JSON解析，直接返回文本
             summary = response_text.strip() if response_text else None
             if summary:
-                self.set_cached_summary(self._compute_hash(chunk), summary)
+                summary_key = self.get_summary_cache_key(chunk, chapter_title, config=config)
+                self.set_cached_summary(summary_key, summary)
             return summary
         except Exception as e:
             print(f"Error generating chapter summary: {e}")
@@ -1194,16 +1335,22 @@ class ReverseEngineeringManager:
                                 tgt_type = item.get("target_type", "character")
                                 if src:
                                     context.add_characters([src])
-                                if tgt and str(tgt_type).lower() == "character":
-                                    context.add_characters([tgt])
+                                if tgt:
+                                    if str(tgt_type).lower() == "character":
+                                        context.add_characters([tgt])
+                                    else:
+                                        context.add_entities([tgt])
                     elif isinstance(batch, dict):
                         src = batch.get("source")
                         tgt = batch.get("target")
                         tgt_type = batch.get("target_type", "character")
                         if src:
                             context.add_characters([src])
-                        if tgt and str(tgt_type).lower() == "character":
-                            context.add_characters([tgt])
+                        if tgt:
+                            if str(tgt_type).lower() == "character":
+                                context.add_characters([tgt])
+                            else:
+                                context.add_entities([tgt])
 
         # 4. 更新滚动摘要
         if chapter_summary:
