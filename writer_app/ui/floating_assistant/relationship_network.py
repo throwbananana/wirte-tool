@@ -13,6 +13,8 @@ from collections import defaultdict
 import logging
 import math
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 
@@ -313,7 +315,7 @@ class RelationshipNetworkManager:
     def _load_definitions(self):
         """加载关系定义"""
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "npc_relationships.json"
+            path = get_app_paths().find_data_file("npc_relationships.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)

@@ -1,6 +1,10 @@
-import pyttsx3
 import threading
 import queue
+
+try:
+    import pyttsx3
+except ImportError:  # pragma: no cover - optional dependency
+    pyttsx3 = None
 
 class TTSManager:
     _instance = None
@@ -13,6 +17,14 @@ class TTSManager:
 
     def _init_engine(self):
         try:
+            if pyttsx3 is None:
+                self.engine = None
+                self.queue = queue.Queue()
+                self.is_speaking = False
+                self.worker_thread = None
+                self._lock = threading.Lock()
+                return
+
             self.engine = pyttsx3.init()
             self.queue = queue.Queue()
             self.is_speaking = False

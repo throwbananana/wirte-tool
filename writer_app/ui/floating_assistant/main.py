@@ -631,7 +631,8 @@ class FloatingAssistant(tk.Toplevel):
         """显示环境音帮助信息"""
         help_text = """环境音功能说明：
 
-将音频文件放入 writer_data/sounds/ 目录即可。
+将音频文件放入 assets/sounds/ 目录即可。
+旧版 writer_data/sounds/ 目录也仍然兼容。
 
 支持的文件格式：.mp3, .wav, .ogg
 
@@ -1626,7 +1627,8 @@ class FloatingAssistant(tk.Toplevel):
                 result = self.school_event_manager.process_choice(dlg.result_index)
                 if result["success"]:
                     # 显示结果
-                    self._append_message("system", f"{result['message']}")
+                    display_message = result.get("display_message", result["message"])
+                    self._append_message("system", f"{display_message}")
                     
                     # 应用表情状态
                     if result.get("mood_change", 0) > 0:

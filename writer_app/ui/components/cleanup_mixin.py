@@ -25,7 +25,7 @@ import tkinter as tk
 from typing import List, Tuple, Callable, Dict, Any, Optional
 import logging
 
-from writer_app.core.event_bus import get_event_bus
+from writer_app.core import event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ class CleanupMixin:
         self._listener_refs: List[Tuple[Any, Callable]] = []
         self._after_jobs: Dict[str, str] = {}
         self._cleanup_destroyed: bool = False
+        self._destroyed: bool = False
 
     def _track_event_subscription(self, event_type: str, handler: Callable) -> None:
         """
@@ -60,7 +61,7 @@ class CleanupMixin:
         if not hasattr(self, '_event_subscriptions'):
             self._init_cleanup_tracking()
 
-        bus = get_event_bus()
+        bus = event_bus.get_event_bus()
         bus.subscribe(event_type, handler)
         self._event_subscriptions.append((event_type, handler))
 
@@ -171,6 +172,7 @@ class CleanupMixin:
                 super().destroy()
         """
         self._cleanup_destroyed = True
+        self._destroyed = True
 
         # Cancel all pending after() jobs
         cancelled_jobs = self._cancel_all_after_jobs()
@@ -178,7 +180,7 @@ class CleanupMixin:
         # Unsubscribe from EventBus
         event_count = 0
         if hasattr(self, '_event_subscriptions'):
-            bus = get_event_bus()
+            bus = event_bus.get_event_bus()
             for event_type, handler in self._event_subscriptions:
                 try:
                     bus.unsubscribe(event_type, handler)

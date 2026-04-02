@@ -17,6 +17,7 @@ from .states import AssistantState
 from .event_config import get_default_config_path, load_event_config
 from .behavior_config import BEHAVIOR_THRESHOLDS, BEHAVIOR_FEEDBACK, COMPLEX_RULES
 from .narrative_manager import NarrativeManager
+from writer_app.core.paths import get_app_paths
 from writer_app.core.project_types import ProjectTypeManager
 
 # 增强模块导入
@@ -1093,19 +1094,19 @@ class AssistantEventSystem:
                     is_met = True
 
             if is_met:
-                self._enqueue_event(EventPriority.HIGH, "milestone", milestone=milestone)
+                self._do_trigger_milestone(milestone)
 
     def _check_type_milestones(self) -> None:
         count = len(self._created_types)
         for milestone in self._type_milestones:
             if count >= milestone["threshold"]:
-                self._enqueue_event(EventPriority.HIGH, "milestone", milestone=milestone)
+                self._do_trigger_milestone(milestone)
 
     def _check_theme_milestones(self) -> None:
         count = len(self._created_themes)
         for milestone in self._theme_milestones:
             if count >= milestone["threshold"]:
-                self._enqueue_event(EventPriority.HIGH, "milestone", milestone=milestone)
+                self._do_trigger_milestone(milestone)
 
     # ... (record_module_usage, record_creation_activity, _record_project_type, _record_themes, _trigger_type_event, _collect_theme_tags, _normalize_tags, handle_festival_event, check_time_events, handle_achievement_unlocked, _trigger_event, _unlock_achievement, _award_photo, _announce, _get_project_type, get_event_log methods remain mostly the same, ensuring they use queue for side effects where appropriate) ...
 
@@ -1383,7 +1384,7 @@ class AssistantEventSystem:
     def _load_diary_content(self) -> Dict:
         """加载日记内容库"""
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "diary_content.json"
+            path = get_app_paths().find_data_file("diary_content.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)

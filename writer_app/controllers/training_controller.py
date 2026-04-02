@@ -7,6 +7,7 @@ from writer_app.core.training import TrainingManager, MODES, DAILY_QUEST_PASS_SC
 CONTEXT_TRUNCATE_LIMIT = 1000
 from writer_app.core.training_history import TrainingHistoryManager
 from writer_app.core.training_challenges import ChallengeManager
+from writer_app.core.paths import get_app_paths
 from writer_app.core.stats_manager import StatsManager
 from writer_app.ui.word_bank_editor import WordBankEditor
 from writer_app.ui.stats_visualizer import StatsVisualizer
@@ -34,13 +35,10 @@ class TrainingController:
         self._theme_listeners: List[Callable] = []
         self._gamification_listeners: List[Tuple[Any, Callable]] = []
 
-        # 数据管理器的路径解析
-        from pathlib import Path
-        data_dir = Path(__file__).parent.parent.parent / "writer_data"
-
-        self.manager = TrainingManager(data_dir)
-        self.history_manager = TrainingHistoryManager(data_dir)
-        self.challenge_manager = ChallengeManager(data_dir)
+        paths = get_app_paths()
+        self.manager = TrainingManager(paths.sample_data_dir)
+        self.history_manager = TrainingHistoryManager(paths.runtime_data_dir)
+        self.challenge_manager = ChallengeManager(paths.runtime_data_dir)
         self.stats_manager = StatsManager(self.history_manager)
 
         self.pool = get_ai_thread_pool()

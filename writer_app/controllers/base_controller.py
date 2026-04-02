@@ -1,13 +1,12 @@
 import tkinter as tk
 from tkinter import messagebox
 import logging
-from abc import ABC, abstractmethod
 from typing import List, Tuple, Callable, Dict, Optional, Any
 
-from writer_app.core.event_bus import get_event_bus
+from writer_app.core import event_bus
 
 
-class BaseController(ABC):
+class BaseController:
     """Abstract base class for all UI controllers.
 
     Provides lifecycle management including:
@@ -32,15 +31,13 @@ class BaseController(ABC):
         self._theme_listeners: List[Callable] = []
         self._after_jobs: Dict[str, str] = {}  # job_id -> after_id
 
-    @abstractmethod
     def setup_ui(self):
         """Initialize the UI components."""
-        pass
+        return None
 
-    @abstractmethod
     def refresh(self):
         """Refresh the UI with latest data."""
-        pass
+        return None
 
     def on_project_data_changed(self, event_type="all"):
         """Handle data change events. Default implementation calls refresh."""
@@ -64,7 +61,7 @@ class BaseController(ABC):
             event_type: The event type string (use Events constants)
             handler: The callback function
         """
-        bus = get_event_bus()
+        bus = event_bus.get_event_bus()
         bus.subscribe(event_type, handler)
         self._event_subscriptions.append((event_type, handler))
 
@@ -178,7 +175,7 @@ class BaseController(ABC):
             self.logger.debug(f"Cancelled {cancelled_jobs} pending after() jobs")
 
         # Unsubscribe from EventBus
-        bus = get_event_bus()
+        bus = event_bus.get_event_bus()
         for event_type, handler in self._event_subscriptions:
             try:
                 bus.unsubscribe(event_type, handler)

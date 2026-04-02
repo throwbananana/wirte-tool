@@ -105,7 +105,8 @@ class AmbiancePlayer:
     def play_theme(self, theme_name):
         """
         Play a specific ambiance theme (e.g., 'rain', 'cafe').
-        Expects files like 'rain.mp3' or 'rain.wav' in writer_data/sounds/
+        Expects files like 'rain.mp3' or 'rain.wav' in assets/sounds/
+        and still supports the legacy writer_data/sounds/ fallback.
         """
         if not self.enabled or not HAS_PYGAME:
             return

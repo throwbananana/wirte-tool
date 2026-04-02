@@ -400,11 +400,10 @@ class HelpManager:
 `%USERPROFILE%\\.writer_tool\\config.json`
 
 ### 数据目录
-`writer_data/` 包含：
-- 自动备份
-- 日志文件
-- 环境音文件 (sounds/)
-- 自定义资源""",
+- `assets/`: 字体、环境音等静态资源
+- `sample_data/`: 示例数据和模板项目
+- `runtime_data/`: 日志和运行期输出
+- 旧版 `writer_data/` 目录仍兼容读取""",
                 keywords=["设置", "配置", "主题", "settings", "config"]
             ),
             HelpTopic(
@@ -455,7 +454,7 @@ class HelpManager:
 3. 定期保存并重启应用
 
 ### 获取更多帮助
-- 查看日志: `writer_data/writer_tool.log`
+- 查看日志: `runtime_data/logs/`
 - 提交问题: GitHub Issues""",
                 keywords=["问题", "错误", "帮助", "FAQ", "troubleshoot"]
             ),

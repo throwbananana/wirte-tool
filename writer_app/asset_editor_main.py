@@ -12,6 +12,7 @@ from writer_app.ui.editors.event_editor import EventEditorPanel
 from writer_app.utils.logging_utils import setup_logging
 from writer_app.core.icon_manager import IconManager
 from writer_app.core.font_manager import get_font_manager
+from writer_app.core.paths import get_app_paths
 from writer_app.ui.components.toast import show_toast
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ class AssetEditorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("资源管理器 - Asset Editor")
-        
-        self.data_dir = Path(__file__).parent.parent / "writer_data"
-        self.data_dir.mkdir(exist_ok=True)
+
+        self.paths = get_app_paths()
+        self.data_dir = self.paths.runtime_data_dir
         setup_logging(self.data_dir)
         
         # Init Managers
@@ -133,7 +134,7 @@ class AssetEditorApp:
 
         # Get events file path
         if events_file is None:
-            events_file = self.data_dir / "school_events.json"
+            events_file = self.paths.default_events_file()
 
         self.events_file = events_file
         self.event_editor = EventEditorPanel(

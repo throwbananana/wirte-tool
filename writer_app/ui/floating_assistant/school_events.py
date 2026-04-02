@@ -12,6 +12,8 @@ from typing import List, Dict, Optional, Callable, Tuple, Any, Set
 from enum import Enum
 import logging
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 
@@ -259,7 +261,7 @@ class SchoolEventChoice:
         # 检查好感度
         if self.required_affection > 0:
             if context.get("affection", 0) < self.required_affection:
-                return False, f"需要好感度 {self.required_affection}"
+                return False, f"好感度不足（需要 {self.required_affection}）"
 
         # 检查其他条件
         for condition in self.conditions:
@@ -360,6 +362,11 @@ class SchoolEvent:
     icon: str = ""
     color: str = ""
 
+    @property
+    def id(self) -> str:
+        """兼容旧接口。"""
+        return self.event_id
+
     def to_dict(self) -> Dict:
         return {
             "event_id": self.event_id,
@@ -390,11 +397,23 @@ class SchoolEvent:
 
     @classmethod
     def from_dict(cls, data: Dict) -> "SchoolEvent":
+        raw_event_type = data.get("event_type", data.get("type", "random"))
+        legacy_type_map = {
+            "single": EventType.RANDOM,
+            "chain_immediate": EventType.CHAIN,
+            "chain_conditional": EventType.CHAIN,
+            "npc": EventType.NPC_INTERACTION,
+            "interaction": EventType.NPC_INTERACTION,
+        }
+        event_type = legacy_type_map.get(raw_event_type)
+        if event_type is None:
+            event_type = EventType(raw_event_type)
+
         event = cls(
             event_id=data.get("event_id", data.get("id", "")),
             title=data.get("title", ""),
             description=data.get("description", ""),
-            event_type=EventType(data.get("event_type", data.get("type", "random")))
+            event_type=event_type
         )
 
         # 解析选项
@@ -410,7 +429,19 @@ class SchoolEvent:
         event.prerequisites = data.get("prerequisites", [])
 
         event.weight = data.get("weight", 10)
-        event.priority = EventPriority(data.get("priority", 5))
+        priority_value = data.get("priority", 5)
+        if isinstance(priority_value, str):
+            priority_value = priority_value.lower()
+            priority_map = {
+                "low": EventPriority.LOW,
+                "normal": EventPriority.NORMAL,
+                "high": EventPriority.HIGH,
+                "critical": EventPriority.CRITICAL,
+                "story": EventPriority.STORY,
+            }
+            event.priority = priority_map.get(priority_value, EventPriority.NORMAL)
+        else:
+            event.priority = EventPriority(priority_value)
         event.repeatable = data.get("repeatable", True)
         event.cooldown_minutes = data.get("cooldown_minutes", 30)
 
@@ -457,7 +488,7 @@ class SchoolEventManager:
         self.action_manager = action_manager
 
         # 事件数据
-        self.events: Dict[str, SchoolEvent] = {}
+        self.events: Dict[str, SchoolEvent] = EventStore()
 
         # 当前状态
         self.active_event: Optional[SchoolEvent] = None
@@ -485,12 +516,9 @@ class SchoolEventManager:
 
     def _load_events(self):
         """加载事件"""
-        # 创建默认事件
-        self._create_default_events()
-
-        # 从文件加载
+        loaded_external = False
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "school_events.json"
+            path = get_app_paths().default_events_file()
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -500,10 +528,14 @@ class SchoolEventManager:
                     self.events[event.event_id] = event
 
                 logger.info(f"加载了 {len(data)} 个外部事件")
+                loaded_external = True
         except Exception as e:
             logger.warning(f"加载外部事件失败: {e}")
 
-    def _create_default_events(self):
+        # 创建默认事件，作为缺省补充
+        self._create_default_events(overwrite=not loaded_external)
+
+    def _create_default_events(self, overwrite: bool = True):
         """创建默认事件"""
         default_events = [
             # 随机日常事件
@@ -782,14 +814,15 @@ class SchoolEventManager:
         ]
 
         for event in default_events:
-            self.events[event.event_id] = event
+            if overwrite or event.event_id not in self.events:
+                self.events[event.event_id] = event
 
         logger.info(f"创建了 {len(default_events)} 个默认事件")
 
     def _load_diary_content(self) -> Dict:
         """加载日记内容"""
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "diary_content.json"
+            path = get_app_paths().find_data_file("diary_content.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     self.diary_data = json.load(f)
@@ -799,7 +832,7 @@ class SchoolEventManager:
     def _load_npc_data(self) -> Dict:
         """加载NPC数据"""
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "npc_data.json"
+            path = get_app_paths().find_data_file("npc_data.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     self.npc_data = json.load(f)
@@ -1156,6 +1189,8 @@ class SchoolEventManager:
         if choice.unlock_achievement:
             if self.story_tracker:
                 self.story_tracker.unlock_achievement(choice.unlock_achievement)
+            elif self.pet_system and hasattr(self.pet_system, "unlock_achievement"):
+                self.pet_system.unlock_achievement(choice.unlock_achievement)
 
         # 记录完成
         if self.pet_system:
@@ -1204,6 +1239,7 @@ class SchoolEventManager:
 
         # 构建结果消息
         result_message = choice.outcome_text
+        display_message = choice.outcome_text
 
         # 添加效果描述
         effect_descriptions = []
@@ -1219,10 +1255,10 @@ class SchoolEventManager:
                 effect_descriptions.append(f"{npc_name} {'+'if change > 0 else ''}{change}")
 
         if effect_descriptions:
-            result_message += "\n\n" + " | ".join(effect_descriptions)
+            display_message += "\n\n" + " | ".join(effect_descriptions)
 
         if diary_unlocked:
-            result_message += "\n\n📖 【日记已更新】"
+            display_message += "\n\n📖 【日记已更新】"
 
         current_event = self.active_event
         self.active_event = next_event
@@ -1230,11 +1266,14 @@ class SchoolEventManager:
         return {
             "success": True,
             "message": result_message,
+            "display_message": display_message,
             "effects": effects_applied,
             "diary_unlocked": diary_unlocked,
             "next_event": self._format_event_for_display(next_event) if next_event else None,
             "trigger_narrative_id": choice.trigger_narrative_id,
-            "trigger_story_node": choice.trigger_story_node
+            "trigger_story_node": choice.trigger_story_node,
+            "achievement": choice.unlock_achievement or None,
+            "mood_change": choice.mood_change,
         }
 
     # ============================================================
@@ -1286,6 +1325,18 @@ class SchoolEventManager:
             "by_type": by_type,
             "history_count": len(self.event_history)
         }
+
+
+class EventStore(dict):
+    """兼容旧版列表式访问的事件存储。"""
+
+    def __iter__(self):
+        return iter(self.values())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
 
 
 # 便捷函数

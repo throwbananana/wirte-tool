@@ -13,6 +13,8 @@ from collections import defaultdict
 import logging
 import math
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 
@@ -417,7 +419,7 @@ class TimeCycleManager:
 
         # 尝试从文件加载
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "special_dates.json"
+            path = get_app_paths().find_data_file("special_dates.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -434,7 +436,7 @@ class TimeCycleManager:
 
         # 尝试从文件加载
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "npc_schedules.json"
+            path = get_app_paths().find_data_file("npc_schedules.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)

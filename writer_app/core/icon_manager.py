@@ -4,6 +4,8 @@ import ctypes
 import platform
 import logging
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 class IconManager:
@@ -158,8 +160,7 @@ class IconManager:
         
         self.icons = {} # name -> char
         self.loaded_fonts = set()
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        self.data_dir = os.path.join(base_dir, "writer_data", "fonts")
+        self.data_dir = str(get_app_paths().fonts_dir())
         
         self._load_resources()
         self.initialized = True
@@ -209,6 +210,10 @@ class IconManager:
         Get icon character.
         Tries to find 'ic_fluent_{name}_{size}_{style}'.
         """
+        if isinstance(size, str) and not size.isdigit():
+            fallback = size
+            size = 24
+
         # Resolve alias
         name = self.ALIASES.get(name, name)
         
@@ -226,6 +231,9 @@ class IconManager:
             key = f"ic_fluent_{name}_{s}_{style}"
             if key in self.icons:
                 return self.icons[key]
+
+        if style != "filled":
+            return self.get_icon(name, size=size, style="filled", fallback=fallback)
 
         return fallback
 

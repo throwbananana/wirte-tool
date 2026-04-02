@@ -1,9 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+
 
 a = Analysis(
-    ['C:/Users/123/Downloads/writer tool - 副本\\start_app.py'],
-    pathex=[],
+    [str(PROJECT_ROOT / 'start_app.py')],
+    pathex=[str(PROJECT_ROOT)],
     binaries=[],
     datas=[],
     hiddenimports=[],

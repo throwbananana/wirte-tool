@@ -25,6 +25,7 @@ except ImportError:
 # 导入资产类型注册表
 try:
     from writer_app.core.resource_loader import AssetTypeRegistry
+    from writer_app.core.paths import get_app_paths
 except ImportError:
     from core.resource_loader import AssetTypeRegistry
 
@@ -619,7 +620,7 @@ class LoadExistingResourcesDialog:
             ("event_files", "事件配置文件 (JSON)"),
             ("wiki_images", "百科图片 (wiki_images)"),
             ("project_images", "项目目录图片"),
-            ("data_dir", "数据目录 (writer_data)"),
+            ("data_dir", "数据目录 (runtime/sample/legacy)"),
         ]
 
         for i, (key, label) in enumerate(scan_options):
@@ -671,25 +672,23 @@ class LoadExistingResourcesDialog:
         ttk.Button(bottom_frame, text="导入选中", command=self._import_selected).pack(side=tk.RIGHT, padx=2)
         ttk.Button(bottom_frame, text="取消", command=self.dialog.destroy).pack(side=tk.RIGHT, padx=2)
 
-    def _get_data_dir(self):
-        """获取 writer_data 目录。"""
+    def _get_data_dirs(self):
+        """获取可扫描的数据目录列表。"""
+        candidates = []
+
         # 尝试从项目文件获取
         if self.project_manager.current_file:
             project_dir = Path(self.project_manager.current_file).parent
             data_dir = project_dir / "writer_data"
             if data_dir.exists():
-                return data_dir
+                candidates.append(data_dir)
 
-        # 尝试从脚本目录获取
-        try:
-            script_dir = Path(__file__).resolve().parent.parent.parent
-            data_dir = script_dir / "writer_data"
-            if data_dir.exists():
-                return data_dir
-        except:
-            pass
+        paths = get_app_paths()
+        for data_dir in [paths.runtime_data_dir, paths.sample_data_dir, paths.legacy_data_dir]:
+            if data_dir.exists() and data_dir not in candidates:
+                candidates.append(data_dir)
 
-        return None
+        return candidates
 
     def _get_assistant_images_dir(self):
         """获取悬浮助手图像目录。"""
@@ -714,7 +713,7 @@ class LoadExistingResourcesDialog:
         self.found_resources = []
         self.tree.delete(*self.tree.get_children())
 
-        data_dir = self._get_data_dir()
+        data_dirs = self._get_data_dirs()
         valid_exts = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
 
         # 扫描悬浮助手图像
@@ -725,7 +724,7 @@ class LoadExistingResourcesDialog:
 
         # 扫描事件配置文件
         if self.scan_vars.get("event_files", tk.BooleanVar()).get():
-            if data_dir:
+            for data_dir in data_dirs:
                 for json_file in data_dir.glob("*.json"):
                     if "event" in json_file.stem.lower() or json_file.stem == "school_events":
                         self._add_resource({
@@ -738,7 +737,7 @@ class LoadExistingResourcesDialog:
 
         # 扫描百科图片
         if self.scan_vars.get("wiki_images", tk.BooleanVar()).get():
-            if data_dir:
+            for data_dir in data_dirs:
                 wiki_dir = data_dir / "wiki_images"
                 if wiki_dir.exists():
                     self._scan_directory(wiki_dir, "reference", "百科图片", valid_exts)
@@ -758,7 +757,7 @@ class LoadExistingResourcesDialog:
 
         # 扫描数据目录
         if self.scan_vars.get("data_dir", tk.BooleanVar()).get():
-            if data_dir:
+            for data_dir in data_dirs:
                 # 只扫描根目录的图片，不递归
                 for file in data_dir.iterdir():
                     if file.is_file() and file.suffix.lower() in valid_exts:

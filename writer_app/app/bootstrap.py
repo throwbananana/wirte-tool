@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 from writer_app.core.audio import AmbiancePlayer, TypewriterSoundPlayer
 from writer_app.core.backup import BackupManager
@@ -9,6 +8,7 @@ from writer_app.core.history_manager import CommandHistory
 from writer_app.core.icon_manager import IconManager
 from writer_app.core.models import ProjectManager
 from writer_app.core.module_sync import init_module_sync
+from writer_app.core.paths import get_app_paths
 from writer_app.core.theme import ThemeManager
 from writer_app.core.guide_progress import GuideProgress
 from writer_app.core.font_manager import get_font_manager
@@ -21,8 +21,10 @@ logger = logging.getLogger(__name__)
 
 def bootstrap_core_services(app) -> None:
     """Initialize filesystem, configuration, project, and runtime services."""
-    app.data_dir = Path(__file__).resolve().parents[2] / "writer_data"
-    app.data_dir.mkdir(exist_ok=True)
+    app.paths = get_app_paths()
+    app.data_dir = app.paths.runtime_data_dir
+    app.assets_dir = app.paths.assets_dir
+    app.sample_data_dir = app.paths.sample_data_dir
     app.log_file_path = setup_logging(app.data_dir)
 
     try:
@@ -31,8 +33,8 @@ def bootstrap_core_services(app) -> None:
         logger.error("Failed to load fonts: %s", exc)
 
     app.icon_mgr = IconManager()
-    app.ambiance_player = AmbiancePlayer(str(app.data_dir))
-    app.typewriter_player = TypewriterSoundPlayer(str(app.data_dir))
+    app.ambiance_player = AmbiancePlayer(str(app.paths.sound_base_dir()))
+    app.typewriter_player = TypewriterSoundPlayer(str(app.paths.sound_base_dir()))
 
     app.config_manager = ConfigManager()
     app.theme_manager = ThemeManager(app.config_manager.get("theme", "Light"))

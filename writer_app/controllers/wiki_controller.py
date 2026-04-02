@@ -17,6 +17,7 @@ from writer_app.core.commands import (
 )
 from writer_app.core.tts import TTSManager
 from writer_app.core.event_bus import get_event_bus, Events
+from writer_app.core.paths import get_app_paths
 from writer_app.ui.help_dialog import create_module_help_button
 
 
@@ -540,16 +541,16 @@ class WikiController(BaseController):
         if not path:
             return
 
-        storage_dir = os.path.join(os.getcwd(), "writer_data", "wiki_images")
-        os.makedirs(storage_dir, exist_ok=True)
+        storage_dir = get_app_paths().wiki_images_dir()
+        storage_dir.mkdir(parents=True, exist_ok=True)
 
         ext = os.path.splitext(path)[1]
         new_filename = f"{uuid.uuid4().hex}{ext}"
-        new_path = os.path.join(storage_dir, new_filename)
+        new_path = storage_dir / new_filename
 
         try:
             shutil.copy2(path, new_path)
-            rel_path = os.path.join("writer_data", "wiki_images", new_filename)
+            rel_path = str(new_path)
             self.image_path_var.set(rel_path)
             self._load_image_preview(rel_path)
         except Exception as e:

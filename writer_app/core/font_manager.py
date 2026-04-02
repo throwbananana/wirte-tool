@@ -12,6 +12,8 @@ import tkinter.font as tkfont
 import ctypes
 from ctypes import wintypes
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 class FontManager:
@@ -27,7 +29,7 @@ class FontManager:
         if self._initialized:
             return
         
-        self.fonts_dir = Path("writer_data") / "fonts"
+        self.fonts_dir = get_app_paths().fonts_dir()
         self._loaded_fonts = []
         self._ensure_dir()
         self._initialized = True

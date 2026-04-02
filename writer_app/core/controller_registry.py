@@ -45,6 +45,9 @@ class ControllerRegistry:
         self._refresh_groups: Dict[str, List[str]] = {}
         self._tab_frames: Dict[str, Any] = {}  # 存储 tab frame 引用
         self._capabilities: Dict[str, Set[str]] = {}  # capability -> set of controller keys
+        # Backward-compatible aliases expected by older tests/callers.
+        self._groups = self._refresh_groups
+        self._tabs = self._tab_frames
 
     def register(self, key: str, controller: Any,
                  refresh_groups: Optional[List[str]] = None,
@@ -127,6 +130,14 @@ class ControllerRegistry:
     def get_tab_frame(self, key: str) -> Optional[Any]:
         """获取控制器关联的 tab frame。"""
         return self._tab_frames.get(key)
+
+    def get_tab(self, key: str) -> Optional[Any]:
+        """兼容旧接口：获取控制器关联的 tab frame。"""
+        return self.get_tab_frame(key)
+
+    def get_all_tabs(self) -> Dict[str, Any]:
+        """兼容旧接口：获取所有 tab frame。"""
+        return dict(self._tab_frames)
 
     def get_controllers_with_capability(self, capability: str) -> List[str]:
         """
@@ -249,23 +260,39 @@ class ControllerRegistry:
                 logger.error(f"刷新控制器 '{key}' 失败: {e}", exc_info=True)
         return count
 
-    def cleanup_all(self) -> None:
+    def cleanup_all(self) -> int:
         """清理所有控制器资源。"""
+        count = 0
         for key, controller in self._controllers.items():
             try:
                 if hasattr(controller, 'cleanup'):
                     controller.cleanup()
+                    count += 1
                     logger.debug(f"清理控制器: {key}")
             except Exception as e:
                 logger.error(f"清理控制器 '{key}' 失败: {e}", exc_info=True)
+        return count
 
     def get_all_keys(self) -> List[str]:
         """获取所有已注册的控制器键。"""
         return list(self._controllers.keys())
 
+    def list_controllers(self) -> List[str]:
+        """兼容旧接口：列出所有控制器键。"""
+        return self.get_all_keys()
+
     def get_groups(self) -> Dict[str, List[str]]:
         """获取所有刷新分组。"""
         return dict(self._refresh_groups)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """兼容旧接口：获取注册表统计信息。"""
+        return {
+            "total_controllers": len(self._controllers),
+            "total_tabs": len(self._tab_frames),
+            "groups": {group: list(keys) for group, keys in self._refresh_groups.items()},
+            "capabilities": {cap: sorted(keys) for cap, keys in self._capabilities.items()},
+        }
 
     def __contains__(self, key: str) -> bool:
         """支持 'in' 操作符。"""
@@ -280,6 +307,7 @@ class ControllerRegistry:
 class RefreshGroups:
     """刷新分组常量。"""
     SCENE = "scene"
+    SCRIPT = "script"
     CHARACTER = "character"
     OUTLINE = "outline"
     WIKI = "wiki"

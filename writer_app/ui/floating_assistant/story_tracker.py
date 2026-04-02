@@ -12,6 +12,8 @@ from pathlib import Path
 from collections import defaultdict
 import logging
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 
@@ -481,7 +483,7 @@ class StoryTracker:
 
         # 尝试从文件加载
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "story_data.json"
+            path = get_app_paths().find_data_file("story_data.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)

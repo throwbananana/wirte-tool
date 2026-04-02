@@ -30,6 +30,7 @@ from writer_app.core.commands_event import (
 )
 from writer_app.core.event_analyzer import EventAnalyzer
 from writer_app.core.history_manager import CommandHistory
+from writer_app.core.paths import get_app_paths
 from writer_app.ui.components.choice_editor import ChoiceEditorPanel
 from writer_app.ui.components.json_text_editor import JsonTextEditor
 
@@ -83,7 +84,7 @@ class EventEditorPanel(ttk.Frame):
 
     def _get_default_path(self) -> Path:
         """Get default event file path."""
-        return Path(__file__).parent.parent.parent.parent / "writer_data" / "school_events.json"
+        return get_app_paths().default_events_file()
 
     def _load_data(self):
         """Load events from file."""

@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import json
 
+from writer_app.core.paths import get_app_paths
+
 class WordBankEditor(tk.Toplevel):
     def __init__(self, parent, manager):
         super().__init__(parent)
@@ -123,9 +125,7 @@ class WordBankEditor(tk.Toplevel):
         # But manager has load_word_bank. Let's add save or do it here.
         # Doing it here for now assuming path knowledge or modify manager.
         try:
-            # Re-use the path from manager logic (assuming standard location)
-            from pathlib import Path
-            path = Path(__file__).parent.parent.parent / "writer_data" / "word_bank.json"
+            path = get_app_paths().default_word_bank_file()
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(new_data, f, indent=2, ensure_ascii=False)
             messagebox.showinfo("Success", "Word Bank updated successfully!")

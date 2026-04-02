@@ -12,6 +12,8 @@ from pathlib import Path
 from collections import defaultdict
 import logging
 
+from writer_app.core.paths import get_app_paths
+
 logger = logging.getLogger(__name__)
 
 
@@ -448,7 +450,7 @@ class NPCManager:
     def _load_npc_definitions(self):
         """加载NPC定义"""
         try:
-            path = Path(__file__).parent.parent.parent.parent / "writer_data" / "npc_characters.json"
+            path = get_app_paths().find_data_file("npc_characters.json", create_in="sample")
             if path.exists():
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)

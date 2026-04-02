@@ -5,6 +5,7 @@ import re
 from typing import List, Dict, Any, Tuple
 from pathlib import Path
 from writer_app.core.analysis import TextMetrics
+from writer_app.core.paths import get_app_paths
 
 logger = logging.getLogger(__name__)
 
@@ -93,11 +94,14 @@ class TrainingManager:
     def __init__(self, data_dir: Path = None):
         self.word_bank_data = {}
         if data_dir:
-            self.load_word_bank(data_dir / "word_bank.json")
+            word_bank_path = data_dir / "word_bank.json"
+            if not word_bank_path.exists():
+                word_bank_path = get_app_paths().default_word_bank_file()
+            self.load_word_bank(word_bank_path)
         else:
             # 测试环境的回退加载
             try:
-                p = Path(__file__).parent.parent.parent / "writer_data" / "word_bank.json"
+                p = get_app_paths().default_word_bank_file()
                 if p.exists():
                     self.load_word_bank(p)
             except Exception as e:

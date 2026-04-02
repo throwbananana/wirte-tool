@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "writer-tool"
+version = "1.0.2"
+description = "Tkinter writing workspace with planning, worldbuilding, AI assistance, and standalone editing tools."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "pillow",
+    "pygame",
+    "pystray",
+    "reportlab",
+    "SpeechRecognition",
+    "pyaudio",
+    "pyttsx3",
+    "python-docx",
+]
+
+[project.scripts]
+writer-tool = "start_app:main"
+writer-tool-tools = "start_tools:main"
+writer-tool-assets = "start_asset_editor:main"
+writer-tool-assistant-events = "start_assistant_event_editor:main"
+writer-tool-event-analyzer = "analyze_events:main"
+
+[tool.setuptools]
+include-package-data = true
+py-modules = [
+    "start_app",
+    "start_tools",
+    "start_asset_editor",
+    "start_assistant_event_editor",
+    "analyze_events",
+]
+
+[tool.setuptools.packages.find]
+include = ["writer_app*", "tools*"]

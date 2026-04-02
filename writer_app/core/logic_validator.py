@@ -10,11 +10,6 @@
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
-from writer_app.core.icon_manager import IconManager
-
-def get_icon(name, fallback):
-    return IconManager().get_icon(name, fallback=fallback)
-
 class IssueSeverity(Enum):
     """问题严重程度。"""
     ERROR = "error"      # 严重逻辑错误
@@ -56,9 +51,9 @@ class LogicIssue:
     def severity_icon(self) -> str:
         """获取严重程度图标。"""
         icons = {
-            IssueSeverity.ERROR: get_icon("error_circle", "❌"),
-            IssueSeverity.WARNING: get_icon("warning", "⚠️"),
-            IssueSeverity.INFO: get_icon("info", "ℹ️")
+            IssueSeverity.ERROR: "❌",
+            IssueSeverity.WARNING: "⚠️",
+            IssueSeverity.INFO: "ℹ️",
         }
         return icons.get(self.severity, "•")
 

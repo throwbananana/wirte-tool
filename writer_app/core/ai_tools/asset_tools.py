@@ -10,6 +10,7 @@ import random
 import os
 from pathlib import Path
 from . import AITool, ToolResult, ToolParameter, AIToolRegistry
+from writer_app.core.paths import get_app_paths
 
 from writer_app.core.commands import (
     EditSceneCommand,
@@ -67,7 +68,7 @@ class CreateAssetPlaceholderTool(AITool):
             size = (800, 450)
 
         # 创建资源目录
-        assets_dir = Path(os.getcwd()) / "writer_data" / "assets"
+        assets_dir = get_app_paths().runtime_subdir("assets")
         assets_dir.mkdir(parents=True, exist_ok=True)
 
         # 生成文件名

@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
+from writer_app.core.paths import get_app_paths
 from typing import Optional
 
 from writer_app.core.project_types import ProjectTypeManager
@@ -399,7 +400,7 @@ class GuideController:
         if not self._is_project_empty():
             return
 
-        sample_path = self.app.data_dir / "1.writerproj"
+        sample_path = get_app_paths().default_sample_project()
         if not sample_path.exists():
             sample_path = self.app.data_dir / "sample_project.writerproj"
             if not sample_path.exists():

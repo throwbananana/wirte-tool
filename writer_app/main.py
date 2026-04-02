@@ -40,7 +40,6 @@ from writer_app.ui.training_panel import TrainingPanel
 from writer_app.core.project_types import ProjectTypeManager
 from writer_app.core.exporter import Exporter, ExporterRegistry
 from writer_app.core.analysis import AnalysisUtils
-from writer_app.ui.story_curve import StoryCurveController
 from writer_app.core.logic_validator import get_logic_validator
 from writer_app.core.module_sync import get_module_sync_service
 from writer_app.core.controller_registry import ControllerRegistry, RefreshGroups, CONTROLLER_GROUP_MAPPING, Capabilities
@@ -50,13 +49,9 @@ from writer_app.controllers.mindmap_controller import MindMapController
 from writer_app.controllers.chat_controller import ChatController
 from writer_app.controllers.training_controller import TrainingController
 from writer_app.controllers.flowchart_controller import FlowchartController
-from writer_app.controllers.wiki_controller import WikiController
 from writer_app.controllers.analytics_controller import AnalyticsController
 from writer_app.controllers.relationship_controller import RelationshipController
 from writer_app.controllers.dual_timeline_controller import DualTimelineController
-from writer_app.controllers.timeline_controller import TimelineController
-from writer_app.controllers.kanban_controller import KanbanController
-from writer_app.controllers.calendar_controller import CalendarController
 from writer_app.controllers.ai_controller import AIController
 from writer_app.controllers.pomodoro_controller import PomodoroController
 from writer_app.controllers.idea_controller import IdeaController
@@ -258,20 +253,6 @@ class WriterTool:
         self.setup_ui()
         self.apply_ai_mode(self.ai_mode_var.get())
 
-    def setup_wiki_ui(self):
-        self.wiki_controller = WikiController(
-            self.wiki_frame,
-            self.project_manager,
-            self._execute_command,
-            self.theme_manager,
-            self.ai_client,
-            self.config_manager,
-            on_jump_to_scene=self.jump_to_scene_by_index
-        )
-        self.registry.register("wiki", self.wiki_controller,
-            refresh_groups=[RefreshGroups.WIKI],
-            capabilities=[Capabilities.AI_MODE])
-
     def on_gamification_update(self, event_type, data):
         title = self.gamification_manager.get_current_title()
         self.level_var.set(f"Lv.{data['level']} {title}")
@@ -408,30 +389,6 @@ class WriterTool:
     def refresh_script_ui(self):
         if hasattr(self, 'script_controller') and self.script_controller:
             self.script_controller.refresh()
-
-    def setup_kanban_ui(self):
-        self.kanban_controller = KanbanController(self.kanban_frame, self.project_manager, self._execute_command, self.theme_manager)
-        self.registry.register("kanban", self.kanban_controller,
-            refresh_groups=[RefreshGroups.SCENE, RefreshGroups.KANBAN])
-
-    def setup_calendar_ui(self):
-        self.calendar_controller = CalendarController(self.calendar_frame, self.project_manager, self._execute_command, self.theme_manager, self.jump_to_scene_by_index)
-        self.registry.register("calendar", self.calendar_controller,
-            refresh_groups=[RefreshGroups.SCENE])
-
-    def setup_timeline_ui(self):
-        self.timeline_controller = TimelineController(self.timeline_frame, self.project_manager, self._execute_command, self.theme_manager)
-        self.registry.register("timeline", self.timeline_controller,
-            refresh_groups=[RefreshGroups.TIMELINE, RefreshGroups.SCENE])
-
-    def setup_story_curve_ui(self):
-        self.story_curve_controller = StoryCurveController(
-            self.story_curve_frame, 
-            self.project_manager, 
-            self._execute_command, 
-            self.theme_manager,
-            self.jump_to_scene_by_index
-        )
 
     def jump_to_scene_by_index(self, idx):
         if 0 <= idx < len(self.project_manager.get_scenes()):
