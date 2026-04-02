@@ -1238,186 +1238,31 @@ except ImportError:
 # ============================================================================
 
 class Exporter:
+    """Legacy compatibility wrapper around the registry-based exporters."""
+
+    @staticmethod
+    def _export_via_registry(key: str, project_data, file_path, **kwargs):
+        exporter = ExporterRegistry.get(key)
+        if not exporter:
+            raise ValueError(f"Unknown export format: {key}")
+        return exporter.export(project_data, file_path, **kwargs)
+
     @staticmethod
     def export_to_csv(project_data, file_path):
-        """Export scenes and outline to CSV for spreadsheet management."""
-        script = project_data.get("script", {})
-        scenes = script.get("scenes", [])
-        
-        try:
-            with open(file_path, "w", encoding="utf-8-sig", newline="") as f:
-                writer = csv.writer(f)
-                # Header
-                writer.writerow(["序号", "场景名", "地点", "时间", "字数", "登场角色", "大纲关联", "备注"])
-                
-                for i, scene in enumerate(scenes):
-                    content = scene.get("content", "")
-                    word_count = len(content)
-                    
-                    # Try to find associated outline node name
-                    outline_ref = scene.get("outline_ref_path", "")
-                    
-                    writer.writerow([
-                        i + 1,
-                        scene.get("name", ""),
-                        scene.get("location", ""),
-                        scene.get("time", ""),
-                        word_count,
-                        ", ".join(scene.get("characters", [])),
-                        outline_ref,
-                        "" # Placeholder for manual remarks
-                    ])
-            return True
-        except Exception as e:
-            raise e
+        return Exporter._export_via_registry("csv", project_data, file_path)
 
     @staticmethod
     def export_to_excel(project_data, file_path):
-        """Export scenes and outline to Excel (.xlsx)."""
-        try:
-            from openpyxl import Workbook
-            from openpyxl.styles import Font, PatternFill
-        except ImportError:
-            raise ImportError("Please install 'openpyxl' to use Excel export: pip install openpyxl")
-
-        script = project_data.get("script", {})
-        scenes = script.get("scenes", [])
-        
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "场景列表"
-        
-        headers = ["序号", "场景名", "地点", "时间", "字数", "登场角色", "大纲关联", "备注"]
-        ws.append(headers)
-        
-        # Style headers
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
-        for cell in ws[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-            
-        for i, scene in enumerate(scenes):
-            content = scene.get("content", "")
-            word_count = len(content)
-            outline_ref = scene.get("outline_ref_path", "")
-            
-            row = [
-                i + 1,
-                scene.get("name", ""),
-                scene.get("location", ""),
-                scene.get("time", ""),
-                word_count,
-                ", ".join(scene.get("characters", [])),
-                outline_ref,
-                "" 
-            ]
-            ws.append(row)
-            
-        # Adjust column widths
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 15
-        ws.column_dimensions['D'].width = 15
-        ws.column_dimensions['F'].width = 25
-        ws.column_dimensions['G'].width = 25
-        
-        # Second sheet for characters
-        ws_char = wb.create_sheet("角色统计")
-        ws_char.append(["姓名", "描述", "登场次数", "标签"])
-        for cell in ws_char[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-
-        chars = script.get("characters", [])
-        for char in chars:
-            name = char.get("name", "")
-            # Count occurrences
-            count = 0
-            for s in scenes:
-                if name in s.get("characters", []):
-                    count += 1
-            
-            ws_char.append([
-                name,
-                char.get("description", ""),
-                count,
-                ", ".join(char.get("tags", []))
-            ])
-            
-        ws_char.column_dimensions['A'].width = 15
-        ws_char.column_dimensions['B'].width = 40
-
-        wb.save(file_path)
-        return True
+        return Exporter._export_via_registry("excel", project_data, file_path)
 
     @staticmethod
     def export_character_sides(project_data, file_path, target_role):
-        """
-        Export a script containing only lines for a specific character (Sides),
-        including cue lines (preceding line) for context.
-        """
-        script = project_data.get("script", {})
-        scenes = script.get("scenes", [])
-        lines = []
-        
-        lines.append(f"CHARACTER SIDES: {target_role.upper()}")
-        lines.append(f"Project: {script.get('title', 'Untitled')}")
-        lines.append("=" * 40 + "\n")
-
-        for i, scene in enumerate(scenes):
-            content = scene.get("content", "")
-            if target_role not in content:
-                continue
-                
-            scene_lines = content.split('\n')
-            scene_has_role = False
-            extracted_lines = []
-            
-            last_speaker = None
-            last_line = None
-            
-            for line in scene_lines:
-                line = line.strip()
-                if not line: continue
-                
-                # Check for dialogue
-                match = re.match(r"^([^\s：:]+)[：:]\s*(.*)$", line)
-                if match:
-                    speaker = match.group(1).strip()
-                    dialogue = match.group(2).strip()
-                    
-                    if speaker == target_role:
-                        if not scene_has_role:
-                            # Add Scene Header first time we see role
-                            header = f"SCENE {i+1}: {scene.get('name')} [{scene.get('location')} - {scene.get('time')}]"
-                            extracted_lines.append(f"\n{header}")
-                            extracted_lines.append("-" * len(header))
-                            scene_has_role = True
-                        
-                        # Add cue if exists and different speaker
-                        if last_speaker and last_speaker != target_role:
-                            extracted_lines.append(f"(CUE) {last_speaker}: ...{last_line[-30:] if len(last_line)>30 else last_line}")
-                        
-                        # Add own line
-                        extracted_lines.append(f"{speaker}: {dialogue}")
-                    
-                    last_speaker = speaker
-                    last_line = dialogue
-                else:
-                    # Reset context on action? Optional. 
-                    # For simple sides, we might ignore action or treat as cue if relevant.
-                    pass
-
-            if extracted_lines:
-                lines.extend(extracted_lines)
-                lines.append("")
-
-        try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(lines))
-            return True
-        except Exception as e:
-            raise e
+        return Exporter._export_via_registry(
+            "sides",
+            project_data,
+            file_path,
+            target_role=target_role,
+        )
 
     @staticmethod
     def export_to_pdf(project_data, file_path):
@@ -1639,85 +1484,17 @@ class Exporter:
 
     @staticmethod
     def export_to_txt(project_data, file_path):
-        """Export script to Plain Text format."""
-        script = project_data.get("script", {})
-        lines = []
-        
-        title = script.get("title", "Untitled")
-        lines.append(title)
-        lines.append("=" * len(title))
-        lines.append("")
-        
-        for scene in script.get("scenes", []):
-            name = scene.get("name", "Untitled Scene")
-            loc = scene.get("location", "Unknown Location")
-            time = scene.get("time", "Unknown Time")
-            
-            lines.append(f"{name}")
-            lines.append(f"{loc} - {time}")
-            lines.append("-" * 20)
-            
-            content = scene.get("content", "")
-            lines.append(content)
-            lines.append("\n" + "="*30 + "\n")
-
-        try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(lines))
-            return True
-        except Exception as e:
-            raise e
+        return Exporter._export_via_registry("txt", project_data, file_path)
 
     @staticmethod
     def export_to_markdown(project_data, file_path, include_outline=True, include_script=True):
-        lines = []
-        script = project_data.get("script", {})
-        
-        if include_script:
-            title = script.get("title", "Untitled")
-            lines.append(f"# {title}\n")
-            
-            chars = script.get("characters", [])
-            if chars:
-                lines.append("## Characters")
-                for c in chars:
-                    lines.append(f"- **{c.get('name')}**: {c.get('description')}")
-                lines.append("")
-            
-            scenes = script.get("scenes", [])
-            if scenes:
-                lines.append("## Scenes")
-                for s in scenes:
-                    lines.append(f"### {s.get('name')}")
-                    lines.append(f"**Location**: {s.get('location')} | **Time**: {s.get('time')}\n")
-                    
-                    content = s.get("content", "")
-                    for line in content.split('\n'):
-                        line = line.strip()
-                        if not line:
-                            lines.append("")
-                            continue
-                        # Format dialogue: Name: Dialogue -> **Name**: Dialogue
-                        match = re.match(r"^([^\s：:]+)[：:]\s*(.*)$", line)
-                        if match:
-                            name = match.group(1)
-                            dialogue = match.group(2)
-                            lines.append(f"**{name}**: {dialogue}")
-                        else:
-                            lines.append(line)
-                    
-                    lines.append("\n---\n")
-
-        if include_outline:
-            lines.append("\n# Outline\n")
-            Exporter._recursive_outline(project_data.get("outline", {}), 0, lines)
-
-        try:
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write("\n".join(lines))
-            return True
-        except Exception as e:
-            raise e
+        return Exporter._export_via_registry(
+            "markdown",
+            project_data,
+            file_path,
+            include_outline=include_outline,
+            include_script=include_script,
+        )
 
     @staticmethod
     def _recursive_outline(node, level, lines):
@@ -2081,3 +1858,28 @@ class Exporter:
             return True
         except Exception as e:
             raise e
+
+
+# Keep the legacy Exporter API as a thin compatibility facade. These overrides
+# ensure the registry-backed exporters remain the single execution path.
+Exporter.export_to_pdf = staticmethod(
+    lambda project_data, file_path: Exporter._export_via_registry("pdf", project_data, file_path)
+)
+Exporter.export_to_epub = staticmethod(
+    lambda project_data, file_path: Exporter._export_via_registry("epub", project_data, file_path)
+)
+Exporter.export_to_html_print = staticmethod(
+    lambda project_data, file_path: Exporter._export_via_registry("html", project_data, file_path)
+)
+Exporter.export_to_fountain = staticmethod(
+    lambda project_data, file_path: Exporter._export_via_registry("fountain", project_data, file_path)
+)
+Exporter.export_to_fdx = staticmethod(
+    lambda project_data, file_path: Exporter._export_via_registry("fdx", project_data, file_path)
+)
+Exporter.export_to_docx = staticmethod(
+    lambda project_data, file_path: Exporter._export_via_registry("docx", project_data, file_path)
+)
+Exporter.export_to_renpy = staticmethod(
+    lambda project_data, export_dir: Exporter._export_via_registry("renpy", project_data, export_dir)
+)

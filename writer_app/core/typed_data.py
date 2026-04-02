@@ -3,7 +3,7 @@ Typed project data schemas - defines modular data structures per project type.
 
 This module provides:
 1. DataModule enum for all possible data modules
-2. TYPE_MODULE_MAP mapping project types to required modules
+2. A derived type-to-module view based on project type presets and module metadata
 3. MODULE_SCHEMAS for each module's default structure
 4. Helper functions for module management
 """
@@ -163,46 +163,17 @@ CORE_MODULES: Set[DataModule] = {
 }
 
 
-# Type-to-modules mapping - defines which modules each project type needs
-TYPE_MODULE_MAP: Dict[str, Set[DataModule]] = {
-    "General": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-    },
-    "Suspense": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-        DataModule.TIMELINES,
-        DataModule.EVIDENCE,
-    },
-    "Romance": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-        DataModule.HEARTBEAT,
-    },
-    "Epic": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-        DataModule.FACTIONS,
-    },
-    "SciFi": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-        DataModule.FACTIONS,
-    },
-    "Poetry": CORE_MODULES,  # Minimal - just core modules
-    "LightNovel": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-        DataModule.GALGAME_ASSETS,
-    },
-    "Galgame": CORE_MODULES | {
-        DataModule.WORLD,
-        DataModule.RELATIONSHIPS,
-        DataModule.VARIABLES,
-        DataModule.GALGAME_ASSETS,
-    },
-}
+# Compatibility cache. The actual mapping is derived from project presets plus
+# module registry metadata so tools/modules stay in sync.
+TYPE_MODULE_MAP: Dict[str, Set[DataModule]] = {}
+
+
+def get_type_module_map() -> Dict[str, Set[DataModule]]:
+    from writer_app.core.module_policy import build_type_module_map
+
+    TYPE_MODULE_MAP.clear()
+    TYPE_MODULE_MAP.update(build_type_module_map())
+    return TYPE_MODULE_MAP
 
 
 def get_required_modules(project_type: str) -> Set[DataModule]:
@@ -215,7 +186,8 @@ def get_required_modules(project_type: str) -> Set[DataModule]:
     Returns:
         Set of DataModule enums required for this type
     """
-    return TYPE_MODULE_MAP.get(project_type, TYPE_MODULE_MAP["General"])
+    type_module_map = get_type_module_map()
+    return type_module_map.get(project_type, set(CORE_MODULES))
 
 
 def get_optional_modules(project_type: str) -> Set[DataModule]:

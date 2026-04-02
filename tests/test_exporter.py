@@ -2,10 +2,12 @@
 导出器插件系统单元测试
 """
 
+import os
+import tempfile
 import unittest
 from writer_app.core.models import ProjectManager
 from writer_app.core.exporter import (
-    ExportFormat, ExporterRegistry, ExportResult
+    ExportFormat, ExporterRegistry, ExportResult, Exporter
 )
 
 
@@ -173,6 +175,93 @@ class TestHTMLExport(unittest.TestCase):
         content = result.content or ""
         self.assertIn("<html", content.lower())
         self.assertIn("HTML测试", content)
+
+
+class TestLegacyExporterCompatibility(unittest.TestCase):
+    def setUp(self):
+        self.pm = ProjectManager()
+        self.pm.project_data["script"]["title"] = "兼容导出"
+        self.pm.project_data["script"]["scenes"] = [
+            {
+                "name": "第一场",
+                "location": "教室",
+                "time": "白天",
+                "content": "张三：你好\n李四：你好",
+                "characters": ["张三", "李四"],
+            }
+        ]
+
+    def test_exporter_markdown_wrapper(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".md") as handle:
+            path = handle.name
+
+        try:
+            self.assertTrue(Exporter.export_to_markdown(self.pm.project_data, path))
+            with open(path, "r", encoding="utf-8") as exported:
+                content = exported.read()
+
+            self.assertIn("兼容导出", content)
+            self.assertIn("第一场", content)
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_exporter_character_sides_wrapper(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as handle:
+            path = handle.name
+
+        try:
+            self.assertTrue(Exporter.export_character_sides(self.pm.project_data, path, "张三"))
+            with open(path, "r", encoding="utf-8") as exported:
+                content = exported.read()
+
+            self.assertIn("CHARACTER SIDES: 张三", content)
+            self.assertIn("张三: 你好", content)
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_exporter_html_wrapper(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as handle:
+            path = handle.name
+
+        try:
+            self.assertTrue(Exporter.export_to_html_print(self.pm.project_data, path))
+            with open(path, "r", encoding="utf-8") as exported:
+                content = exported.read()
+
+            self.assertIn("<html", content.lower())
+            self.assertIn("兼容导出", content)
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_exporter_fountain_wrapper(self):
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".fountain") as handle:
+            path = handle.name
+
+        try:
+            self.assertTrue(Exporter.export_to_fountain(self.pm.project_data, path))
+            with open(path, "r", encoding="utf-8") as exported:
+                content = exported.read()
+
+            self.assertIn("Title: 兼容导出", content)
+            self.assertIn(".教室 - 白天", content)
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_exporter_renpy_wrapper(self):
+        with tempfile.TemporaryDirectory() as export_dir:
+            self.assertTrue(Exporter.export_to_renpy(self.pm.project_data, export_dir))
+            script_path = os.path.join(export_dir, "game", "script.rpy")
+            self.assertTrue(os.path.exists(script_path))
+
+            with open(script_path, "r", encoding="utf-8") as exported:
+                content = exported.read()
+
+            self.assertIn("label start:", content)
+            self.assertIn("张三", content)
 
 
 if __name__ == "__main__":

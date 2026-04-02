@@ -3,9 +3,10 @@ from tkinter import ttk, messagebox, filedialog, simpledialog
 from pathlib import Path
 import logging
 
-from writer_app.core.models import ProjectManager
-from writer_app.core.config import ConfigManager
-from writer_app.core.theme import ThemeManager
+from writer_app.app.bootstrap import bootstrap_core_services
+from writer_app.app.menu_builder import MenuBuilder
+from writer_app.app.shortcut_registry import ShortcutRegistry
+from writer_app.app.workspace_builder import WorkspaceBuilder
 from writer_app.core.event_bus import get_event_bus, Events
 from writer_app.core.commands import (
     AddNodeCommand, DeleteNodesCommand, EditNodeCommand,
@@ -14,14 +15,11 @@ from writer_app.core.commands import (
     AddWikiEntryCommand, DeleteWikiEntryCommand, EditWikiEntryCommand,
     GlobalRenameCommand
 )
-from writer_app.core.history_manager import CommandHistory
-from writer_app.core.backup import BackupManager
 from writer_app.core.outline_templates import (
     get_outline_template_meta,
     get_outline_template_nodes,
     list_outline_templates,
 )
-from writer_app.core.gamification import GamificationManager
 from writer_app.ui.outline_views import VIEW_TYPE_NAMES
 from writer_app.ui.floating_assistant import FloatingAssistantManager
 from writer_app.ui.relationship_map import RelationshipMapCanvas
@@ -40,16 +38,13 @@ from writer_app.ui.submission import SubmissionDialog
 from writer_app.ui.achievements_dialog import AchievementsDialog
 from writer_app.ui.training_panel import TrainingPanel
 from writer_app.core.project_types import ProjectTypeManager
-from writer_app.utils.ai_client import AIClient
 from writer_app.core.exporter import Exporter, ExporterRegistry
 from writer_app.core.analysis import AnalysisUtils
 from writer_app.ui.story_curve import StoryCurveController
 from writer_app.core.logic_validator import get_logic_validator
-from writer_app.core.module_sync import init_module_sync, get_module_sync_service
+from writer_app.core.module_sync import get_module_sync_service
 from writer_app.core.controller_registry import ControllerRegistry, RefreshGroups, CONTROLLER_GROUP_MAPPING, Capabilities
 from writer_app.core.thread_pool import get_ai_thread_pool, shutdown_thread_pool
-from writer_app.core.font_manager import get_font_manager
-from writer_app.core.guide_progress import GuideProgress
 from writer_app.controllers.script_controller import ScriptController
 from writer_app.controllers.mindmap_controller import MindMapController
 from writer_app.controllers.chat_controller import ChatController
@@ -76,8 +71,6 @@ from writer_app.ui.settings_dialog import SettingsDialog
 from writer_app.ui.project_settings_dialog import ProjectSettingsDialog
 from writer_app.ui.module_catalog_dialog import ModuleCatalogDialog
 from writer_app.ui.app_mode_manager import AppModeManager
-from writer_app.ui.app_theme import AppThemeController
-from writer_app.core.audio import AmbiancePlayer, TypewriterSoundPlayer
 from writer_app.ui.heartbeat_tracker import HeartbeatTrackerController
 from writer_app.ui.alibi_timeline import AlibiTimelineController
 from writer_app.ui.galgame_assets import GalgameAssetsController
@@ -86,7 +79,6 @@ from writer_app.ui.faction_matrix import FactionMatrixController
 from writer_app.ui.reverse_engineering import ReverseEngineeringView
 from writer_app.ui.character_event_table import CharacterEventTable
 from writer_app.controllers.variable_controller import VariableController
-from writer_app.utils.logging_utils import setup_logging
 from writer_app.utils.tray_manager import TrayManager
 from writer_app.core.icon_manager import IconManager
 from writer_app.ui.help_dialog import show_help_dialog, show_shortcuts_dialog, show_about_dialog
@@ -104,60 +96,15 @@ class WriterTool:
         self.root = root
         self.root.title("写作助手 - Writer Tool")
         self.root.writer_app = self
-        
-        self.data_dir = Path(__file__).parent.parent / "writer_data"
-        self.data_dir.mkdir(exist_ok=True)
-        self.log_file_path = setup_logging(self.data_dir)
-        
-        # Load local fonts
-        try:
-            get_font_manager().load_local_fonts()
-        except Exception as e:
-            logger.error(f"Failed to load fonts: {e}")
-        
-        # Initialize IconManager to load fonts
-        self.icon_mgr = IconManager()
-        
-        self.ambiance_player = AmbiancePlayer(str(self.data_dir))
-        self.typewriter_player = TypewriterSoundPlayer(str(self.data_dir))
+        bootstrap_core_services(self)
 
-        self.config_manager = ConfigManager()
         self.ai_mode_var = tk.BooleanVar(value=self.config_manager.get("ai_mode_enabled", True))
-        self.theme_manager = ThemeManager(self.config_manager.get("theme", "Light"))
-        self.theme_manager.set_custom_colors(self.config_manager.get("custom_theme_colors", {}))
-        self.theme_manager.set_background_image(self.config_manager.get("background_image", ""))
-        self.theme_manager.set_background_opacity(self.config_manager.get("background_opacity", 1.0))
-        self.theme_controller = AppThemeController(self)
-        self.theme_manager.add_listener(self._on_theme_changed)
-        geometry = self.config_manager.get("window_geometry", "1400x900")
-        self.root.geometry(geometry)
-
-        self.project_manager = ProjectManager()
-        self.ai_client = AIClient()
-        self.history_manager = CommandHistory()
-        self.search_dialog = None
         self.messagebox = messagebox
-        self.guide_progress = GuideProgress(self.data_dir)
         self.guide_controller = GuideController(self)
 
         # 初始化事件总线
         self.event_bus = get_event_bus()
         self._setup_event_subscriptions()
-
-        # 初始化模块同步服务
-        self.module_sync = init_module_sync(self.project_manager)
-        self._last_validation_report = None
-        self._last_validation_issue_count = None
-        self.module_sync.set_validation_callback(self._run_logic_validation_silent)
-
-        self.data_dir = Path(__file__).parent.parent / "writer_data"
-        self.data_dir.mkdir(exist_ok=True)
-        
-        self.gamification_manager = GamificationManager(self.data_dir)
-        self.gamification_manager.add_listener(self.on_gamification_update)
-        
-        self.backup_manager = BackupManager(self.project_manager)
-        self.backup_manager.start()
 
         self.lm_api_url = tk.StringVar(value=self.config_manager.get("lm_api_url", "http://localhost:1234/v1/chat/completions"))
         self.lm_api_model = tk.StringVar(value=self.config_manager.get("lm_api_model", "local-model"))
@@ -243,372 +190,8 @@ class WriterTool:
         # self.root.after(200, self.guide_controller.show_dev_notice_if_needed)
 
     def setup_ui(self):
-        # Create main paned window with sidebar + content area
-        self.main_paned = ttk.PanedWindow(self.root, orient=tk.HORIZONTAL)
-        self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-        # Create sidebar panel (left)
-        self.sidebar = SidebarPanel(
-            self.main_paned,
-            self.theme_manager,
-            self._on_sidebar_select,
-            self.config_manager
-        )
-        self.main_paned.add(self.sidebar, weight=0)
-
-        # Content area (right) with notebook (tabs hidden)
-        self.content_area = ttk.Frame(self.main_paned)
-        self.main_paned.add(self.content_area, weight=1)
-
-        self.notebook = ttk.Notebook(self.content_area)
-        self._orig_notebook_style = self.notebook.cget("style") or ""
-        self.notebook.pack(fill=tk.BOTH, expand=True)
-
-        # Hide notebook tabs using style
-        style = ttk.Style()
-        style.layout("Hidden.TNotebook.Tab", [])  # Empty layout = hidden tabs
-        self.notebook.configure(style="Hidden.TNotebook")
-
-        self._toolbox_tab = None
-        self._last_real_tab = None
-
-        current_type = self.project_manager.get_project_type()
-        current_length = self.project_manager.get_project_length()
-        enabled_tools = self.project_manager.get_enabled_tools()
-        
-        if "outline" in enabled_tools:
-            self.outline_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.outline_frame, text="  思维导图/大纲  ")
-            self.mindmap_controller = MindMapController(
-                self.outline_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                self.ai_client,
-                self.config_manager,
-                self.ai_controller
-            )
-            self.registry.register("mindmap", self.mindmap_controller,
-                refresh_groups=[RefreshGroups.OUTLINE],
-                capabilities=[Capabilities.AI_MODE])
-            self.tabs["outline"] = self.outline_frame
-
-        if "script" in enabled_tools:
-            self.script_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.script_frame, text="  剧本写作  ")
-            self.script_controller = ScriptController(
-                self.script_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                self.ai_client,
-                self.config_manager,
-                on_wiki_click=self.jump_to_wiki_entry,
-                ai_controller=self.ai_controller,
-                ambiance_player=self.ambiance_player
-            )
-            FloatingAssistantManager.set_script_controller(self.script_controller)
-            if hasattr(self.script_controller, "script_editor"):
-                FloatingAssistantManager.set_editor_widget(self.script_controller.script_editor)
-            self.registry.register("script", self.script_controller,
-                refresh_groups=[RefreshGroups.SCENE, RefreshGroups.CHARACTER],
-                capabilities=[Capabilities.AI_MODE])
-            self.tabs["script"] = self.script_frame
-
-        if "char_events" in enabled_tools:
-            self.char_event_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.char_event_frame, text="  人物事件  ")
-            self.char_event_table = CharacterEventTable(
-                self.char_event_frame,
-                self.project_manager,
-                self.theme_manager,
-                self._execute_command
-            )
-            self.char_event_table.pack(fill=tk.BOTH, expand=True)
-            self.tabs["char_events"] = self.char_event_frame
-
-        if "relationship" in enabled_tools:
-            self.relationship_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.relationship_frame, text="  人物关系图  ")
-            self.relationship_controller = RelationshipController(
-                self.relationship_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                self.config_manager,
-                on_jump_to_scene=self.jump_to_scene_by_index,
-                on_jump_to_outline=self.jump_to_outline_node
-            )
-            self.registry.register("relationship", self.relationship_controller,
-                refresh_groups=[RefreshGroups.CHARACTER, RefreshGroups.RELATIONSHIP])
-            self.tabs["relationship"] = self.relationship_frame
-
-        if "evidence_board" in enabled_tools:
-            self.evidence_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.evidence_frame, text="  线索墙 (悬疑)  ")
-            self.evidence_board = EvidenceBoardContainer(
-                self.evidence_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                on_navigate_to_scene=self.jump_to_scene_by_index
-            )
-            self.evidence_board.pack(fill=tk.BOTH, expand=True)
-            self.registry.register("evidence_board", self.evidence_board,
-                refresh_groups=[RefreshGroups.EVIDENCE, RefreshGroups.SCENE, RefreshGroups.CHARACTER])
-            self.tabs["evidence_board"] = self.evidence_frame
-
-        if "timeline" in enabled_tools:
-            self.timeline_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.timeline_frame, text="  时间轴  ")
-            self.setup_timeline_ui()
-            self.tabs["timeline"] = self.timeline_frame
-
-        if "story_curve" in enabled_tools:
-            self.story_curve_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.story_curve_frame, text="  故事曲线  ")
-            self.story_curve_controller = StoryCurveController(
-                self.story_curve_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                self.jump_to_scene_by_index,
-                self.ai_controller
-            )
-            self.registry.register("story_curve", self.story_curve_controller,
-                refresh_groups=[RefreshGroups.SCENE],
-                capabilities=[Capabilities.AI_MODE])
-            self.tabs["story_curve"] = self.story_curve_frame
-
-        if "swimlanes" in enabled_tools:
-            self.swimlane_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.swimlane_frame, text="  故事泳道  ")
-            self.swimlane_view = SwimlaneView(self.swimlane_frame, self.project_manager, self.theme_manager)
-            self.swimlane_view.pack_controls()
-            self.tabs["swimlanes"] = self.swimlane_frame
-
-        if "dual_timeline" in enabled_tools:
-            self.dual_timeline_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.dual_timeline_frame, text="  表里双轨图  ")
-            self.dual_timeline_controller = DualTimelineController(self.dual_timeline_frame, self.project_manager, self._execute_command, self.theme_manager)
-            self.dual_timeline_controller.pack(fill=tk.BOTH, expand=True)
-            self.registry.register("dual_timeline", self.dual_timeline_controller,
-                refresh_groups=[RefreshGroups.TIMELINE])
-            self.tabs["dual_timeline"] = self.dual_timeline_frame
-
-        if "kanban" in enabled_tools:
-            self.kanban_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.kanban_frame, text="  场次看板  ")
-            self.setup_kanban_ui()
-            self.tabs["kanban"] = self.kanban_frame
-
-        if "calendar" in enabled_tools:
-            self.calendar_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.calendar_frame, text="  故事日历  ")
-            self.setup_calendar_ui()
-            self.tabs["calendar"] = self.calendar_frame
-
-        if "wiki" in enabled_tools:
-            self.wiki_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.wiki_frame, text="  世界观百科  ")
-            self.setup_wiki_ui()
-            self.tabs["wiki"] = self.wiki_frame
-        
-        if "research" in enabled_tools:
-            self.research_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.research_frame, text="  资料搜集  ")
-            self.research_panel = ResearchPanel(self.research_frame, self.project_manager, self.theme_manager)
-            self.research_panel.pack(fill=tk.BOTH, expand=True)
-            self.research_controller = ResearchController(self.research_panel, self.project_manager, self._execute_command)
-            self.registry.register("research", self.research_controller,
-                refresh_groups=[RefreshGroups.ALL])
-            self.tabs["research"] = self.research_frame
-
-        # Reverse Engineering Tab
-        if "reverse_engineering" in enabled_tools:
-            self.reverse_engineering_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.reverse_engineering_frame, text="  反推导学习  ")
-            self.reverse_engineering_view = ReverseEngineeringView(
-                self.reverse_engineering_frame,
-                self.project_manager,
-                self.ai_client,
-                self.theme_manager,
-                self.config_manager,
-                self._execute_command,
-                on_navigate=self.navigate_to_module
-            )
-            self.reverse_engineering_view.pack(fill=tk.BOTH, expand=True)
-            self.tabs["reverse_engineering"] = self.reverse_engineering_frame
-
-        if "analytics" in enabled_tools:
-            self.analytics_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.analytics_frame, text="  数据统计  ")
-            self.analytics_controller = AnalyticsController(self.analytics_frame, self.project_manager, self._execute_command, self.theme_manager)
-            self.registry.register("analytics", self.analytics_controller,
-                refresh_groups=[RefreshGroups.ANALYTICS, RefreshGroups.OUTLINE])
-            self.tabs["analytics"] = self.analytics_frame
-        
-        # --- Specialized Modules ---
-        if "heartbeat" in enabled_tools:
-            self.heartbeat_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.heartbeat_frame, text="  💗 心动追踪  ")
-            self.heartbeat_controller = HeartbeatTrackerController(
-                self.heartbeat_frame,
-                self.project_manager,
-                self._execute_command,
-                self.jump_to_scene_by_index
-            )
-            self.registry.register("heartbeat", self.heartbeat_controller,
-                refresh_groups=[RefreshGroups.CHARACTER])
-            self.tabs["heartbeat"] = self.heartbeat_frame
-
-        if "alibi" in enabled_tools:
-            self.alibi_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.alibi_frame, text="  🕵️ 不在场证明  ")
-            self.alibi_controller = AlibiTimelineController(self.alibi_frame, self.project_manager)
-            self.registry.register("alibi", self.alibi_controller,
-                refresh_groups=[RefreshGroups.TIMELINE])
-            self.tabs["alibi"] = self.alibi_frame
-
-        if "iceberg" in enabled_tools:
-            self.iceberg_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.iceberg_frame, text="  🏔️ 世界冰山  ")
-            self.iceberg_controller = WorldIcebergController(self.iceberg_frame, self.project_manager, self._execute_command)
-            self.registry.register("iceberg", self.iceberg_controller,
-                refresh_groups=[RefreshGroups.WIKI])
-            self.tabs["iceberg"] = self.iceberg_frame
-
-        if "faction" in enabled_tools:
-            self.faction_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.faction_frame, text="  ⚔️ 势力矩阵  ")
-            self.faction_controller = FactionMatrixController(self.faction_frame, self.project_manager, self._execute_command)
-            self.registry.register("faction", self.faction_controller,
-                refresh_groups=[RefreshGroups.RELATIONSHIP])
-            self.tabs["faction"] = self.faction_frame
-
-        # Galgame Assets moved to separate tool (start_asset_editor.py)
-        # if "galgame_assets" in enabled_tools:
-        #     self.galgame_assets_frame = ttk.Frame(self.notebook)
-        #     self.notebook.add(self.galgame_assets_frame, text="  🎨 资源管理  ")
-        #     self.galgame_assets_controller = GalgameAssetsController(
-        #         self.galgame_assets_frame,
-        #         self.project_manager,
-        #         self._execute_command
-        #     )
-        #     self.registry.register("galgame_assets", self.galgame_assets_controller,
-        #         refresh_groups=[RefreshGroups.ASSET])
-        #     self.tabs["galgame_assets"] = self.galgame_assets_frame
-
-        if "variable" in enabled_tools:
-            self.variable_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.variable_frame, text="  🔢 变量管理  ")
-            self.variable_controller = VariableController(
-                self.variable_frame,
-                self.project_manager,
-                self._execute_command
-            )
-            self.registry.register("variable", self.variable_controller,
-                refresh_groups=[RefreshGroups.ALL])
-            self.tabs["variable"] = self.variable_frame
-
-        if "flowchart" in enabled_tools:
-            self.flowchart_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.flowchart_frame, text="  🕸️ 剧情流向  ")
-            self.flowchart_controller = FlowchartController(
-                self.flowchart_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                on_jump_to_scene=self.jump_to_scene_by_index
-            )
-            self.registry.register("flowchart", self.flowchart_controller,
-                refresh_groups=[RefreshGroups.OUTLINE, RefreshGroups.SCENE])
-            self.tabs["flowchart"] = self.flowchart_frame
-
-        # Always enable Idea Box
-        if "ideas" in enabled_tools:
-            self.idea_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.idea_frame, text="  灵感箱  ")
-            self.idea_panel = IdeaPanel(self.idea_frame, self.project_manager, self.theme_manager)
-            self.idea_panel.pack(fill=tk.BOTH, expand=True)
-            self.idea_controller = IdeaController(self.idea_panel, self.project_manager, self.theme_manager)
-            self.registry.register("idea", self.idea_controller,
-                refresh_groups=[RefreshGroups.ALL])
-            self.tabs["ideas"] = self.idea_frame
-
-        # Training Module
-        if "training" in enabled_tools:
-            self.training_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.training_frame, text="  创意训练  ")
-            self.training_panel = TrainingPanel(self.training_frame, theme_manager=self.theme_manager)
-            self.training_panel.pack(fill=tk.BOTH, expand=True)
-            self.training_controller = TrainingController(
-                self.training_panel,
-                self.project_manager,
-                self.theme_manager,
-                self.ai_client,
-                self.config_manager,
-                self.gamification_manager
-            )
-            self.registry.register("training", self.training_controller,
-                refresh_groups=[RefreshGroups.ALL],
-                capabilities=[Capabilities.AI_MODE])
-            self.tabs["training"] = self.training_frame
-
-        if "chat" in enabled_tools:
-            self.chat_frame = ttk.Frame(self.notebook)
-            self.notebook.add(self.chat_frame, text="  项目对话  ")
-            self.chat_controller = ChatController(
-                self.chat_frame,
-                self.project_manager,
-                self._execute_command,
-                self.theme_manager,
-                self.ai_client,
-                self.config_manager,
-                self.ai_controller
-            )
-            self.registry.register("chat", self.chat_controller,
-                refresh_groups=[RefreshGroups.ALL],
-                capabilities=[Capabilities.AI_MODE])
-
-        # Toolbox is now in sidebar, no need for notebook tab
-        self._toolbox_tab = None
-
-        # Create sidebar controller
-        self.sidebar_controller = SidebarController(
-            self.sidebar,
-            self.notebook,
-            self.config_manager,
-            on_item_changed=self._on_sidebar_item_changed
-        )
-
-        # Register all tabs with sidebar controller
-        for key, frame in self.tabs.items():
-            self.sidebar_controller.register_tab(key, frame)
-
-        # Update sidebar visibility based on enabled tools
-        self.sidebar.update_visibility(enabled_tools)
-
-        # Set initial selection
-        default_key = ProjectTypeManager.get_default_tab_key(current_type)
-        if default_key in self.tabs:
-            self.sidebar.select_item_by_key(default_key)
-            self.notebook.select(self.tabs[default_key])
-        elif self.tabs:
-            first_key = next(iter(self.tabs.keys()))
-            self.sidebar.select_item_by_key(first_key)
-            self.notebook.select(self.tabs[first_key])
-        self._last_real_tab = self.notebook.select() if self.tabs else None
-
-        # 4. Update Status Bar project type/length label
-        t_name = self.project_manager.get_project_type_display_name()
-        l_name = ProjectTypeManager.get_length_info(current_length)['name']
-        if hasattr(self, "type_lbl") and self.type_lbl:
-            self.type_lbl.config(text=f"[{t_name} | {l_name}]")
-
-        # 5. Apply theme and refresh
-        self.apply_theme()
-        self.refresh_all()
+        self.workspace_builder = WorkspaceBuilder(self)
+        self.workspace_builder.build()
 
     def _on_sidebar_select(self, workspace: str, item_key: str):
         """Handle sidebar item selection."""
@@ -725,104 +308,8 @@ class WriterTool:
             self.last_word_count = count
 
     def setup_menu(self):
-        self.menubar = tk.Menu(self.root)
-        self.root.config(menu=self.menubar)
-
-        file_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="文件", menu=file_menu)
-        file_menu.add_command(label="新建项目", command=self.new_project, accelerator="Ctrl+N")
-        file_menu.add_command(label="打开项目...", command=self.open_project, accelerator="Ctrl+O")
-        file_menu.add_command(label="保存项目", command=self.save_project, accelerator="Ctrl+S")
-        file_menu.add_command(label="另存为...", command=self.save_project_as)
-        file_menu.add_separator()
-        file_menu.add_command(label="项目设置 / 更改类型...", command=self.change_project_type)
-        file_menu.add_separator()
-        
-        # Dynamic Export Menu
-        export_menu = tk.Menu(file_menu, tearoff=0)
-        file_menu.add_cascade(label="导出...", menu=export_menu)
-        
-        for fmt in ExporterRegistry.list_formats():
-            export_menu.add_command(
-                label=f"导出为 {fmt.name} ({fmt.extension})",
-                command=lambda f=fmt: self.perform_export(f)
-            )
-            
-        file_menu.add_separator()
-        file_menu.add_command(label="退出", command=self.on_closing)
-
-        edit_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="编辑", menu=edit_menu)
-        edit_menu.add_command(label="撤销", command=self.undo, accelerator="Ctrl+Z", state=tk.DISABLED)
-        edit_menu.add_command(label="重做", command=self.redo, accelerator="Ctrl+Y", state=tk.DISABLED)
-        self.edit_menu = edit_menu
-        edit_menu.add_separator()
-        edit_menu.add_command(label="查找与替换...", command=self.open_search_dialog, accelerator="Ctrl+F")
-        edit_menu.add_command(label="全局替换 (Global Rename)...", command=self.open_global_rename_dialog)
-        edit_menu.add_separator()
-        edit_menu.add_command(label="运行逻辑校验 (Logic Check)", command=self.run_logic_check)
-        edit_menu.add_separator()
-        edit_menu.add_command(label="添加子节点", command=self.add_child_node, accelerator="Tab")
-        edit_menu.add_command(label="添加同级节点", command=self.add_sibling_node, accelerator="Enter")
-        edit_menu.add_command(label="删除节点", command=self.delete_node, accelerator="Delete")
-        edit_menu.add_separator()
-        edit_menu.add_command(label="展开所有", command=self.expand_all)
-        edit_menu.add_command(label="折叠所有", command=self.collapse_all)
-        edit_menu.add_separator()
-        edit_menu.add_command(label="标签管理...", command=self.open_tag_manager)
-
-        tools_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="工具", menu=tools_menu)
-        tools_menu.add_command(label="写作冲刺 (Word Sprint)", command=self.open_word_sprint)
-        tools_menu.add_command(label="起名助手", command=self.open_name_generator)
-
-        career_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="生涯", menu=career_menu)
-        career_menu.add_command(label="模拟投稿 (Submission)", command=self.open_submission_dialog)
-        career_menu.add_separator()
-        career_menu.add_command(label="我的成就 (Achievements)", command=self.open_achievements_dialog)
-
-        view_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="视图", menu=view_menu)
-        view_menu.add_command(label="刷新", command=self.refresh_all, accelerator="F5")
-        view_menu.add_separator()
-        from writer_app.ui.floating_assistant.constants import ASSISTANT_NAME
-        view_menu.add_command(label=f"{ASSISTANT_NAME} (悬浮窗)", command=self.toggle_floating_assistant, accelerator="F2")
-        view_menu.add_separator()
-        view_menu.add_command(label="切换主题 (Dark/Light)", command=self.toggle_theme)
-
-        # Focus Mode Submenu
-        focus_menu = tk.Menu(view_menu, tearoff=0)
-        view_menu.add_cascade(label="专注模式 (Focus Mode)", menu=focus_menu)
-        focus_menu.add_command(label="开启/关闭专注模式", command=self.toggle_focus_mode, accelerator="F10")
-        focus_menu.add_command(label="打字机模式", command=self.toggle_typewriter_mode, accelerator="F9")
-        focus_menu.add_separator()
-        focus_menu.add_command(label="行聚焦", command=lambda: self.set_focus_level("line"), accelerator="Ctrl+Shift+1")
-        focus_menu.add_command(label="句子聚焦", command=lambda: self.set_focus_level("sentence"), accelerator="Ctrl+Shift+2")
-        focus_menu.add_command(label="段落聚焦", command=lambda: self.set_focus_level("paragraph"), accelerator="Ctrl+Shift+3")
-        focus_menu.add_command(label="对话聚焦", command=lambda: self.set_focus_level("dialogue"), accelerator="Ctrl+Shift+4")
-        focus_menu.add_separator()
-        focus_menu.add_command(label="切换聚焦级别", command=self._cycle_focus_level, accelerator="Ctrl+Shift+F")
-        focus_menu.add_command(label="专注模式设置...", command=self.open_focus_mode_settings)
-
-        view_menu.add_command(label="沉浸模式 (Zen Mode)", command=self.toggle_zen_mode, accelerator="F11")
-
-        settings_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="设置", menu=settings_menu)
-        settings_menu.add_command(label=f"通用/{ASSISTANT_NAME}设置...", command=lambda: self.open_settings_dialog())
-        settings_menu.add_separator()
-        settings_menu.add_checkbutton(label="AI 模式", variable=self.ai_mode_var, command=self.toggle_ai_mode)
-
-        help_menu = tk.Menu(self.menubar, tearoff=0)
-        self.menubar.add_cascade(label="帮助", menu=help_menu)
-        help_menu.add_command(label="使用说明", command=self.show_help, accelerator="F1")
-        help_menu.add_command(label="快捷键速查", command=self.show_shortcuts, accelerator="Ctrl+/")
-        help_menu.add_separator()
-        help_menu.add_command(label="快速入门", command=lambda: self.show_help("getting_started"))
-        help_menu.add_command(label="AI 功能说明", command=lambda: self.show_help("ai_features"))
-        help_menu.add_command(label="常见问题", command=lambda: self.show_help("troubleshooting"))
-        help_menu.add_separator()
-        help_menu.add_command(label="关于", command=self.show_about)
+        self.menu_builder = MenuBuilder(self)
+        self.menu_builder.build()
 
     def _update_timer_ui(self, text, color):
         self.timer_var.set(text)
@@ -847,36 +334,8 @@ class WriterTool:
         menu.post(event.x_root, event.y_root)
 
     def bind_shortcuts(self):
-        self.root.bind("<Control-n>", lambda e: self.new_project())
-        self.root.bind("<Control-o>", lambda e: self.open_project())
-        self.root.bind("<Control-s>", lambda e: self.save_project())
-        self.root.bind("<Control-f>", lambda e: self.open_search_dialog())
-        self.root.bind("<Control-h>", lambda e: self.open_search_dialog(focus_replace=True))
-        self.root.bind("<F1>", lambda e: self.show_help())
-        self.root.bind("<Control-slash>", lambda e: self.show_shortcuts())
-        self.root.bind("<Control-question>", lambda e: self.show_shortcuts())  # Alternative for some keyboards
-        self.root.bind("<F5>", lambda e: self.refresh_all())
-        self.root.bind("<F2>", lambda e: self.toggle_floating_assistant())
-        self.root.bind("<F9>", lambda e: self.toggle_typewriter_mode())  # Typewriter mode shortcut
-        self.root.bind("<F10>", lambda e: self.toggle_focus_mode())  # Focus mode shortcut
-        self.root.bind("<Control-Shift-F>", lambda e: self._cycle_focus_level())  # Cycle focus levels
-        # Direct focus level shortcuts
-        self.root.bind("<Control-Shift-exclam>", lambda e: self.set_focus_level("line"))  # Ctrl+Shift+1
-        self.root.bind("<Control-Shift-at>", lambda e: self.set_focus_level("sentence"))  # Ctrl+Shift+2
-        self.root.bind("<Control-Shift-numbersign>", lambda e: self.set_focus_level("paragraph"))  # Ctrl+Shift+3
-        self.root.bind("<Control-Shift-dollar>", lambda e: self.set_focus_level("dialogue"))  # Ctrl+Shift+4
-        self.root.bind("<F11>", lambda e: self.toggle_zen_mode())
-        self.root.bind("<Escape>", lambda e: self._handle_escape())
-        self.root.bind("<Control-z>", lambda e: self.undo())
-        self.root.bind("<Control-y>", lambda e: self.redo())
-        # Tab navigation shortcuts
-        self.root.bind("<Control-Tab>", lambda e: self._switch_tab(1))
-        self.root.bind("<Control-Shift-Tab>", lambda e: self._switch_tab(-1))
-        self.root.bind("<Control-ISO_Left_Tab>", lambda e: self._switch_tab(-1))  # Linux/Mac
-        # Direct tab access Alt+1 through Alt+9
-        for i in range(1, 10):
-            self.root.bind(f"<Alt-Key-{i}>", lambda e, idx=i-1: self._select_tab_by_index(idx))
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.shortcut_registry = ShortcutRegistry(self)
+        self.shortcut_registry.bind()
 
     def _switch_tab(self, direction):
         """Switch to next/previous tab. Direction: 1 for next, -1 for previous."""

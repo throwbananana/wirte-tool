@@ -16,10 +16,14 @@ from writer_app.core.event_bus import get_event_bus, Events
 from writer_app.core.typed_data import (
     create_typed_project_data,
     migrate_project_type as typed_migrate,
-    get_required_modules,
     get_cleanup_info,
     ensure_module_exists,
     DataModule
+)
+from writer_app.core.project_services import (
+    ProjectOutlineService,
+    ProjectSceneService,
+    ProjectSearchService,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +37,9 @@ class ProjectManager:
         self.project_data = self._create_empty_project()
         self.modified = False
         self._listeners = []
+        self.outline_service = ProjectOutlineService(self)
+        self.scene_service = ProjectSceneService(self)
+        self.search_service = ProjectSearchService(self)
 
     def add_listener(self, callback):
         if callback not in self._listeners:
@@ -301,17 +308,7 @@ class ProjectManager:
 
     def _clean_temp_attrs_iterative(self, root: dict) -> None:
         """使用迭代算法清理临时属性（如 _collapsed）。"""
-        if root is None:
-            return
-
-        stack = [root]
-        while stack:
-            node = stack.pop()
-            if "_collapsed" in node:
-                del node["_collapsed"]
-            # 将子节点加入栈
-            for child in node.get("children", []):
-                stack.append(child)
+        self.outline_service.clean_temp_attrs_iterative(root)
 
     def mark_modified(self, event_type="all"):
         self.modified = True
@@ -657,35 +654,19 @@ class ProjectManager:
             self.project_data["meta"] = {}
 
         from writer_app.core.project_types import ProjectTypeManager
-        from writer_app.core.module_registry import get_module_info, get_ordered_module_keys
+        from writer_app.core.module_policy import (
+            get_required_modules_for_tools,
+            normalize_tool_keys,
+        )
 
-        normalized = []
-        seen = set()
-        for tool in ProjectTypeManager.REQUIRED_TOOLS:
-            if tool not in seen:
-                normalized.append(tool)
-                seen.add(tool)
-
-        tools_set = set(tools or [])
-        for tool in get_ordered_module_keys(visible_only=False):
-            if tool in tools_set and tool not in seen:
-                normalized.append(tool)
-                seen.add(tool)
-
-        for tool in tools or []:
-            if tool not in seen:
-                normalized.append(tool)
-                seen.add(tool)
+        normalized = normalize_tool_keys([
+            *ProjectTypeManager.REQUIRED_TOOLS,
+            *(tools or []),
+        ])
 
         self.project_data["meta"]["enabled_tools"] = normalized
 
-        modules_to_ensure = set()
-        for tool in normalized:
-            info = get_module_info(tool)
-            if info:
-                modules_to_ensure.update(info.data_modules)
-
-        for module in modules_to_ensure:
+        for module in get_required_modules_for_tools(normalized):
             ensure_module_exists(self.project_data, module)
 
         self.mark_modified("meta")
@@ -823,17 +804,7 @@ class ProjectManager:
 
     def _ensure_outline_uids_iterative(self, root: dict) -> None:
         """使用迭代算法确保每个大纲节点都有稳定的 UID。"""
-        if root is None:
-            return
-
-        stack = [root]
-        while stack:
-            node = stack.pop()
-            if "uid" not in node or not node["uid"]:
-                node["uid"] = self._gen_uid()
-            # 将子节点加入栈
-            for child in node.get("children", []):
-                stack.append(child)
+        self.outline_service.ensure_outline_uids_iterative(root)
 
     # 保留原方法名以兼容旧代码
     def _ensure_outline_uids(self, node):
@@ -852,18 +823,7 @@ class ProjectManager:
         Returns:
             找到的节点，或 None
         """
-        if root is None or not target_uid:
-            return None
-
-        stack = [root]
-        while stack:
-            node = stack.pop()
-            if node.get("uid") == target_uid:
-                return node
-            # 将子节点加入栈
-            for child in node.get("children", []):
-                stack.append(child)
-        return None
+        return self.outline_service.find_node_by_uid(root, target_uid)
 
     def find_parent_of_node_by_uid(self, root: dict, target_node_uid: str) -> Optional[dict]:
         """
@@ -876,17 +836,7 @@ class ProjectManager:
         Returns:
             父节点，或 None
         """
-        if root is None or not target_node_uid:
-            return None
-
-        stack = [root]
-        while stack:
-            node = stack.pop()
-            for child in node.get("children", []):
-                if child.get("uid") == target_node_uid:
-                    return node
-                stack.append(child)
-        return None
+        return self.outline_service.find_parent_of_node_by_uid(root, target_node_uid)
 
     # --- Bidirectional Navigation Helpers ---
 
@@ -900,11 +850,7 @@ class ProjectManager:
         Returns:
             List of (scene_index, scene_data) tuples
         """
-        result = []
-        for i, scene in enumerate(self.get_scenes()):
-            if scene.get("outline_ref_id") == outline_uid:
-                result.append((i, scene))
-        return result
+        return self.scene_service.get_scenes_by_outline_uid(outline_uid)
 
     def get_outline_node_for_scene(self, scene_index):
         """
@@ -916,13 +862,7 @@ class ProjectManager:
         Returns:
             Outline node dict or None if not linked
         """
-        scenes = self.get_scenes()
-        if 0 <= scene_index < len(scenes):
-            scene = scenes[scene_index]
-            outline_uid = scene.get("outline_ref_id")
-            if outline_uid:
-                return self.find_node_by_uid(self.get_outline(), outline_uid)
-        return None
+        return self.scene_service.get_outline_node_for_scene(scene_index)
 
     def get_outline_scene_links(self):
         """
@@ -931,14 +871,7 @@ class ProjectManager:
         Returns:
             Dict mapping outline_uid -> list of scene indices
         """
-        links = {}
-        for i, scene in enumerate(self.get_scenes()):
-            outline_uid = scene.get("outline_ref_id")
-            if outline_uid:
-                if outline_uid not in links:
-                    links[outline_uid] = []
-                links[outline_uid].append(i)
-        return links
+        return self.scene_service.get_outline_scene_links()
 
     def link_scene_to_outline(self, scene_index, outline_uid):
         """
@@ -951,15 +884,7 @@ class ProjectManager:
         Returns:
             True if successful
         """
-        scenes = self.get_scenes()
-        if 0 <= scene_index < len(scenes):
-            outline_node = self.find_node_by_uid(self.get_outline(), outline_uid)
-            if outline_node:
-                scenes[scene_index]["outline_ref_id"] = outline_uid
-                scenes[scene_index]["outline_ref_path"] = self.get_outline_path(outline_uid)
-                self.mark_modified()
-                return True
-        return False
+        return self.scene_service.link_scene_to_outline(scene_index, outline_uid)
 
     def unlink_scene_from_outline(self, scene_index):
         """
@@ -971,15 +896,9 @@ class ProjectManager:
         Returns:
             True if successful
         """
-        scenes = self.get_scenes()
-        if 0 <= scene_index < len(scenes):
-            scenes[scene_index]["outline_ref_id"] = ""
-            scenes[scene_index]["outline_ref_path"] = ""
-            self.mark_modified()
-            return True
-        return False
+        return self.scene_service.unlink_scene_from_outline(scene_index)
 
-    def get_outline_path(self, target_uid: str, separator: str = " / ") -> str:
+    def get_outline_path(self, target_uid: str, separator: str = " > ") -> str:
         """
         使用迭代算法获取大纲节点的路径字符串（如 "根节点 / 第一章 / 场景A"）。
 
@@ -990,28 +909,7 @@ class ProjectManager:
         Returns:
             路径字符串，如果未找到则返回空字符串
         """
-        if not target_uid:
-            return ""
-
-        root = self.get_outline()
-        if root is None:
-            return ""
-
-        # 使用栈来跟踪路径: (节点, 路径列表)
-        stack = [(root, [])]
-
-        while stack:
-            node, path = stack.pop()
-            current_path = path + [node.get("name", "")]
-
-            if node.get("uid") == target_uid:
-                return separator.join(current_path)
-
-            # 将子节点加入栈（反向添加以保持顺序）
-            for child in reversed(node.get("children", [])):
-                stack.append((child, current_path))
-
-        return ""
+        return self.outline_service.get_outline_path(target_uid, separator)
 
     def get_characters_in_scene(self, scene_index):
         """
@@ -1023,10 +921,7 @@ class ProjectManager:
         Returns:
             List of character names
         """
-        scenes = self.get_scenes()
-        if 0 <= scene_index < len(scenes):
-            return scenes[scene_index].get("characters", [])
-        return []
+        return self.scene_service.get_characters_in_scene(scene_index)
 
     def get_scenes_with_character(self, character_name):
         """
@@ -1038,11 +933,7 @@ class ProjectManager:
         Returns:
             List of (scene_index, scene_data) tuples
         """
-        result = []
-        for i, scene in enumerate(self.get_scenes()):
-            if character_name in scene.get("characters", []):
-                result.append((i, scene))
-        return result
+        return self.scene_service.get_scenes_with_character(character_name)
 
     def get_scenes_with_character_pair(self, char_a, char_b):
         """
@@ -1055,12 +946,7 @@ class ProjectManager:
         Returns:
             List of (scene_index, scene_data) tuples
         """
-        result = []
-        for i, scene in enumerate(self.get_scenes()):
-            chars = scene.get("characters", [])
-            if char_a in chars and char_b in chars:
-                result.append((i, scene))
-        return result
+        return self.scene_service.get_scenes_with_character_pair(char_a, char_b)
 
     def get_character_scene_matrix(self):
         """
@@ -1069,18 +955,7 @@ class ProjectManager:
         Returns:
             Dict with structure: {character_name: [scene_indices]}
         """
-        matrix = {}
-        for char in self.get_characters():
-            name = char.get("name")
-            if name:
-                matrix[name] = []
-
-        for i, scene in enumerate(self.get_scenes()):
-            for char_name in scene.get("characters", []):
-                if char_name in matrix:
-                    matrix[char_name].append(i)
-
-        return matrix
+        return self.scene_service.get_character_scene_matrix()
 
     def get_scenes_containing_text(self, query):
         """
@@ -1092,17 +967,7 @@ class ProjectManager:
         Returns:
             List of (scene_index, scene_data) tuples
         """
-        if not query:
-            return []
-        
-        query_lower = query.lower()
-        result = []
-        for i, scene in enumerate(self.get_scenes()):
-            name = scene.get("name", "").lower()
-            content = scene.get("content", "").lower()
-            if query_lower in name or query_lower in content:
-                result.append((i, scene))
-        return result
+        return self.scene_service.get_scenes_containing_text(query)
 
     def auto_generate_relationships(self, threshold=1):
         """
@@ -1114,42 +979,7 @@ class ProjectManager:
         Returns:
             Number of new links created.
         """
-        matrix = {} # (char_a, char_b) -> count
-        
-        # 1. Count co-occurrences
-        for scene in self.get_scenes():
-            chars = sorted(list(set(scene.get("characters", [])))) # unique and sorted
-            for i in range(len(chars)):
-                for j in range(i+1, len(chars)):
-                    pair = (chars[i], chars[j])
-                    matrix[pair] = matrix.get(pair, 0) + 1
-                    
-        # 2. Add links
-        rels = self.get_relationships()
-        existing_links = set()
-        for link in rels.get("relationship_links", []):
-            # Sort to ignore direction for existence check
-            pair = tuple(sorted([link["source"], link["target"]]))
-            existing_links.add(pair)
-            
-        added_count = 0
-        for pair, count in matrix.items():
-            if count >= threshold:
-                if pair not in existing_links:
-                    new_link = {
-                        "source": pair[0],
-                        "target": pair[1],
-                        "label": f"共现 {count} 次",
-                        "color": "#666666"
-                    }
-                    rels["relationship_links"].append(new_link)
-                    existing_links.add(pair)
-                    added_count += 1
-        
-        if added_count > 0:
-            self.mark_modified("relationships")
-            
-        return added_count
+        return self.search_service.auto_generate_relationships(threshold)
 
     def search_all(self, query: str, case_sensitive: bool = False) -> List[Dict[str, Any]]:
         """
@@ -1169,69 +999,7 @@ class ProjectManager:
                 "match_field": 匹配的字段名
             }
         """
-        if not query:
-            return []
-
-        results = []
-        q = query if case_sensitive else query.lower()
-
-        def check(text: str) -> bool:
-            return q in (text if case_sensitive else text.lower())
-
-        def get_context(content: str, match_query: str) -> str:
-            """获取匹配上下文。"""
-            idx = content.find(match_query) if case_sensitive else content.lower().find(q)
-            start = max(0, idx - 10)
-            end = min(len(content), idx + 20)
-            return content[start:end].replace("\n", " ") + "..."
-
-        # 1. 搜索场景
-        for i, scene in enumerate(self.get_scenes()):
-            name = scene.get("name", "")
-            content = scene.get("content", "")
-            if check(name):
-                results.append({"type": "scene", "index": i, "name": name, "context": "(标题匹配)", "match_field": "name"})
-            elif check(content):
-                results.append({"type": "scene", "index": i, "name": name, "context": get_context(content, query), "match_field": "content"})
-
-        # 2. 搜索角色
-        for i, char in enumerate(self.get_characters()):
-            name = char.get("name", "")
-            desc = char.get("description", "")
-            if check(name):
-                results.append({"type": "character", "index": i, "name": name, "context": "(姓名匹配)", "match_field": "name"})
-            elif check(desc):
-                results.append({"type": "character", "index": i, "name": name, "context": desc[:30] + "...", "match_field": "description"})
-
-        # 3. 搜索百科
-        for i, entry in enumerate(self.get_world_entries()):
-            name = entry.get("name", "")
-            content = entry.get("content", "")
-            if check(name):
-                results.append({"type": "wiki", "index": i, "name": name, "context": "(词条名匹配)", "match_field": "name"})
-            elif check(content):
-                results.append({"type": "wiki", "index": i, "name": name, "context": get_context(content, query), "match_field": "content"})
-
-        # 4. 搜索大纲（使用迭代算法）
-        root = self.get_outline()
-        if root:
-            stack = [root]
-            while stack:
-                node = stack.pop()
-                uid = node.get("uid")
-                name = node.get("name", "")
-                content = node.get("content", "")
-
-                if check(name):
-                    results.append({"type": "outline", "index": uid, "name": name, "context": "(节点名匹配)", "match_field": "name"})
-                elif check(content):
-                    results.append({"type": "outline", "index": uid, "name": name, "context": get_context(content, query), "match_field": "content"})
-
-                # 将子节点加入栈
-                for child in node.get("children", []):
-                    stack.append(child)
-
-        return results
+        return self.search_service.search_all(query, case_sensitive)
 
     # --- Galgame Assets Helpers ---
     def get_galgame_assets(self):

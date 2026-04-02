@@ -454,7 +454,7 @@ class ScriptController(BaseController):
             new_char_data["tags"] = list(self.current_char_tags or old_char_data.get("tags", []))
             if old_char_data != new_char_data:
                 command = EditCharacterCommand(self.project_manager, idx, old_char_data, new_char_data, "编辑角色")
-                self.command_executor(cmd)
+                self.command_executor(command)
 
     def delete_character(self):
         sel = self.char_listbox.curselection()
