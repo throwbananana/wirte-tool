@@ -27,6 +27,14 @@ python start_tools.py
 python -m unittest discover tests
 ```
 
+### Notes for first run
+
+- On Windows, Python 3.12 is recommended for the smoothest install experience.
+- Some optional features such as advanced audio or speech input may require extra packages and system support.
+- Excel export requires `openpyxl`.
+- EPUB export requires `ebooklib`.
+- If you only want to verify that the main GUI starts, focus on installing the default dependencies in `requirements.txt` first.
+
 Legacy root launchers remain available as thin wrappers, while the actual implementations now live under `tools/`.
 
 ## Path Model

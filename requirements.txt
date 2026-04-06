@@ -1,18 +1,16 @@
 # Core runtime deps
 requests
 pillow
-pygame
 pystray
 
-# PDF Export
+# Export
 reportlab
-
-# Voice Input
-SpeechRecognition
-pyaudio
-
-# Text to Speech
-pyttsx3
-
-# Optional: enable DOCX export
 python-docx
+openpyxl
+ebooklib
+
+# Optional extras (install manually when needed)
+# pygame
+# SpeechRecognition
+# pyaudio
+# pyttsx3

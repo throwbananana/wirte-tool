@@ -1,0 +1,100 @@
+diff --git a/requirements.txt b/requirements.txt
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,14 +1,21 @@
+ # Core runtime deps
+ requests
+ pillow
+-pygame
+ pystray
+ 
+ # PDF Export
+ reportlab
+ 
+-# Voice Input
+-SpeechRecognition
+-pyaudio
++# Optional multimedia / voice deps
++# NOTE:
++# - pygame currently has no stable Windows wheel for Python 3.14 in this project flow.
++# - pyaudio is also environment-sensitive on Windows.
++# Install these manually only if you need ambience / voice features.
++# pygame
++# SpeechRecognition
++# pyaudio
+ 
+ # Text to Speech
+ pyttsx3
+ 
+ # Optional: enable DOCX export
+ python-docx
++
++# Optional exports used by the codebase
++openpyxl
++ebooklib
+diff --git a/pyproject.toml b/pyproject.toml
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -8,15 +8,24 @@ version = "1.0.2"
+ description = "Tkinter writing workspace with planning, worldbuilding, AI assistance, and standalone editing tools."
+ readme = "README.md"
+ requires-python = ">=3.10"
+ dependencies = [
+     "requests",
+     "pillow",
+-    "pygame",
+     "pystray",
+     "reportlab",
+-    "SpeechRecognition",
+-    "pyaudio",
+     "pyttsx3",
+     "python-docx",
++    "openpyxl",
++    "ebooklib",
+ ]
++
++[project.optional-dependencies]
++multimedia = [
++    "pygame",
++]
++voice = [
++    "SpeechRecognition",
++    "pyaudio",
++]
+ 
+ [project.scripts]
+ writer-tool = "start_app:main"
+ writer-tool-tools = "start_tools:main"
+ writer-tool-assets = "start_asset_editor:main"
+diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -14,12 +14,28 @@
+ python -m venv .venv
+ .\\.venv\\Scripts\\activate
+ pip install -r requirements.txt
+ python start_app.py
+ python start_tools.py
+ python -m unittest discover tests
+ ```
++
++## Python Version Notes
++
++- Recommended on Windows: **Python 3.12 x64**
++- Python 3.14 may fail when installing optional multimedia packages such as `pygame`
++- If you only need the main writing workspace, install the base requirements and skip optional multimedia / voice packages
++
++Optional extras:
++
++```powershell
++pip install pygame
++pip install SpeechRecognition pyaudio
++```
++
++If those optional installs fail, the main app should still be usable for core writing, project management, and export workflows.
+ 
+ Legacy root launchers remain available as thin wrappers, while the actual implementations now live under `tools/`.
+ 
+ ## Path Model
+ 
+ - User config: `%USERPROFILE%\\.writer_tool\\config.json`

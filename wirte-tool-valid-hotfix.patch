@@ -1,0 +1,65 @@
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,18 +1,16 @@
+ # Core runtime deps
+ requests
+ pillow
+-pygame
+ pystray
+ 
+-# PDF Export
++# Export
+ reportlab
++python-docx
++openpyxl
++ebooklib
+ 
+-# Voice Input
+-SpeechRecognition
+-pyaudio
+-
+-# Text to Speech
+-pyttsx3
+-
+-# Optional: enable DOCX export
+-python-docx
++# Optional extras (install manually when needed)
++# pygame
++# SpeechRecognition
++# pyaudio
++# pyttsx3
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -11,13 +11,11 @@
+ dependencies = [
+     "requests",
+     "pillow",
+-    "pygame",
+     "pystray",
+     "reportlab",
+-    "SpeechRecognition",
+-    "pyaudio",
+-    "pyttsx3",
+     "python-docx",
++    "openpyxl",
++    "ebooklib",
+ ]
+ 
+ [project.scripts]
+--- a/README.md
++++ b/README.md
+@@ -27,6 +27,14 @@
+ python -m unittest discover tests
+ ```
+ 
++### Notes for first run
++
++- On Windows, Python 3.12 is recommended for the smoothest install experience.
++- Some optional features such as advanced audio or speech input may require extra packages and system support.
++- Excel export requires `openpyxl`.
++- EPUB export requires `ebooklib`.
++- If you only want to verify that the main GUI starts, focus on installing the default dependencies in `requirements.txt` first.
++
+ Legacy root launchers remain available as thin wrappers, while the actual implementations now live under `tools/`.
+ 
+ ## Path Model

@@ -11,13 +11,11 @@ requires-python = ">=3.10"
 dependencies = [
     "requests",
     "pillow",
-    "pygame",
     "pystray",
     "reportlab",
-    "SpeechRecognition",
-    "pyaudio",
-    "pyttsx3",
     "python-docx",
+    "openpyxl",
+    "ebooklib",
 ]
 
 [project.scripts]
