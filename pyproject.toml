@@ -18,6 +18,13 @@ dependencies = [
     "ebooklib",
 ]
 
+[project.urls]
+Homepage = "https://github.com/throwbananana/wirte-tool"
+Repository = "https://github.com/throwbananana/wirte-tool"
+Documentation = "https://github.com/throwbananana/wirte-tool/tree/main/docs"
+Changelog = "https://github.com/throwbananana/wirte-tool/blob/main/CHANGELOG.md"
+Issues = "https://github.com/throwbananana/wirte-tool/issues"
+
 [project.scripts]
 writer-tool = "start_app:main"
 writer-tool-tools = "start_tools:main"

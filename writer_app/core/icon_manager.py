@@ -168,17 +168,20 @@ class IconManager:
     def _load_resources(self):
         # Load Fonts
         if platform.system() == "Windows":
-            self._load_font_windows("FluentSystemIcons-Regular.ttf")
-            self._load_font_windows("FluentSystemIcons-Filled.ttf")
+            self._load_font_windows("FluentSystemIcons-Regular.ttf", required=False)
+            self._load_font_windows("FluentSystemIcons-Filled.ttf", required=True)
         
         # Load Mappings
         self._load_mapping("FluentSystemIcons-Regular.json", "regular")
         self._load_mapping("FluentSystemIcons-Filled.json", "filled")
 
-    def _load_font_windows(self, filename):
+    def _load_font_windows(self, filename, required=True):
         path = os.path.join(self.data_dir, filename)
         if not os.path.exists(path):
-            logger.warning(f"Font file missing: {path}")
+            if required:
+                logger.warning(f"Font file missing: {path}")
+            else:
+                logger.info(f"Optional font file missing: {path}")
             return
         
         try:
@@ -240,4 +243,12 @@ class IconManager:
     def get_font(self, size=12, style="regular"):
         """Returns the font tuple for Tkinter."""
         family = self.FONT_FAMILIES.get(style, "Segoe UI")
+        loaded_filename = f"{family}.ttf"
+
+        if loaded_filename not in self.loaded_fonts:
+            if style == "regular" and "FluentSystemIcons-Filled.ttf" in self.loaded_fonts:
+                family = self.FONT_FAMILIES["filled"]
+            else:
+                family = "Segoe UI Symbol"
+
         return (family, size)

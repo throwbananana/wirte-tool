@@ -11,18 +11,25 @@ env/
 # Test and tooling caches
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
 
 # Build artifacts
 build/
 dist/
+*.egg-info/
 
 # Local runtime output
 writer_data/logs/
+writer_data/wiki_images/
 runtime_data/
 
 # Local scratch files
-tmpclaude-*
+/tmpclaude-*-cwd
+/*_release_pack.zip
 
 # IDE files
 .idea/
