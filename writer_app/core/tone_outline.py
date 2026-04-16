@@ -7,6 +7,8 @@ DEFAULT_PLOT_SEGMENT_UID = "plot-main-segment"
 DEFAULT_PLOT_LINE_COLOR = "#2563EB"
 DEFAULT_SEGMENT_CURVE = 0.35
 DEFAULT_INTERACTION_TYPE = "solid_single"
+DEFAULT_NODE_TYPE = "normal"
+DEFAULT_NOTE_TYPE = "plot"
 INTERACTION_TYPE_LABELS = {
     "solid_single": "实线单箭头",
     "dashed_single": "虚线单箭头",
@@ -31,6 +33,63 @@ CHARACTER_LINE_COLORS = [
     "#0891B2",
     "#CA8A04",
 ]
+NODE_TYPE_LABELS = {
+    "normal": "普通节点",
+    "climax": "高潮节点",
+    "turning": "转折节点",
+    "intro": "引入节点",
+    "converge": "收束节点",
+    "conflict": "冲突节点",
+    "reconcile": "和解节点",
+    "echo": "对应节点",
+}
+NOTE_TYPE_LABELS = {
+    "plot": "情节说明",
+    "character": "人物说明",
+    "relationship": "关系说明",
+    "foreshadow": "伏笔说明",
+    "conclusion": "结论说明",
+}
+
+
+def _normalize_flag(value: Any, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"0", "false", "no", "off", ""}:
+            return False
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+    if value is None:
+        return default
+    return bool(value)
+
+
+def _normalize_choice(value: Any, options: Dict[str, str], default: str) -> str:
+    normalized = str(value or "").strip()
+    if normalized in options:
+        return normalized
+    return default
+
+
+def _normalize_tags(value: Any) -> List[str]:
+    if isinstance(value, str):
+        raw_items = value.replace("，", ",").split(",")
+    elif isinstance(value, list):
+        raw_items = value
+    else:
+        raw_items = []
+
+    normalized: List[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        tag = str(item or "").strip()
+        if not tag or tag in seen:
+            continue
+        seen.add(tag)
+        normalized.append(tag)
+    return normalized
 
 
 def create_default_tone_outline() -> Dict[str, Any]:
@@ -45,6 +104,7 @@ def create_default_tone_outline() -> Dict[str, Any]:
                 "line_type": "plot",
                 "character_name": "",
                 "color": DEFAULT_PLOT_LINE_COLOR,
+                "visible": True,
                 "segments": [
                     {
                         "uid": DEFAULT_PLOT_SEGMENT_UID,
@@ -52,6 +112,9 @@ def create_default_tone_outline() -> Dict[str, Any]:
                         "end_axis_uid": "",
                         "start_curve": DEFAULT_SEGMENT_CURVE,
                         "end_curve": DEFAULT_SEGMENT_CURVE,
+                        "title": "",
+                        "description": "",
+                        "note_type": DEFAULT_NOTE_TYPE,
                         "points": [],
                     }
                 ],
@@ -155,6 +218,17 @@ def _normalize_point(
         "curvature": curvature,
         "label": node.get("label") or "",
         "description": node.get("description") or "",
+        "node_type": _normalize_choice(
+            node.get("node_type"),
+            NODE_TYPE_LABELS,
+            DEFAULT_NODE_TYPE,
+        ),
+        "note_type": _normalize_choice(
+            node.get("note_type"),
+            NOTE_TYPE_LABELS,
+            DEFAULT_NOTE_TYPE,
+        ),
+        "tags": _normalize_tags(node.get("tags")),
     }
 
 
@@ -267,6 +341,13 @@ def _normalize_plot_segments(
             "end_axis_uid": "",
             "start_curve": _normalize_curve(first_segment.get("start_curve")),
             "end_curve": _normalize_curve(first_segment.get("end_curve")),
+            "title": first_segment.get("title") or "",
+            "description": first_segment.get("description") or "",
+            "note_type": _normalize_choice(
+                first_segment.get("note_type"),
+                NOTE_TYPE_LABELS,
+                DEFAULT_NOTE_TYPE,
+            ),
             "points": points,
         }
     ]
@@ -342,6 +423,13 @@ def _normalize_character_segments(
                 "end_axis_uid": end_uid,
                 "start_curve": _normalize_curve(segment.get("start_curve")),
                 "end_curve": _normalize_curve(segment.get("end_curve")),
+                "title": segment.get("title") or "",
+                "description": segment.get("description") or "",
+                "note_type": _normalize_choice(
+                    segment.get("note_type"),
+                    NOTE_TYPE_LABELS,
+                    DEFAULT_NOTE_TYPE,
+                ),
                 "points": points,
             }
         )
@@ -393,6 +481,13 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
                 "end_axis_uid": axis_nodes[-1]["uid"],
                 "start_curve": _normalize_curve(raw_segment.get("start_curve")),
                 "end_curve": _normalize_curve(raw_segment.get("end_curve")),
+                "title": raw_segment.get("title") or "",
+                "description": raw_segment.get("description") or "",
+                "note_type": _normalize_choice(
+                    raw_segment.get("note_type"),
+                    NOTE_TYPE_LABELS,
+                    DEFAULT_NOTE_TYPE,
+                ),
                 "points": points,
             }
         ]
@@ -409,6 +504,13 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
                 "end_axis_uid": segment.get("end_axis_uid") or "",
                 "start_curve": _normalize_curve(segment.get("start_curve")),
                 "end_curve": _normalize_curve(segment.get("end_curve")),
+                "title": segment.get("title") or "",
+                "description": segment.get("description") or "",
+                "note_type": _normalize_choice(
+                    segment.get("note_type"),
+                    NOTE_TYPE_LABELS,
+                    DEFAULT_NOTE_TYPE,
+                ),
                 "points": [
                     point
                     for point in segment.get("points", [])
@@ -458,6 +560,14 @@ def get_interaction_label(interaction_type: str) -> str:
 
 def get_interaction_tone(interaction_type: str) -> str:
     return INTERACTION_TYPE_TONES.get(interaction_type, INTERACTION_TYPE_TONES[DEFAULT_INTERACTION_TYPE])
+
+
+def get_node_type_label(node_type: str) -> str:
+    return NODE_TYPE_LABELS.get(node_type, NODE_TYPE_LABELS[DEFAULT_NODE_TYPE])
+
+
+def get_note_type_label(note_type: str) -> str:
+    return NOTE_TYPE_LABELS.get(note_type, NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
 
 
 def iter_tone_interactions(data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -603,6 +713,13 @@ def duplicate_segment(
             "end_axis_uid": segment.get("end_axis_uid", ""),
             "start_curve": _normalize_curve(segment.get("start_curve")),
             "end_curve": _normalize_curve(segment.get("end_curve")),
+            "title": segment.get("title") or "",
+            "description": segment.get("description") or "",
+            "note_type": _normalize_choice(
+                segment.get("note_type"),
+                NOTE_TYPE_LABELS,
+                DEFAULT_NOTE_TYPE,
+            ),
             "points": copied_points,
         }
         segments.insert(index + 1, copied_segment)
@@ -647,12 +764,18 @@ def analyze_merge_conflicts(
             round(float(first_point.get("curvature", 0.45)), 3),
             first_point.get("label") or "",
             first_point.get("description") or "",
+            _normalize_choice(first_point.get("node_type"), NODE_TYPE_LABELS, DEFAULT_NODE_TYPE),
+            _normalize_choice(first_point.get("note_type"), NOTE_TYPE_LABELS, DEFAULT_NOTE_TYPE),
+            tuple(_normalize_tags(first_point.get("tags"))),
         )
         second_signature = (
             round(float(second_point.get("amplitude", 0)), 3),
             round(float(second_point.get("curvature", 0.45)), 3),
             second_point.get("label") or "",
             second_point.get("description") or "",
+            _normalize_choice(second_point.get("node_type"), NODE_TYPE_LABELS, DEFAULT_NODE_TYPE),
+            _normalize_choice(second_point.get("note_type"), NOTE_TYPE_LABELS, DEFAULT_NOTE_TYPE),
+            tuple(_normalize_tags(second_point.get("tags"))),
         )
         if first_signature == second_signature:
             continue
@@ -721,6 +844,13 @@ def split_segment(
             "end_axis_uid": split_axis_uid,
             "start_curve": _normalize_curve(segment.get("start_curve")),
             "end_curve": join_curve,
+            "title": segment.get("title") or "",
+            "description": segment.get("description") or "",
+            "note_type": _normalize_choice(
+                segment.get("note_type"),
+                NOTE_TYPE_LABELS,
+                DEFAULT_NOTE_TYPE,
+            ),
             "points": left_points,
         }
         right_segment = {
@@ -729,6 +859,13 @@ def split_segment(
             "end_axis_uid": segment.get("end_axis_uid", ""),
             "start_curve": join_curve,
             "end_curve": _normalize_curve(segment.get("end_curve")),
+            "title": segment.get("title") or "",
+            "description": segment.get("description") or "",
+            "note_type": _normalize_choice(
+                segment.get("note_type"),
+                NOTE_TYPE_LABELS,
+                DEFAULT_NOTE_TYPE,
+            ),
             "points": right_points,
         }
         _sort_points(left_segment["points"], axis_index_map)
@@ -863,6 +1000,13 @@ def merge_adjacent_segments(
         "end_axis_uid": second_segment.get("end_axis_uid", ""),
         "start_curve": _normalize_curve(first_segment.get("start_curve")),
         "end_curve": _normalize_curve(second_segment.get("end_curve")),
+        "title": first_segment.get("title") or second_segment.get("title") or "",
+        "description": first_segment.get("description") or second_segment.get("description") or "",
+        "note_type": _normalize_choice(
+            first_segment.get("note_type") or second_segment.get("note_type"),
+            NOTE_TYPE_LABELS,
+            DEFAULT_NOTE_TYPE,
+        ),
         "points": merged_points,
     }
     segments[first_index:second_index + 1] = [merged_segment]
@@ -960,6 +1104,7 @@ def ensure_tone_outline_defaults(
                 else ""
             ),
             "color": color,
+            "visible": _normalize_flag(line.get("visible"), default=True),
             "segments": segments,
         }
 
@@ -1006,6 +1151,8 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
         status_text = "主轴情节线"
         if line.get("line_type") == "character":
             status_text = "潜在线" if is_character_line_potential(line) else "活动线"
+        if not _normalize_flag(line.get("visible"), default=True):
+            status_text = f"{status_text} / 已隐藏"
 
         segment_summaries = []
         display_segments = get_display_segments(data, line)
@@ -1017,6 +1164,8 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "state_text": "潜在",
                     "curve_text": "",
                     "segment_note": "",
+                    "segment_title": "",
+                    "segment_note_type": "",
                     "items": [],
                 }
             )
@@ -1059,7 +1208,11 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "range_text": range_text,
                     "state_text": state_text,
                     "curve_text": f"{segment.get('start_curve', DEFAULT_SEGMENT_CURVE):.2f} / {segment.get('end_curve', DEFAULT_SEGMENT_CURVE):.2f}",
-                    "segment_note": "起始曲率 / 结束曲率",
+                    "segment_note": segment.get("description") or "",
+                    "segment_title": segment.get("title") or "",
+                    "segment_note_type": get_note_type_label(
+                        segment.get("note_type", DEFAULT_NOTE_TYPE)
+                    ),
                     "items": items,
                     "interactions": interactions_by_source.get(
                         (line.get("uid", ""), segment.get("uid", "")),
@@ -1106,12 +1259,20 @@ def build_timeline_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                                 "line_uid": line.get("uid"),
                                 "line_name": line.get("name") or "未命名线",
                                 "line_type": line.get("line_type") or "character",
-                                "state_text": "节点" if line.get("line_type") == "plot" else f"第{segment_index + 1}段节点",
+                                "state_text": get_node_type_label(
+                                    point.get("node_type", DEFAULT_NODE_TYPE)
+                                ),
                                 "strength": round(abs(float(point.get("amplitude", 0))), 1),
                                 "amplitude": round(float(point.get("amplitude", 0)), 1),
                                 "curvature": round(float(point.get("curvature", 0.45)), 2),
                                 "label": point.get("label") or "",
                                 "description": point.get("description") or "",
+                                "node_type": point.get("node_type", DEFAULT_NODE_TYPE),
+                                "note_type": get_note_type_label(
+                                    point.get("note_type", DEFAULT_NOTE_TYPE)
+                                ),
+                                "tags": list(point.get("tags", [])),
+                                "segment_title": segment.get("title") or "",
                             }
                         )
                 elif axis_in_segment(
@@ -1166,4 +1327,65 @@ def build_timeline_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "matches": matches,
             }
         )
+    return summaries
+
+
+def build_plot_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    timeline_items = build_timeline_summary(data)
+    plot_summary: List[Dict[str, Any]] = []
+    for axis in timeline_items:
+        plot_match = next(
+            (
+                match for match in axis.get("matches", [])
+                if match.get("line_type") == "plot"
+            ),
+            None,
+        )
+        related_lines = [
+            match for match in axis.get("matches", [])
+            if match.get("line_type") != "plot" and "->" not in match.get("line_name", "")
+        ]
+        relations = [
+            match for match in axis.get("matches", [])
+            if "->" in match.get("line_name", "")
+        ]
+        plot_summary.append(
+            {
+                "axis_uid": axis.get("axis_uid", ""),
+                "axis_title": axis.get("axis_title", "未命名节点"),
+                "axis_description": axis.get("axis_description", ""),
+                "plot_match": plot_match,
+                "related_lines": related_lines,
+                "relations": relations,
+            }
+        )
+    return plot_summary
+
+
+def build_relation_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    data = ensure_tone_outline_defaults(clone_tone_outline(data))
+    axis_map = {axis.get("uid"): axis for axis in data.get("axis_nodes", [])}
+    line_map = {line.get("uid"): line for line in data.get("lines", [])}
+
+    summaries: List[Dict[str, Any]] = []
+    for interaction in data.get("interactions", []):
+        source_line = line_map.get(interaction.get("source_line_uid"), {})
+        target_line = line_map.get(interaction.get("target_line_uid"), {})
+        summaries.append(
+            {
+                "uid": interaction.get("uid", ""),
+                "axis_uid": interaction.get("axis_uid", ""),
+                "axis_title": axis_map.get(interaction.get("axis_uid"), {}).get("title", "未命名节点"),
+                "source_line_name": source_line.get("name") or "未命名线",
+                "target_line_name": target_line.get("name") or "未命名线",
+                "relation_type": get_interaction_tone(
+                    interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE)
+                ),
+                "relation_label": get_interaction_label(
+                    interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE)
+                ),
+                "note": interaction.get("note") or "",
+            }
+        )
+    summaries.sort(key=lambda item: (item.get("axis_title", ""), item.get("source_line_name", ""), item.get("target_line_name", "")))
     return summaries

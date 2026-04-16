@@ -4,6 +4,8 @@ from writer_app.core.tone_outline import (
     DEFAULT_PLOT_SEGMENT_UID,
     analyze_merge_conflicts,
     build_line_summary,
+    build_plot_summary,
+    build_relation_summary,
     build_timeline_summary,
     duplicate_segment,
     ensure_tone_outline_defaults,
@@ -376,6 +378,142 @@ class TestToneOutline(unittest.TestCase):
         )
         self.assertEqual(interaction_match["curvature"], "实线单箭头")
         self.assertEqual(interaction_match["description"], "主角主动压制情节线")
+
+    def test_new_metadata_fields_are_normalized_and_exposed(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "开场", "description": ""},
+                    {"uid": "axis-2", "title": "对抗", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "visible": False,
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "title": "第一幕",
+                                "description": "铺垫主冲突",
+                                "note_type": "foreshadow",
+                                "points": [
+                                    {
+                                        "uid": "plot-point",
+                                        "axis_uid": "axis-2",
+                                        "amplitude": 42,
+                                        "curvature": 0.65,
+                                        "label": "翻面",
+                                        "description": "信息揭露",
+                                        "node_type": "turning",
+                                        "note_type": "plot",
+                                        "tags": ["反转", "揭露"],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+        plot_line = data["lines"][0]
+        plot_segment = plot_line["segments"][0]
+        plot_point = plot_segment["points"][0]
+        self.assertFalse(plot_line["visible"])
+        self.assertEqual(plot_segment["title"], "第一幕")
+        self.assertEqual(plot_segment["note_type"], "foreshadow")
+        self.assertEqual(plot_point["node_type"], "turning")
+        self.assertEqual(plot_point["tags"], ["反转", "揭露"])
+
+        line_summary = build_line_summary(data)[0]
+        self.assertIn("已隐藏", line_summary["status_text"])
+        self.assertEqual(line_summary["segments"][0]["segment_title"], "第一幕")
+        self.assertEqual(line_summary["segments"][0]["segment_note_type"], "伏笔说明")
+
+        timeline_summary = build_timeline_summary(data)
+        axis_summary = next(item for item in timeline_summary if item["axis_uid"] == "axis-2")
+        self.assertEqual(axis_summary["matches"][0]["state_text"], "转折节点")
+        self.assertEqual(axis_summary["matches"][0]["tags"], ["反转", "揭露"])
+
+    def test_plot_and_relation_summaries_group_matches(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "开场", "description": ""},
+                    {"uid": "axis-2", "title": "碰撞", "description": "情节升温"},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "points": [
+                                    {
+                                        "uid": "plot-point",
+                                        "axis_uid": "axis-2",
+                                        "amplitude": 35,
+                                        "curvature": 0.6,
+                                        "label": "升级",
+                                        "description": "正面冲突爆发",
+                                        "node_type": "conflict",
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "uid": "hero-line",
+                        "name": "主角线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "hero-seg",
+                                "start_axis_uid": "axis-1",
+                                "end_axis_uid": "axis-2",
+                                "points": [
+                                    {
+                                        "uid": "hero-point",
+                                        "axis_uid": "axis-2",
+                                        "amplitude": -25,
+                                        "curvature": 0.8,
+                                        "label": "受压",
+                                        "description": "主角失势",
+                                        "node_type": "conflict",
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                ],
+                "interactions": [
+                    {
+                        "uid": "interaction-1",
+                        "axis_uid": "axis-2",
+                        "source_point_uid": "hero-point",
+                        "target_line_uid": "plot-main",
+                        "target_segment_uid": DEFAULT_PLOT_SEGMENT_UID,
+                        "interaction_type": "solid_single",
+                        "note": "主角被主线压制",
+                    }
+                ],
+            }
+        )
+
+        plot_summary = build_plot_summary(data)
+        axis_plot = next(item for item in plot_summary if item["axis_uid"] == "axis-2")
+        self.assertEqual(axis_plot["plot_match"]["state_text"], "冲突节点")
+        self.assertEqual(axis_plot["related_lines"][0]["line_name"], "主角线")
+        self.assertEqual(axis_plot["relations"][0]["description"], "主角被主线压制")
+
+        relation_summary = build_relation_summary(data)
+        self.assertEqual(relation_summary[0]["axis_title"], "碰撞")
+        self.assertEqual(relation_summary[0]["relation_label"], "实线单箭头")
+        self.assertEqual(relation_summary[0]["target_line_name"], "情节线")
 
 
 if __name__ == "__main__":

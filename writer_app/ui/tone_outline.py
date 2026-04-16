@@ -5,13 +5,19 @@ from writer_app.controllers.base_controller import BaseController
 from writer_app.core.commands import UpdateToneOutlineCommand
 from writer_app.core.tone_outline import (
     DEFAULT_INTERACTION_TYPE,
+    DEFAULT_NODE_TYPE,
+    DEFAULT_NOTE_TYPE,
     DEFAULT_PLOT_LINE_UID,
     DEFAULT_SEGMENT_CURVE,
     INTERACTION_TYPE_LABELS,
+    NODE_TYPE_LABELS,
+    NOTE_TYPE_LABELS,
     analyze_merge_conflicts,
     axis_in_segment,
     build_axis_nodes_from_scenes,
     build_line_summary,
+    build_plot_summary,
+    build_relation_summary,
     build_timeline_summary,
     clone_tone_outline,
     duplicate_segment,
@@ -21,6 +27,8 @@ from writer_app.core.tone_outline import (
     get_next_tone_line_color,
     get_open_segment,
     get_interaction_label,
+    get_node_type_label,
+    get_note_type_label,
     is_character_line_potential,
     merge_adjacent_segments,
     shift_segment,
@@ -49,6 +57,10 @@ def _preview_text(value, limit=24, empty="无"):
 
 INTERACTION_TYPE_OPTIONS = list(INTERACTION_TYPE_LABELS.items())
 INTERACTION_LABEL_TO_TYPE = {label: key for key, label in INTERACTION_TYPE_OPTIONS}
+NODE_TYPE_OPTIONS = list(NODE_TYPE_LABELS.items())
+NODE_LABEL_TO_TYPE = {label: key for key, label in NODE_TYPE_OPTIONS}
+NOTE_TYPE_OPTIONS = list(NOTE_TYPE_LABELS.items())
+NOTE_LABEL_TO_TYPE = {label: key for key, label in NOTE_TYPE_OPTIONS}
 
 
 class ToneOutlineCanvas(tk.Canvas):
@@ -62,6 +74,8 @@ class ToneOutlineCanvas(tk.Canvas):
         on_segment_boundary_drag,
         on_drag_preview,
         on_segment_shift_drag,
+        on_point_drag,
+        on_point_drag_preview,
         on_interaction_created,
         on_interaction_retarget,
         on_interaction_preview,
@@ -76,6 +90,8 @@ class ToneOutlineCanvas(tk.Canvas):
         self.on_segment_boundary_drag = on_segment_boundary_drag
         self.on_drag_preview = on_drag_preview
         self.on_segment_shift_drag = on_segment_shift_drag
+        self.on_point_drag = on_point_drag
+        self.on_point_drag_preview = on_point_drag_preview
         self.on_interaction_created = on_interaction_created
         self.on_interaction_retarget = on_interaction_retarget
         self.on_interaction_preview = on_interaction_preview
@@ -91,6 +107,7 @@ class ToneOutlineCanvas(tk.Canvas):
         self._chart_bounds = (0, 0, 0)
         self._chart_x_bounds = (0, 0)
         self._dragging_boundary = None
+        self._dragging_point = None
         self._drag_target_axis_uid = ""
         self._interaction_arm = None
         self._dragging_interaction = None
@@ -267,6 +284,8 @@ class ToneOutlineCanvas(tk.Canvas):
 
         label_offset = 0
         for line in data.get("lines", []):
+            if not line.get("visible", True):
+                continue
             display_segments = get_display_segments(data, line)
             if not display_segments:
                 continue
@@ -388,7 +407,12 @@ class ToneOutlineCanvas(tk.Canvas):
                         width=2,
                         tags=tags,
                     )
-                    label = point.get("label") or f"{int(round(float(point.get('amplitude', 0)))):+d}"
+                    label = point.get("label")
+                    if not label:
+                        if point.get("node_type", DEFAULT_NODE_TYPE) != DEFAULT_NODE_TYPE:
+                            label = get_node_type_label(point.get("node_type", DEFAULT_NODE_TYPE))
+                        else:
+                            label = f"{int(round(float(point.get('amplitude', 0)))):+d}"
                     self.create_text(
                         x,
                         y - 16,
@@ -400,6 +424,8 @@ class ToneOutlineCanvas(tk.Canvas):
 
         self._rebuild_axis_slots(data, baseline_y, amplitude_scale)
         self._draw_interactions(data)
+        if self._dragging_point:
+            self._draw_point_drag_preview()
         if self._dragging_boundary:
             self._draw_drag_preview()
         if self._dragging_interaction:
@@ -411,6 +437,8 @@ class ToneOutlineCanvas(tk.Canvas):
         last_axis_uid = axis_nodes[-1]["uid"] if axis_nodes else ""
         slots = {axis.get("uid"): [] for axis in axis_nodes if axis.get("uid")}
         for line in data.get("lines", []):
+            if not line.get("visible", True):
+                continue
             for segment in get_display_segments(data, line):
                 start_uid = segment.get("start_axis_uid")
                 end_uid = segment.get("end_axis_uid") or last_axis_uid
@@ -911,9 +939,55 @@ class ToneOutlineCanvas(tk.Canvas):
         boundary_label = "起点" if self._dragging_boundary.get("boundary") == "start" else "终点"
         self.on_drag_preview(f"拖拽预览：{boundary_label} -> {target_title}")
 
+    def _emit_point_preview(self, message):
+        if self.on_point_drag_preview:
+            self.on_point_drag_preview(message)
+
     def _emit_interaction_preview(self, message):
         if self.on_interaction_preview:
             self.on_interaction_preview(message)
+
+    def _draw_point_drag_preview(self):
+        self.delete("point-preview")
+        if not self._dragging_point:
+            return
+        axis_uid = self._dragging_point.get("target_axis_uid", "")
+        if axis_uid not in self._axis_positions:
+            return
+        chart_top, chart_bottom, baseline_y = self._chart_bounds
+        amplitude_scale = (chart_bottom - chart_top) / 220.0
+        amplitude = float(self._dragging_point.get("target_amplitude", 0))
+        x = self._axis_positions[axis_uid]
+        y = baseline_y - amplitude * amplitude_scale
+        preview_color = self._theme_color("accent", "#2563EB")
+        self.create_line(
+            x,
+            chart_top,
+            x,
+            chart_bottom,
+            fill="#60A5FA",
+            width=2,
+            dash=(6, 4),
+            tags=("point-preview",),
+        )
+        self.create_oval(
+            x - 8,
+            y - 8,
+            x + 8,
+            y + 8,
+            fill="#FFFFFF",
+            outline=preview_color,
+            width=2,
+            tags=("point-preview",),
+        )
+        self.create_text(
+            x,
+            y - 18,
+            text=f"{int(round(amplitude)):+d}",
+            fill=preview_color,
+            font=("Arial", 8, "bold"),
+            tags=("point-preview",),
+        )
 
     def _draw_interaction_preview(self):
         self.delete("interaction-preview")
@@ -1021,6 +1095,17 @@ class ToneOutlineCanvas(tk.Canvas):
             if tag.startswith("point:"):
                 _, line_uid, segment_uid, point_uid = tag.split(":", 3)
                 self.on_point_selected(line_uid, segment_uid, point_uid)
+                context = self._find_point_context(point_uid)
+                current_point = (context or {}).get("point", {})
+                self._dragging_point = {
+                    "line_uid": line_uid,
+                    "segment_uid": segment_uid,
+                    "point_uid": point_uid,
+                    "target_axis_uid": current_point.get("axis_uid", ""),
+                    "target_amplitude": float(current_point.get("amplitude", 0)),
+                }
+                self._draw_point_drag_preview()
+                self._emit_point_preview("拖拽预览：沿时间轴移动节点并上下调整强度。")
                 return
         for tag in tags:
             if tag.startswith("segment:"):
@@ -1048,6 +1133,30 @@ class ToneOutlineCanvas(tk.Canvas):
                 return
 
     def _handle_drag(self, event):
+        if self._dragging_point:
+            canvas_x = self.canvasx(event.x)
+            canvas_y = self.canvasy(event.y)
+            chart_top, chart_bottom, baseline_y = self._chart_bounds
+            amplitude_scale = (chart_bottom - chart_top) / 220.0 if chart_bottom > chart_top else 1.0
+            amplitude = max(-100.0, min(100.0, (baseline_y - canvas_y) / amplitude_scale))
+            target_axis_uid = self._nearest_axis_uid(canvas_x)
+            axis_title = target_axis_uid
+            if self.data:
+                axis_title = next(
+                    (
+                        axis.get("title", target_axis_uid)
+                        for axis in (self.data or {}).get("axis_nodes", [])
+                        if axis.get("uid") == target_axis_uid
+                    ),
+                    target_axis_uid,
+                )
+            self._dragging_point["target_axis_uid"] = target_axis_uid
+            self._dragging_point["target_amplitude"] = amplitude
+            self._draw_point_drag_preview()
+            self._emit_point_preview(
+                f"拖拽预览：{int(round(amplitude)):+d} / {axis_title or '未命名节点'}"
+            )
+            return
         if self._dragging_interaction:
             canvas_y = self.canvasy(event.y)
             self._dragging_interaction["target_slot"] = self._get_interaction_target_slot(
@@ -1071,6 +1180,21 @@ class ToneOutlineCanvas(tk.Canvas):
         self._draw_drag_preview()
 
     def _handle_release(self, event):
+        if self._dragging_point:
+            dragging_point = dict(self._dragging_point)
+            self._dragging_point = None
+            self.delete("point-preview")
+            self._emit_point_preview("")
+            target_axis_uid = dragging_point.get("target_axis_uid", "")
+            if target_axis_uid:
+                self.on_point_drag(
+                    dragging_point.get("line_uid", ""),
+                    dragging_point.get("segment_uid", ""),
+                    dragging_point.get("point_uid", ""),
+                    target_axis_uid,
+                    float(dragging_point.get("target_amplitude", 0)),
+                )
+            return
         if self._dragging_interaction:
             dragging_info = dict(self._dragging_interaction)
             target_slot = dragging_info.get("target_slot")
@@ -1129,58 +1253,58 @@ class ToneOutlineSummaryPanel(ttk.Frame):
         super().__init__(parent)
         self._setup_ui()
 
+    @staticmethod
+    def _create_tree(parent, root_text, columns):
+        column_ids = [column_key for column_key, _column_label, _width, _anchor in columns]
+        tree = ttk.Treeview(parent, columns=column_ids, show="tree headings", height=16)
+        tree.heading("#0", text=root_text)
+        for column_key, column_label, width, anchor in columns:
+            tree.heading(column_key, text=column_label)
+            tree.column(column_key, width=width, anchor=anchor)
+        tree.column("#0", width=220, anchor="w")
+        tree.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
+        return tree
+
     def _setup_ui(self):
         ttk.Label(
             self,
-            text="汇总按“线”和“节点”双向展开。潜在线会单独标出，活动线则显示各段过程及对应节点强度。",
+            text="汇总按“线、情节、时间、关系”四个视角展开，节点类型、说明分类、隐藏状态都会同步显示。",
         ).pack(anchor="w", padx=8, pady=(8, 4))
 
-        paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
 
-        line_frame = ttk.LabelFrame(paned, text="按线汇总")
-        axis_frame = ttk.LabelFrame(paned, text="按节点 / 平级对应汇总")
-        paned.add(line_frame, weight=1)
-        paned.add(axis_frame, weight=1)
+        line_frame = ttk.Frame(notebook)
+        plot_frame = ttk.Frame(notebook)
+        axis_frame = ttk.Frame(notebook)
+        relation_frame = ttk.Frame(notebook)
+        notebook.add(line_frame, text="按线 / 人物")
+        notebook.add(plot_frame, text="按情节")
+        notebook.add(axis_frame, text="按时间")
+        notebook.add(relation_frame, text="关系表")
 
-        self.line_tree = ttk.Treeview(
-            line_frame,
-            columns=("state", "strength", "curve", "note"),
-            show="tree headings",
-            height=16,
+        summary_columns = (
+            ("state", "状态", 90, "center"),
+            ("strength", "强度", 70, "center"),
+            ("curve", "曲率/类型", 100, "center"),
+            ("note", "说明", 260, "w"),
         )
-        self.line_tree.heading("#0", text="线 / 过程 / 节点")
-        self.line_tree.heading("state", text="状态")
-        self.line_tree.heading("strength", text="强度")
-        self.line_tree.heading("curve", text="曲率")
-        self.line_tree.heading("note", text="说明")
-        self.line_tree.column("#0", width=220, anchor="w")
-        self.line_tree.column("state", width=90, anchor="center")
-        self.line_tree.column("strength", width=70, anchor="center")
-        self.line_tree.column("curve", width=90, anchor="center")
-        self.line_tree.column("note", width=230, anchor="w")
-        self.line_tree.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
-
-        self.axis_tree = ttk.Treeview(
-            axis_frame,
-            columns=("state", "strength", "curve", "note"),
-            show="tree headings",
-            height=16,
+        self.line_tree = self._create_tree(line_frame, "线 / 过程 / 节点", summary_columns)
+        self.plot_tree = self._create_tree(plot_frame, "情节节点 / 响应线", summary_columns)
+        self.axis_tree = self._create_tree(axis_frame, "节点 / 对应线", summary_columns)
+        self.relation_tree = self._create_tree(
+            relation_frame,
+            "来源线",
+            (
+                ("time", "时间点", 120, "center"),
+                ("type", "关系", 120, "center"),
+                ("target", "目标", 140, "center"),
+                ("note", "备注", 260, "w"),
+            ),
         )
-        self.axis_tree.heading("#0", text="节点 / 对应线")
-        self.axis_tree.heading("state", text="状态")
-        self.axis_tree.heading("strength", text="强度")
-        self.axis_tree.heading("curve", text="曲率")
-        self.axis_tree.heading("note", text="说明")
-        self.axis_tree.column("#0", width=220, anchor="w")
-        self.axis_tree.column("state", width=90, anchor="center")
-        self.axis_tree.column("strength", width=70, anchor="center")
-        self.axis_tree.column("curve", width=90, anchor="center")
-        self.axis_tree.column("note", width=230, anchor="w")
-        self.axis_tree.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
 
     def refresh(self, tone_outline_data):
-        for tree in (self.line_tree, self.axis_tree):
+        for tree in (self.line_tree, self.plot_tree, self.axis_tree, self.relation_tree):
             for item_id in tree.get_children():
                 tree.delete(item_id)
 
@@ -1192,10 +1316,18 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                 "",
                 "end",
                 text=line_text,
-                values=(line["status_text"], "", "", ""),
-                open=True,
-            )
+                    values=(line["status_text"], "", "", ""),
+                    open=True,
+                )
             for segment in line["segments"]:
+                segment_note_parts = [
+                    part for part in (
+                        segment.get("segment_title", ""),
+                        segment.get("segment_note_type", ""),
+                        segment.get("segment_note", ""),
+                    )
+                    if part
+                ]
                 segment_parent = self.line_tree.insert(
                     line_parent,
                     "end",
@@ -1204,21 +1336,25 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                         segment["state_text"],
                         "",
                         segment.get("curve_text", ""),
-                        segment.get("segment_note", ""),
+                        " / ".join(segment_note_parts),
                     ),
                     open=True,
                 )
                 for item in segment["items"]:
-                    note = item["description"] or item["label"]
+                    note_parts = [item.get("description") or item.get("label") or ""]
+                    if item.get("note_type"):
+                        note_parts.append(item["note_type"])
+                    if item.get("tags"):
+                        note_parts.append(", ".join(item["tags"]))
                     self.line_tree.insert(
                         segment_parent,
                         "end",
                         text=item["axis_title"],
                         values=(
-                            "节点",
+                            item.get("node_type") and get_node_type_label(item["node_type"]) or "节点",
                             item["strength"],
                             item["curvature"],
-                            note,
+                            " / ".join([part for part in note_parts if part]),
                         ),
                     )
                 for interaction in segment.get("interactions", []):
@@ -1235,18 +1371,27 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                         ),
                     )
 
-        for axis in build_timeline_summary(tone_outline_data):
-            parent = self.axis_tree.insert(
+        for axis in build_plot_summary(tone_outline_data):
+            plot_match = axis.get("plot_match") or {}
+            plot_note = plot_match.get("description") or axis.get("axis_description", "")
+            plot_parent = self.plot_tree.insert(
                 "",
                 "end",
-                text=axis["axis_title"],
-                values=("主轴节点", "", "", axis["axis_description"]),
+                text=axis.get("axis_title", "未命名节点"),
+                values=(
+                    plot_match.get("state_text", "情节节点"),
+                    plot_match.get("strength", ""),
+                    plot_match.get("curvature", ""),
+                    plot_note,
+                ),
                 open=True,
             )
-            for match in axis["matches"]:
-                note = match["description"] or match["label"]
-                self.axis_tree.insert(
-                    parent,
+            for match in axis.get("related_lines", []):
+                note = match.get("description") or match.get("label") or ""
+                if match.get("note_type"):
+                    note = " / ".join(filter(None, [note, match.get("note_type")]))
+                self.plot_tree.insert(
+                    plot_parent,
                     "end",
                     text=match["line_name"],
                     values=(
@@ -1256,6 +1401,57 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                         note,
                     ),
                 )
+            for relation in axis.get("relations", []):
+                self.plot_tree.insert(
+                    plot_parent,
+                    "end",
+                    text=relation["line_name"],
+                    values=(
+                        relation["state_text"],
+                        relation["strength"],
+                        relation["curvature"],
+                        relation["description"],
+                    ),
+                )
+
+        for axis in build_timeline_summary(tone_outline_data):
+            parent = self.axis_tree.insert(
+                "",
+                "end",
+                text=axis["axis_title"],
+                values=("主轴节点", "", "", axis["axis_description"]),
+                open=True,
+            )
+            for match in axis["matches"]:
+                note_parts = [match.get("description") or match.get("label") or ""]
+                if match.get("note_type"):
+                    note_parts.append(match["note_type"])
+                if match.get("tags"):
+                    note_parts.append(", ".join(match["tags"]))
+                self.axis_tree.insert(
+                    parent,
+                    "end",
+                    text=match["line_name"],
+                    values=(
+                        match["state_text"],
+                        match["strength"],
+                        match["curvature"],
+                        " / ".join([part for part in note_parts if part]),
+                    ),
+                )
+
+        for relation in build_relation_summary(tone_outline_data):
+            self.relation_tree.insert(
+                "",
+                "end",
+                text=relation["source_line_name"],
+                values=(
+                    relation["axis_title"],
+                    relation["relation_label"],
+                    relation["target_line_name"],
+                    relation["note"],
+                ),
+            )
 
 
 class ToneOutlineEditor(ttk.Frame):
@@ -1282,14 +1478,21 @@ class ToneOutlineEditor(ttk.Frame):
         self.line_type_var = tk.StringVar()
         self.line_character_var = tk.StringVar()
         self.line_status_var = tk.StringVar()
+        self.line_visible_var = tk.BooleanVar(value=True)
         self.segment_range_var = tk.StringVar()
         self.segment_status_var = tk.StringVar()
         self.segment_start_var = tk.StringVar()
         self.segment_end_var = tk.StringVar()
+        self.segment_title_var = tk.StringVar()
+        self.segment_note_type_var = tk.StringVar(value=NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
         self.segment_start_curve_var = tk.DoubleVar(value=DEFAULT_SEGMENT_CURVE)
         self.segment_end_curve_var = tk.DoubleVar(value=DEFAULT_SEGMENT_CURVE)
         self.point_axis_var = tk.StringVar()
         self.point_label_var = tk.StringVar()
+        self.point_node_type_var = tk.StringVar(value=NODE_TYPE_LABELS[DEFAULT_NODE_TYPE])
+        self.point_note_type_var = tk.StringVar(value=NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
+        self.point_tags_var = tk.StringVar()
+        self.point_status_var = tk.StringVar()
         self.point_amplitude_var = tk.DoubleVar(value=0.0)
         self.point_curvature_var = tk.DoubleVar(value=0.45)
         self.interaction_type_var = tk.StringVar(value=INTERACTION_TYPE_LABELS[DEFAULT_INTERACTION_TYPE])
@@ -1329,6 +1532,8 @@ class ToneOutlineEditor(ttk.Frame):
             on_segment_boundary_drag=self.move_segment_boundary,
             on_drag_preview=self.preview_drag_status,
             on_segment_shift_drag=self.shift_segment_drag,
+            on_point_drag=self.move_point_by_drag,
+            on_point_drag_preview=self.preview_point_drag_status,
             on_interaction_created=self.create_interaction_from_drag,
             on_interaction_retarget=self.retarget_interaction_from_drag,
             on_interaction_preview=self.preview_interaction_status,
@@ -1384,6 +1589,7 @@ class ToneOutlineEditor(ttk.Frame):
         ttk.Label(line_frame, text="类型 / 状态").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(line_frame, textvariable=self.line_type_var).pack(anchor="w", padx=6)
         ttk.Label(line_frame, textvariable=self.line_status_var, foreground="#666666").pack(anchor="w", padx=6, pady=(0, 2))
+        ttk.Checkbutton(line_frame, text="显示这条线", variable=self.line_visible_var).pack(anchor="w", padx=6, pady=(2, 0))
         ttk.Label(line_frame, text="人物名").pack(anchor="w", padx=6, pady=(4, 0))
         ttk.Entry(line_frame, textvariable=self.line_character_var).pack(fill=tk.X, padx=6)
         ttk.Button(line_frame, text="保存线信息", command=self.save_line).pack(anchor="e", padx=6, pady=(6, 4))
@@ -1406,6 +1612,16 @@ class ToneOutlineEditor(ttk.Frame):
         ttk.Label(segment_frame, text="当前过程段").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_range_var).pack(anchor="w", padx=6)
         ttk.Label(segment_frame, textvariable=self.segment_status_var, foreground="#666666").pack(anchor="w", padx=6)
+        ttk.Label(segment_frame, text="阶段标题").pack(anchor="w", padx=6, pady=(6, 0))
+        ttk.Entry(segment_frame, textvariable=self.segment_title_var).pack(fill=tk.X, padx=6)
+        ttk.Label(segment_frame, text="说明分类").pack(anchor="w", padx=6, pady=(6, 0))
+        self.segment_note_type_combo = ttk.Combobox(
+            segment_frame,
+            values=[label for _key, label in NOTE_TYPE_OPTIONS],
+            textvariable=self.segment_note_type_var,
+            state="readonly",
+        )
+        self.segment_note_type_combo.pack(fill=tk.X, padx=6)
         ttk.Label(segment_frame, text="起点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_start_var).pack(anchor="w", padx=6)
         ttk.Label(segment_frame, text="起始曲率").pack(anchor="w", padx=6, pady=(6, 0))
@@ -1430,6 +1646,9 @@ class ToneOutlineEditor(ttk.Frame):
             variable=self.segment_end_curve_var,
             length=180,
         ).pack(anchor="w", padx=6)
+        ttk.Label(segment_frame, text="阶段说明").pack(anchor="w", padx=6, pady=(6, 0))
+        self.segment_desc_text = tk.Text(segment_frame, height=3, wrap="word")
+        self.segment_desc_text.pack(fill=tk.X, padx=6, pady=(0, 6))
         ttk.Button(segment_frame, text="保存过程段", command=self.save_segment).pack(anchor="e", padx=6, pady=(6, 6))
 
         point_frame = ttk.LabelFrame(config_frame, text="波动点")
@@ -1445,6 +1664,23 @@ class ToneOutlineEditor(ttk.Frame):
 
         ttk.Label(point_frame, text="当前节点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(point_frame, textvariable=self.point_axis_var).pack(anchor="w", padx=6)
+        ttk.Label(point_frame, textvariable=self.point_status_var, foreground="#666666").pack(anchor="w", padx=6, pady=(0, 2))
+        ttk.Label(point_frame, text="节点类型").pack(anchor="w", padx=6, pady=(4, 0))
+        self.point_node_type_combo = ttk.Combobox(
+            point_frame,
+            values=[label for _key, label in NODE_TYPE_OPTIONS],
+            textvariable=self.point_node_type_var,
+            state="readonly",
+        )
+        self.point_node_type_combo.pack(fill=tk.X, padx=6)
+        ttk.Label(point_frame, text="说明分类").pack(anchor="w", padx=6, pady=(6, 0))
+        self.point_note_type_combo = ttk.Combobox(
+            point_frame,
+            values=[label for _key, label in NOTE_TYPE_OPTIONS],
+            textvariable=self.point_note_type_var,
+            state="readonly",
+        )
+        self.point_note_type_combo.pack(fill=tk.X, padx=6)
         ttk.Label(point_frame, text="波动强度").pack(anchor="w", padx=6, pady=(6, 0))
         tk.Scale(
             point_frame,
@@ -1467,6 +1703,8 @@ class ToneOutlineEditor(ttk.Frame):
         ).pack(anchor="w", padx=6)
         ttk.Label(point_frame, text="标签").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Entry(point_frame, textvariable=self.point_label_var).pack(fill=tk.X, padx=6)
+        ttk.Label(point_frame, text="标签组").pack(anchor="w", padx=6, pady=(6, 0))
+        ttk.Entry(point_frame, textvariable=self.point_tags_var).pack(fill=tk.X, padx=6)
         ttk.Label(point_frame, text="情节/人物说明").pack(anchor="w", padx=6, pady=(6, 0))
         self.point_desc_text = tk.Text(point_frame, height=4, wrap="word")
         self.point_desc_text.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 6))
@@ -1619,11 +1857,71 @@ class ToneOutlineEditor(ttk.Frame):
             return
         self.interaction_status_var.set(message)
 
+    def preview_point_drag_status(self, message):
+        if not message:
+            data = self.project_manager.get_tone_outline()
+            self._load_point_form(data)
+            return
+        self.point_status_var.set(message)
+
     def shift_segment_drag(self, line_uid, segment_uid, origin_axis_uid, target_axis_uid):
         self.selected_line_uid = line_uid or ""
         self.selected_segment_uid = segment_uid or ""
         self.selected_point_uid = ""
         self._shift_segment_to_axis(origin_axis_uid, target_axis_uid)
+
+    def move_point_by_drag(self, line_uid, segment_uid, point_uid, axis_uid, amplitude):
+        if not line_uid or not segment_uid or not point_uid or not axis_uid:
+            return
+        data = self.project_manager.get_tone_outline()
+        line = self._find_line(data, line_uid)
+        segment = self._find_segment(line, segment_uid) if line else None
+        point = self._find_point(segment, point_uid) if segment else None
+        if not line or not segment or not point:
+            return
+        axis_index_map = get_axis_index_map(data)
+        last_axis_uid = data.get("axis_nodes", [])[-1]["uid"] if data.get("axis_nodes") else ""
+        display_segment = self._find_display_segment(data, line, segment_uid) or segment
+        if line.get("line_type") == "character" and not axis_in_segment(
+            axis_uid,
+            display_segment,
+            axis_index_map,
+            last_axis_uid=last_axis_uid,
+        ):
+            messagebox.showinfo(
+                "提示",
+                "人物线节点必须保留在当前过程段内。请先调整过程段边界后再拖拽。",
+                parent=self.winfo_toplevel(),
+            )
+            self.refresh()
+            return
+        if any(
+            other_point.get("uid") != point_uid and other_point.get("axis_uid") == axis_uid
+            for other_point in segment.get("points", [])
+        ):
+            messagebox.showinfo(
+                "提示",
+                "当前过程段在该主轴节点上已经存在一个波动点，不能重复占用同一时间点。",
+                parent=self.winfo_toplevel(),
+            )
+            self.refresh()
+            return
+
+        self.selected_line_uid = line_uid
+        self.selected_segment_uid = segment_uid
+        self.selected_point_uid = point_uid
+        self.selected_axis_uid = axis_uid
+
+        def mutate(new_data):
+            target_line = self._find_line(new_data, line_uid)
+            target_segment = self._find_segment(target_line, segment_uid) if target_line else None
+            target_point = self._find_point(target_segment, point_uid) if target_segment else None
+            if not target_point:
+                return
+            target_point["axis_uid"] = axis_uid
+            target_point["amplitude"] = float(amplitude)
+
+        self._apply_update(mutate, "拖拽调整波动点")
 
     def create_interaction_from_drag(
         self,
@@ -1683,10 +1981,13 @@ class ToneOutlineEditor(ttk.Frame):
 
         for line in active_lines:
             status = "主轴" if line.get("line_type") == "plot" else "活动"
+            if not line.get("visible", True):
+                status = f"{status}/隐藏"
             self.active_line_list.insert(tk.END, f"[{status}] {line.get('name', '未命名线')}")
         for line in potential_lines:
             history_count = len(line.get("segments", []))
-            label = f"{line.get('name', '未命名线')} / 历史段 {history_count}"
+            hidden_suffix = " / 已隐藏" if not line.get("visible", True) else ""
+            label = f"{line.get('name', '未命名线')} / 历史段 {history_count}{hidden_suffix}"
             self.potential_line_list.insert(tk.END, label)
 
         if self.selected_line_uid in self.active_line_order:
@@ -1725,6 +2026,8 @@ class ToneOutlineEditor(ttk.Frame):
             else:
                 suffix = " / 进行中" if not segment.get("end_axis_uid") else ""
                 text = f"第{index + 1}段: {_range_text(axis_map, segment)}{suffix}"
+            if segment.get("title"):
+                text = f"{text} / {segment.get('title')}"
             self.segment_history.insert(tk.END, text)
 
         if self.selected_segment_uid in self.segment_order:
@@ -1753,7 +2056,8 @@ class ToneOutlineEditor(ttk.Frame):
             axis_title = axis_map.get(point.get("axis_uid"), {}).get("title", "未命名节点")
             amplitude = int(round(float(point.get("amplitude", 0))))
             label = point.get("label") or ""
-            extra = f" / {label}" if label else ""
+            type_label = get_node_type_label(point.get("node_type", DEFAULT_NODE_TYPE))
+            extra = f" / {label}" if label else f" / {type_label}"
             self.point_list.insert(tk.END, f"{axis_title} | {amplitude:+d}{extra}")
             self.point_order.append(point.get("uid"))
         if self.selected_point_uid in self.point_order:
@@ -1806,6 +2110,7 @@ class ToneOutlineEditor(ttk.Frame):
         self.line_name_var.set(line.get("name", ""))
         self.line_type_var.set("情节线" if line.get("line_type") == "plot" else "人物线")
         self.line_character_var.set(line.get("character_name", ""))
+        self.line_visible_var.set(bool(line.get("visible", True)))
         if line.get("line_type") == "plot":
             self.line_status_var.set("固定主线，始终围绕平铺主轴展开。")
         else:
@@ -1815,6 +2120,8 @@ class ToneOutlineEditor(ttk.Frame):
                 self.line_status_var.set(f"当前活动中：{_range_text(axis_map, open_segment)}")
             else:
                 self.line_status_var.set("当前已收束，保存在潜在栏，可在任意节点再次引入。")
+        if not line.get("visible", True):
+            self.line_status_var.set(f"{self.line_status_var.get()} 当前处于隐藏状态。")
 
     def _load_segment_form(self, data):
         line = self._find_line(data, self.selected_line_uid)
@@ -1825,17 +2132,25 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_status_var.set("")
         self.segment_start_var.set("")
         self.segment_end_var.set("")
+        self.segment_title_var.set("")
+        self.segment_note_type_var.set(NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
         self.segment_start_curve_var.set(DEFAULT_SEGMENT_CURVE)
         self.segment_end_curve_var.set(DEFAULT_SEGMENT_CURVE)
+        self.segment_desc_text.delete("1.0", tk.END)
         if not line or not segment:
             return
         display_segment = display_segment or segment
         self.segment_range_var.set(_range_text(axis_map, display_segment))
+        self.segment_title_var.set(segment.get("title", ""))
+        self.segment_note_type_var.set(
+            get_note_type_label(segment.get("note_type", DEFAULT_NOTE_TYPE))
+        )
         self.segment_start_var.set(axis_map.get(display_segment.get("start_axis_uid"), {}).get("title", "未设置"))
         end_title = "进行中" if not display_segment.get("end_axis_uid") else axis_map.get(display_segment.get("end_axis_uid"), {}).get("title", "未设置")
         self.segment_end_var.set(end_title)
         self.segment_start_curve_var.set(float(segment.get("start_curve", DEFAULT_SEGMENT_CURVE)))
         self.segment_end_curve_var.set(float(segment.get("end_curve", DEFAULT_SEGMENT_CURVE)))
+        self.segment_desc_text.insert("1.0", segment.get("description", ""))
         if line.get("line_type") == "plot":
             self.segment_status_var.set("情节线固定覆盖全程，可调两端曲率与段内节点。")
         elif not segment.get("end_axis_uid"):
@@ -1849,16 +2164,28 @@ class ToneOutlineEditor(ttk.Frame):
         point = self._find_point(segment, self.selected_point_uid) if segment else None
         axis = self._find_axis(data, self.selected_axis_uid)
         self.point_axis_var.set(axis.get("title", "未选择节点") if axis else "未选择节点")
+        self.point_status_var.set("")
         self.point_desc_text.delete("1.0", tk.END)
         if not point:
             self.point_label_var.set("")
+            self.point_node_type_var.set(NODE_TYPE_LABELS[DEFAULT_NODE_TYPE])
+            self.point_note_type_var.set(NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
+            self.point_tags_var.set("")
             self.point_amplitude_var.set(0.0)
             self.point_curvature_var.set(0.45)
             return
         self.point_label_var.set(point.get("label", ""))
+        self.point_node_type_var.set(
+            get_node_type_label(point.get("node_type", DEFAULT_NODE_TYPE))
+        )
+        self.point_note_type_var.set(
+            get_note_type_label(point.get("note_type", DEFAULT_NOTE_TYPE))
+        )
+        self.point_tags_var.set(", ".join(point.get("tags", [])))
         self.point_amplitude_var.set(float(point.get("amplitude", 0)))
         self.point_curvature_var.set(float(point.get("curvature", 0.45)))
         self.point_desc_text.insert("1.0", point.get("description", ""))
+        self.point_status_var.set("可在画布上直接拖拽这个波动点，调整发生时机与强度。")
 
     def _load_interaction_form(self, data):
         interaction = self._find_interaction(data, self.selected_interaction_uid)
@@ -2065,6 +2392,7 @@ class ToneOutlineEditor(ttk.Frame):
                     "line_type": "character",
                     "character_name": character_name.strip(),
                     "color": get_next_tone_line_color(data.get("lines", [])),
+                    "visible": True,
                     "segments": [],
                 }
             )
@@ -2097,6 +2425,9 @@ class ToneOutlineEditor(ttk.Frame):
                         "end_axis_uid": "",
                         "start_curve": DEFAULT_SEGMENT_CURVE,
                         "end_curve": DEFAULT_SEGMENT_CURVE,
+                        "title": "",
+                        "description": "",
+                        "note_type": DEFAULT_NOTE_TYPE,
                         "points": [],
                     }
                 )
@@ -2154,11 +2485,13 @@ class ToneOutlineEditor(ttk.Frame):
             return
         name = self.line_name_var.get().strip() or line.get("name") or "未命名线"
         character_name = self.line_character_var.get().strip()
+        visible = bool(self.line_visible_var.get())
 
         def mutate(data):
             target_line = self._find_line(data, self.selected_line_uid)
             if target_line:
                 target_line["name"] = name
+                target_line["visible"] = visible
                 if target_line.get("line_type") == "character":
                     target_line["character_name"] = character_name
 
@@ -2459,6 +2792,12 @@ class ToneOutlineEditor(ttk.Frame):
         segment = self._find_segment(line, self.selected_segment_uid) if line else None
         if not segment:
             return
+        title = self.segment_title_var.get().strip()
+        note_type = NOTE_LABEL_TO_TYPE.get(
+            self.segment_note_type_var.get(),
+            DEFAULT_NOTE_TYPE,
+        )
+        description = self.segment_desc_text.get("1.0", tk.END).strip()
         start_curve = float(self.segment_start_curve_var.get())
         end_curve = float(self.segment_end_curve_var.get())
 
@@ -2466,6 +2805,9 @@ class ToneOutlineEditor(ttk.Frame):
             target_line = self._find_line(data, self.selected_line_uid)
             target_segment = self._find_segment(target_line, self.selected_segment_uid) if target_line else None
             if target_segment:
+                target_segment["title"] = title
+                target_segment["note_type"] = note_type
+                target_segment["description"] = description
                 target_segment["start_curve"] = start_curve
                 target_segment["end_curve"] = end_curve
 
@@ -2520,6 +2862,9 @@ class ToneOutlineEditor(ttk.Frame):
                     "curvature": 0.45,
                     "label": "",
                     "description": "",
+                    "node_type": DEFAULT_NODE_TYPE,
+                    "note_type": DEFAULT_NOTE_TYPE,
+                    "tags": [],
                 }
             )
             self.selected_point_uid = point_uid
@@ -2552,6 +2897,15 @@ class ToneOutlineEditor(ttk.Frame):
             return
         label = self.point_label_var.get().strip()
         description = self.point_desc_text.get("1.0", tk.END).strip()
+        node_type = NODE_LABEL_TO_TYPE.get(
+            self.point_node_type_var.get(),
+            DEFAULT_NODE_TYPE,
+        )
+        note_type = NOTE_LABEL_TO_TYPE.get(
+            self.point_note_type_var.get(),
+            DEFAULT_NOTE_TYPE,
+        )
+        tags = [item.strip() for item in self.point_tags_var.get().replace("，", ",").split(",") if item.strip()]
         amplitude = float(self.point_amplitude_var.get())
         curvature = float(self.point_curvature_var.get())
 
@@ -2562,6 +2916,9 @@ class ToneOutlineEditor(ttk.Frame):
             if target_point:
                 target_point["label"] = label
                 target_point["description"] = description
+                target_point["node_type"] = node_type
+                target_point["note_type"] = note_type
+                target_point["tags"] = tags
                 target_point["amplitude"] = amplitude
                 target_point["curvature"] = curvature
 
