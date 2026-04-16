@@ -1,7 +1,7 @@
 import unittest
 from writer_app.core.models import ProjectManager
 from writer_app.core.history_manager import CommandHistory
-from writer_app.core.commands import AddNodeCommand, DeleteNodesCommand, EditNodeCommand
+from writer_app.core.commands import AddNodeCommand, DeleteNodesCommand, EditNodeCommand, SetAIContextValueCommand
 
 class TestCommands(unittest.TestCase):
     def setUp(self):
@@ -102,6 +102,18 @@ class TestCommands(unittest.TestCase):
 
         self.assertTrue(self.history.redo())
         self.assertEqual([c["name"] for c in root["children"]], ["A", "NEW", "B", "C"])
+
+    def test_set_ai_context_value_command_supports_undo(self):
+        cmd = SetAIContextValueCommand(self.pm, "summary_recap", "第一章回顾")
+
+        self.assertTrue(self.history.execute_command(cmd))
+        self.assertEqual(
+            self.pm.project_data.get("meta", {}).get("ai_context", {}).get("summary_recap"),
+            "第一章回顾"
+        )
+
+        self.assertTrue(self.history.undo())
+        self.assertNotIn("ai_context", self.pm.project_data.get("meta", {}))
 
 if __name__ == '__main__':
     unittest.main()

@@ -138,3 +138,42 @@ class ConvertIdeaToNodeCommand(Command):
                 return True
 
 # --- Timeline Commands ---
+
+
+class SetAIContextValueCommand(Command):
+    """设置 meta.ai_context 下的字段，支持撤销。"""
+
+    def __init__(self, project_manager, field_name, value, description="设置 AI 上下文字段"):
+        super().__init__(description)
+        self.project_manager = project_manager
+        self.field_name = field_name
+        self.value = json.loads(json.dumps(value))
+        self.old_value = None
+        self.had_old_value = False
+
+    def execute(self):
+        meta = self.project_manager.project_data.setdefault("meta", {})
+        ai_context = meta.setdefault("ai_context", {})
+
+        self.had_old_value = self.field_name in ai_context
+        self.old_value = json.loads(json.dumps(ai_context.get(self.field_name)))
+        ai_context[self.field_name] = self.value
+
+        self.project_manager.mark_modified("meta")
+        get_event_bus().publish(Events.PROJECT_CONFIG_CHANGED, fields=[f"ai_context.{self.field_name}"])
+        return True
+
+    def undo(self):
+        meta = self.project_manager.project_data.setdefault("meta", {})
+        ai_context = meta.setdefault("ai_context", {})
+
+        if self.had_old_value:
+            ai_context[self.field_name] = self.old_value
+        else:
+            ai_context.pop(self.field_name, None)
+            if not ai_context:
+                meta.pop("ai_context", None)
+
+        self.project_manager.mark_modified("meta")
+        get_event_bus().publish(Events.PROJECT_CONFIG_CHANGED, fields=[f"ai_context.{self.field_name}"])
+        return True

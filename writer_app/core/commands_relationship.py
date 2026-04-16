@@ -382,6 +382,163 @@ class DeleteRelationshipEventCommand(Command):
         get_event_bus().publish(Events.RELATIONSHIP_UPDATED, link_index=self.link_index)
         return True
 
+
+class AddRelationshipSnapshotCommand(Command):
+    """添加关系快照，支持撤销/重做。"""
+
+    def __init__(self, project_manager, snapshot_data):
+        super().__init__("添加关系快照")
+        self.project_manager = project_manager
+        self.snapshot_data = json.loads(json.dumps(snapshot_data))
+        self.added_index = -1
+
+    def execute(self):
+        rels = self.project_manager.get_relationships()
+        snapshots = rels.setdefault("snapshots", [])
+        snapshots.append(self.snapshot_data)
+        self.added_index = len(snapshots) - 1
+        self.project_manager.mark_modified("relationships")
+        get_event_bus().publish(Events.RELATIONSHIPS_UPDATED)
+        return True
+
+    def undo(self):
+        rels = self.project_manager.get_relationships()
+        snapshots = rels.get("snapshots", [])
+        if 0 <= self.added_index < len(snapshots):
+            if snapshots[self.added_index] == self.snapshot_data:
+                del snapshots[self.added_index]
+                self.project_manager.mark_modified("relationships")
+                get_event_bus().publish(Events.RELATIONSHIPS_UPDATED)
+                return True
+        return False
+
+
+class AddFactionCommand(Command):
+    """添加势力并同步创建 wiki 条目，支持撤销。"""
+
+    def __init__(self, project_manager, name, color="#999"):
+        super().__init__("添加势力")
+        self.project_manager = project_manager
+        self.name = (name or "").strip()
+        self.color = color
+        self.added_uid = ""
+        self.added_index = -1
+        self.added_wiki_index = -1
+
+    def execute(self):
+        if not self.name:
+            return False
+
+        if "factions" not in self.project_manager.project_data:
+            self.project_manager.project_data["factions"] = {"groups": [], "matrix": {}}
+        factions = self.project_manager.get_factions()
+        if any(f.get("name") == self.name for f in factions):
+            return False
+
+        self.added_uid = self.project_manager._gen_uid()
+        faction = {
+            "uid": self.added_uid,
+            "name": self.name,
+            "color": self.color,
+            "desc": "",
+        }
+        factions.append(faction)
+        self.added_index = len(factions) - 1
+
+        if "world" not in self.project_manager.project_data:
+            self.project_manager.project_data["world"] = {"entries": []}
+        entries = self.project_manager.get_world_entries()
+        if not any(e.get("name") == self.name for e in entries):
+            entries.append({
+                "name": self.name,
+                "category": "势力",
+                "content": "自动生成的势力条目。",
+                "iceberg_depth": "surface",
+                "faction_uid": self.added_uid,
+            })
+            self.added_wiki_index = len(entries) - 1
+
+        self.project_manager.mark_modified("factions")
+        get_event_bus().publish(Events.FACTION_ADDED, faction_uid=self.added_uid, faction_name=self.name)
+        get_event_bus().publish(Events.FACTIONS_UPDATED)
+        return True
+
+    def undo(self):
+        factions = self.project_manager.get_factions()
+        removed = False
+        if 0 <= self.added_index < len(factions):
+            faction = factions[self.added_index]
+            if faction.get("uid") == self.added_uid:
+                del factions[self.added_index]
+                removed = True
+        if not removed and self.added_uid:
+            original_len = len(factions)
+            factions[:] = [f for f in factions if f.get("uid") != self.added_uid]
+            removed = len(factions) < original_len
+
+        if self.added_wiki_index >= 0:
+            entries = self.project_manager.get_world_entries()
+            if 0 <= self.added_wiki_index < len(entries):
+                entry = entries[self.added_wiki_index]
+                if entry.get("faction_uid") == self.added_uid:
+                    del entries[self.added_wiki_index]
+            else:
+                entries[:] = [e for e in entries if e.get("faction_uid") != self.added_uid]
+
+        if removed:
+            self.project_manager.mark_modified("factions")
+            get_event_bus().publish(Events.FACTIONS_UPDATED)
+            return True
+        return False
+
+
+class AddFactionMemberCommand(Command):
+    """向势力添加成员，避免逆推理导入直接写 factions。"""
+
+    def __init__(self, project_manager, faction_uid, member_data):
+        super().__init__("添加势力成员")
+        self.project_manager = project_manager
+        self.faction_uid = faction_uid
+        self.member_data = json.loads(json.dumps(member_data))
+        self.added = False
+
+    def execute(self):
+        factions = self.project_manager.get_factions()
+        for faction in factions:
+            if faction.get("uid") != self.faction_uid:
+                continue
+
+            members = faction.setdefault("members", [])
+            member_uid = self.member_data.get("char_uid")
+            if member_uid and any(m.get("char_uid") == member_uid for m in members):
+                return True
+
+            members.append(self.member_data)
+            self.added = True
+            self.project_manager.mark_modified("factions")
+            get_event_bus().publish(Events.RELATIONSHIPS_UPDATED)
+            return True
+
+        return False
+
+    def undo(self):
+        if not self.added:
+            return True
+
+        factions = self.project_manager.get_factions()
+        for faction in factions:
+            if faction.get("uid") != self.faction_uid:
+                continue
+
+            members = faction.get("members", [])
+            original_len = len(members)
+            members[:] = [m for m in members if m.get("char_uid") != self.member_data.get("char_uid")]
+            if len(members) != original_len:
+                self.project_manager.mark_modified("factions")
+                get_event_bus().publish(Events.RELATIONSHIPS_UPDATED)
+                return True
+        return False
+
 # --- Evidence Board Commands ---
 
 class UpdateFactionRelationCommand(Command):

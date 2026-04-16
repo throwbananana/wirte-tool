@@ -8,16 +8,24 @@ import difflib
 import re
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
-from writer_app.core.reverse_engineer import ReverseEngineeringManager, AnalysisContext
+from writer_app.core.reverse_engineer import ReverseEngineeringManager
 from writer_app.core.commands import (
     AddCharacterCommand,
+    AddCharacterEventCommand,
+    AddFactionCommand,
+    AddFactionMemberCommand,
+    AddRelationshipEventCommand,
+    AddRelationshipSnapshotCommand,
+    EditCharacterCommand,
     AddWikiEntryCommand,
     AddNodeCommand,
     AddLinkCommand,
     AddTimelineEventCommand,
     AddSceneCommand,
     EditSceneCommand,
-    EditTimelineEventCommand
+    EditTimelineEventCommand,
+    RemapEvidenceReferencesCommand,
+    SetAIContextValueCommand,
 )
 from writer_app.core.event_bus import get_event_bus, Events
 
@@ -428,10 +436,6 @@ class ReverseEngineeringView(ttk.Frame):
         self._show_linkage_review_dialog(report)
 
     def _build_relationship_keyframes(self, imported_links, min_changes):
-        rels = self.project_manager.get_relationships()
-        if "snapshots" not in rels:
-            rels["snapshots"] = []
-
         def _iter_chapter_titles(link):
             titles = link.get("chapter_titles")
             if isinstance(titles, list):
@@ -498,16 +502,17 @@ class ReverseEngineeringView(ttk.Frame):
                         outline_label += " ..."
 
                 snap_name = f"章节 {start_idx + 1}-{end_idx + 1}（{chapter_span}章）| 大纲: {outline_label}"
-                rels["snapshots"].append({
+                snapshot = {
                     "name": snap_name,
                     "links": list(cumulative.values()),
                     "timestamp": time.time()
-                })
-                last_snapshot_idx = idx
-                snapshot_count += 1
+                }
+                cmd = AddRelationshipSnapshotCommand(self.project_manager, snapshot)
+                if self._execute_command(cmd):
+                    last_snapshot_idx = idx
+                    snapshot_count += 1
 
         if snapshot_count:
-            self.project_manager.mark_modified("relationships")
             messagebox.showinfo("关系快照", f"已生成 {snapshot_count} 个关键帧快照。")
         else:
             messagebox.showinfo("关系快照", "未达到关键帧阈值，未生成快照。")
@@ -652,222 +657,219 @@ class ReverseEngineeringView(ttk.Frame):
         2. 每个章节处理后更新累积上下文（已知角色、设定、滚动摘要）
         3. 将上下文传递给后续章节的分析，提高跨章节的识别准确性
         """
-        # 1. 加载并分割文本
-        path = self.file_path_var.get()
-        structured_chapters = self.manager.load_file_structured(path)
+        completed = False
+        cancelled = False
+        try:
+            path = self.file_path_var.get()
+            processing_units = self.manager.build_processing_units(
+                file_path=path if path and os.path.exists(path) else "",
+                text=self.loaded_text,
+            )
+            self._last_chapter_sequence = [u["title"] for u in processing_units]
 
-        if len(structured_chapters) == 1 and structured_chapters[0]["title"] == "Full Text":
-            raw_chunks = self.manager.split_text(structured_chapters[0]["content"])
-            processing_units = [{"title": f"Chunk {i+1}", "content": c} for i, c in enumerate(raw_chunks)]
-        else:
-            processing_units = []
-            for chap in structured_chapters:
-                sub_chunks = self.manager.split_text(chap["content"])
-                for i, sub in enumerate(sub_chunks):
-                    title = chap["title"]
-                    if len(sub_chunks) > 1:
-                        title += f" ({i+1})"
-                    processing_units.append({"title": title, "content": sub})
-        self._last_chapter_sequence = [u["title"] for u in processing_units]
+            if not processing_units:
+                self.log("Warning: No valid text sections found for analysis.")
+                return
 
-        # 获取选中的分析类型
-        selected_types = [k for k, v in self.vars.items() if v.get()]
-        use_incremental = self.incremental_var.get()
-        use_context = self.context_var.get()  # 是否使用长上下文
+            selected_types = [k for k, v in self.vars.items() if v.get()]
+            use_incremental = self.incremental_var.get()
+            use_context = self.context_var.get()
 
-        if not selected_types:
-            self.log("Warning: No analysis options selected.")
-            self.is_analyzing = False
-            self.after(0, lambda: self.start_btn.configure(state=tk.NORMAL))
-            self.after(0, lambda: self.stop_btn.configure(state=tk.DISABLED))
-            return
+            if not selected_types:
+                self.log("Warning: No analysis options selected.")
+                return
 
-        # 2. 创建累积上下文（如果启用）
-        context = self.manager.create_analysis_context() if use_context else None
+            context = self.manager.create_analysis_context() if use_context else None
 
-        # 尝试从已保存的会话恢复上下文
-        if use_context and hasattr(self, '_saved_context') and self._saved_context:
-            context = self.manager.import_context(self._saved_context)
-            self.log(f"Restored context: {len(context.known_characters)} characters, "
-                    f"{len(context.known_entities)} entities")
+            if use_context and hasattr(self, "_saved_context") and self._saved_context:
+                context = self.manager.import_context(self._saved_context)
+                self.log(
+                    f"Restored context: {len(context.known_characters)} characters, "
+                    f"{len(context.known_entities)} entities"
+                )
 
-        # 3. 计算总任务数（按章节 x 分析类型）
-        total_units = len(processing_units) * len(selected_types)
-        if use_context:
-            # 额外的摘要生成任务
-            total_units += len(processing_units)
+            total_units = len(processing_units) * len(selected_types)
+            if use_context:
+                total_units += len(processing_units)
 
-        self.log(f"Processing {len(processing_units)} chapters × {len(selected_types)} analysis types")
-        if use_context:
-            self.log("Long context mode enabled: accumulating characters, entities, and summaries")
+            self.log(f"Processing {len(processing_units)} chapters × {len(selected_types)} analysis types")
+            if use_context:
+                self.log("Long context mode enabled: accumulating characters, entities, and summaries")
 
-        current_step = 0
-        global_results_buffer = {k: [] for k in self.vars}
-        skipped_count = 0
+            current_step = 0
+            global_results_buffer = {k: [] for k in self.vars}
+            skipped_count = 0
 
-        # 4. 按章节顺序处理（核心改进）
-        for unit_idx, unit in enumerate(processing_units):
-            if self.stop_event.is_set():
-                break
-
-            unit_title = unit["title"]
-            unit_content = unit["content"]
-
-            self.log(f"\n=== Chapter {unit_idx + 1}/{len(processing_units)}: {unit_title} ===")
-
-            # 显示当前上下文状态
-            if use_context and context:
-                ctx_info = f"Context: {len(context.known_characters)} chars, {len(context.known_entities)} entities"
-                self.log(f"  {ctx_info}")
-
-            chapter_results = {}  # 本章节的分析结果
-
-            # 4a. 对当前章节执行所有选中的分析类型
-            any_analysis_done = False
-            for analysis_type in selected_types:
+            for unit_idx, unit in enumerate(processing_units):
                 if self.stop_event.is_set():
+                    cancelled = True
                     break
 
-                analysis_cache_key = self.manager.get_analysis_cache_key(
-                    unit_content,
-                    analysis_type,
-                    config=ai_config,
-                    context_enabled=use_context
-                )
+                unit_title = unit["title"]
+                unit_content = unit["content"]
 
-                # 增量检查
-                if use_incremental:
-                    if analysis_type not in self.manager._analyzed_hashes:
-                        self.manager._analyzed_hashes[analysis_type] = set()
-                    if analysis_cache_key in self.manager._analyzed_hashes[analysis_type]:
-                        skipped_count += 1
-                        current_step += 1
-                        progress = (current_step / total_units) * 100
-                        self._set_progress(progress)
-                        continue
+                self.log(f"\n=== Chapter {unit_idx + 1}/{len(processing_units)}: {unit_title} ===")
 
-                self.log(f"  [{analysis_type}] Analyzing...")
+                if use_context and context:
+                    ctx_info = f"Context: {len(context.known_characters)} chars, {len(context.known_entities)} entities"
+                    self.log(f"  {ctx_info}")
 
-                try:
-                    # 使用累积上下文进行分析
-                    result = self.manager.analyze_chunk(
+                chapter_results = {}
+                any_analysis_done = False
+
+                for analysis_type in selected_types:
+                    if self.stop_event.is_set():
+                        cancelled = True
+                        break
+
+                    analysis_cache_key = self.manager.get_analysis_cache_key(
                         unit_content,
                         analysis_type,
-                        ai_config,
-                        context=context,  # 传递累积上下文
-                        request_timeout=getattr(self, "_analysis_request_timeout", None),
-                        cancel_event=self.stop_event
+                        config=ai_config,
+                        context_enabled=use_context,
                     )
 
-                    if result is not None:
-                        for r in result:
-                            r["chapter_title"] = unit_title
-                        global_results_buffer[analysis_type].append(result)
-                        chapter_results[analysis_type] = result
+                    if use_incremental:
+                        if analysis_type not in self.manager._analyzed_hashes:
+                            self.manager._analyzed_hashes[analysis_type] = set()
+                        if analysis_cache_key in self.manager._analyzed_hashes[analysis_type]:
+                            skipped_count += 1
+                            current_step += 1
+                            progress = (current_step / total_units) * 100
+                            self._set_progress(progress)
+                            continue
 
-                        item_count = len(result)
-                        if item_count:
-                            self.log(f"    ✓ Found {item_count} items")
+                    self.log(f"  [{analysis_type}] Analyzing...")
+
+                    try:
+                        result = self.manager.analyze_chunk(
+                            unit_content,
+                            analysis_type,
+                            ai_config,
+                            context=context,
+                            request_timeout=getattr(self, "_analysis_request_timeout", None),
+                            cancel_event=self.stop_event,
+                        )
+
+                        if result is not None:
+                            for r in result:
+                                r["chapter_title"] = unit_title
+                            global_results_buffer[analysis_type].append(result)
+                            chapter_results[analysis_type] = result
+
+                            item_count = len(result)
+                            if item_count:
+                                self.log(f"    ✓ Found {item_count} items")
+                            else:
+                                self.log("    ⚠ No items found")
+
+                            self.manager.mark_analyzed(analysis_cache_key, analysis_type)
+                            any_analysis_done = True
                         else:
-                            self.log("    ⚠ No items found")
+                            self.log("    ✗ No valid JSON output")
 
-                        # 标记为已分析
-                        self.manager.mark_analyzed(analysis_cache_key, analysis_type)
-                        any_analysis_done = True
-                    else:
-                        self.log("    ✗ No valid JSON output")
+                    except Exception as exc:
+                        self.log(f"    ✗ Error: {exc}")
 
-                except Exception as e:
-                    self.log(f"    ✗ Error: {e}")
+                    current_step += 1
+                    progress = (current_step / total_units) * 100
+                    self._set_progress(progress)
 
-                current_step += 1
-                progress = (current_step / total_units) * 100
-                self._set_progress(progress)
+                if self.stop_event.is_set():
+                    cancelled = True
+                    break
 
-            if self.stop_event.is_set():
-                break
-
-            # 4b. 更新累积上下文（基于本章节的分析结果）
-            if use_context and context:
-                summary_cache_key = self.manager.get_summary_cache_key(
-                    unit_content, unit_title, config=ai_config, context_enabled=use_context
-                )
-                chapter_summary = self.manager.get_cached_summary(summary_cache_key)
-                if any_analysis_done and not chapter_summary:
-                    self.log("  [context] Generating chapter summary...")
-                    chapter_summary = self.manager.generate_chapter_summary(
+                if use_context and context:
+                    summary_cache_key = self.manager.get_summary_cache_key(
                         unit_content,
                         unit_title,
-                        ai_config,
-                        request_timeout=getattr(self, "_analysis_request_timeout", None),
-                        cancel_event=self.stop_event
+                        config=ai_config,
+                        context_enabled=use_context,
                     )
+                    chapter_summary = self.manager.get_cached_summary(summary_cache_key)
+                    if any_analysis_done and not chapter_summary:
+                        self.log("  [context] Generating chapter summary...")
+                        chapter_summary = self.manager.generate_chapter_summary(
+                            unit_content,
+                            unit_title,
+                            ai_config,
+                            request_timeout=getattr(self, "_analysis_request_timeout", None),
+                            cancel_event=self.stop_event,
+                        )
+                        if chapter_summary:
+                            self.log(f"    ✓ Summary: {chapter_summary[:80]}...")
+
+                    if not chapter_summary and "summary" in chapter_results:
+                        summary_items = chapter_results.get("summary", [])
+                        if isinstance(summary_items, list) and summary_items:
+                            first = summary_items[0]
+                            if isinstance(first, dict):
+                                chapter_summary = (first.get("content") or "")[:500].strip()
+                            elif isinstance(first, list) and first:
+                                item = first[0]
+                                if isinstance(item, dict):
+                                    chapter_summary = (item.get("content") or "")[:500].strip()
+
                     if chapter_summary:
-                        self.log(f"    ? Summary: {chapter_summary[:80]}...")
+                        self.manager.set_cached_summary(summary_cache_key, chapter_summary)
 
-                if not chapter_summary and "summary" in chapter_results:
-                    summary_items = chapter_results.get("summary", [])
-                    if isinstance(summary_items, list) and summary_items:
-                        first = summary_items[0]
-                        if isinstance(first, dict):
-                            chapter_summary = (first.get("content") or "")[:500].strip()
-                        elif isinstance(first, list) and first:
-                            item = first[0]
-                            if isinstance(item, dict):
-                                chapter_summary = (item.get("content") or "")[:500].strip()
+                    context_results = chapter_results
+                    if "summary" in chapter_results:
+                        context_results = dict(chapter_results)
+                        context_results.pop("summary", None)
 
-                if chapter_summary:
-                    self.manager.set_cached_summary(summary_cache_key, chapter_summary)
+                    if chapter_summary or context_results:
+                        self.manager.update_context_from_results(
+                            context, context_results, unit_title, chapter_summary
+                        )
 
-                context_results = chapter_results
-                if "summary" in chapter_results:
-                    context_results = dict(chapter_results)
-                    context_results.pop("summary", None)
+                    current_step += 1
+                    progress = (current_step / total_units) * 100
+                    self._set_progress(progress)
 
-                if chapter_summary or context_results:
-                    self.manager.update_context_from_results(
-                        context, context_results, unit_title, chapter_summary
-                    )
+                self.after(0, self._update_progress_label)
 
-                current_step += 1
-                progress = (current_step / total_units) * 100
-                self._set_progress(progress)
-
-            # 更新进度标签
-            self.after(0, self._update_progress_label)
-
-        # 5. 保存上下文供后续使用
-        if use_context and context:
-            self._saved_context = self.manager.export_context(context)
-            self.log(f"\nContext saved: {len(context.known_characters)} characters, "
+            if use_context and context:
+                self._saved_context = self.manager.export_context(context)
+                self.log(
+                    f"\nContext saved: {len(context.known_characters)} characters, "
                     f"{len(context.known_entities)} entities, "
-                    f"{len(context.chapter_summaries)} chapter summaries")
+                    f"{len(context.chapter_summaries)} chapter summaries"
+                )
 
-        if skipped_count > 0:
-            self.log(f"Skipped {skipped_count} already-analyzed sections (incremental mode)")
+            if skipped_count > 0:
+                self.log(f"Skipped {skipped_count} already-analyzed sections (incremental mode)")
 
-        # 6. 合并结果
-        self.log("\nMerging global results...")
+            if not cancelled:
+                self.log("\nMerging global results...")
 
-        for key in global_results_buffer:
-            if not self.vars[key].get():
-                continue
+                for key in global_results_buffer:
+                    if not self.vars[key].get():
+                        continue
 
-            if key in ["summary", "style"]:
-                flat_list = []
-                for batch in global_results_buffer[key]:
-                    flat_list.extend(batch)
-                merged_data = flat_list
-            else:
-                merged_data = self.manager.merge_results(global_results_buffer[key], key)
+                    if key in ["summary", "style"]:
+                        flat_list = []
+                        for batch in global_results_buffer[key]:
+                            flat_list.extend(batch)
+                        merged_data = flat_list
+                    else:
+                        merged_data = self.manager.merge_results(global_results_buffer[key], key)
 
-            # Update UI on main thread
-            self.after(0, self._update_tree, key, merged_data)
+                    self.after(0, self._update_tree, key, merged_data)
 
-        self.is_analyzing = False
-        self.after(0, lambda: self.start_btn.configure(state=tk.NORMAL))
-        self.after(0, lambda: self.stop_btn.configure(state=tk.DISABLED))
-        self.log("\n=== Analysis Complete ===")
+                completed = True
+
+        except Exception as exc:
+            logger.exception("Reverse engineering analysis failed: %s", exc)
+            self.log(f"Analysis failed: {exc}")
+        finally:
+            self.is_analyzing = False
+            self.after(0, lambda: self.start_btn.configure(state=tk.NORMAL if self.ai_mode_enabled and self.loaded_text else tk.DISABLED))
+            self.after(0, lambda: self.stop_btn.configure(state=tk.DISABLED))
+            if cancelled:
+                self.log("\n=== Analysis Stopped ===")
+            elif completed:
+                self.log("\n=== Analysis Complete ===")
 
     def _update_tree(self, key, data):
         tree = self.result_trees[key]
@@ -989,7 +991,14 @@ class ReverseEngineeringView(ttk.Frame):
                                 "type": "剧情事件",
                                 "source": "Reverse Engineering"
                             }
-                            self.project_manager.add_character_event(c_name, event_data)
+                            self._execute_command(
+                                AddCharacterEventCommand(
+                                    self.project_manager,
+                                    c_name,
+                                    event_data,
+                                    "反推导导入人物事件"
+                                )
+                            )
 
                 new_branch["children"].append(chapter_node)
 
@@ -1097,20 +1106,31 @@ class ReverseEngineeringView(ttk.Frame):
             factions = self.project_manager.get_factions()
             faction_names = {f["name"]: f["uid"] for f in factions}
             rels = self.project_manager.get_relationships()
-            rels.setdefault("relationship_events", [])
-            relationship_events = rels["relationship_events"]
 
             # 确保角色有UID（用于势力矩阵关联）
             characters = self.project_manager.get_characters()
             char_name_to_uid = {}
             existing_char_names = set()
             renamed_char_uids = {}
-            for char in characters:
+            for idx, char in enumerate(characters):
                 if "uid" not in char or not char["uid"]:
                     new_uid = self.project_manager._gen_uid()
-                    renamed_char_uids[char["name"]] = new_uid
-                    char["uid"] = new_uid
-                char_name_to_uid[char["name"]] = char["uid"]
+                    old_char = dict(char)
+                    new_char = dict(char)
+                    new_char["uid"] = new_uid
+                    if self._execute_command(
+                        EditCharacterCommand(
+                            self.project_manager,
+                            idx,
+                            old_char,
+                            new_char,
+                            "反推导补充角色UID"
+                        )
+                    ):
+                        renamed_char_uids[char["name"]] = new_uid
+                char_uid = char.get("uid")
+                if char_uid:
+                    char_name_to_uid[char["name"]] = char_uid
                 existing_char_names.add(char["name"])
 
             def ensure_character(name):
@@ -1158,41 +1178,35 @@ class ReverseEngineeringView(ttk.Frame):
                     frame_ids[chapter_title] = self.project_manager._gen_uid()
                 return frame_ids[chapter_title]
 
-            def _append_events_for_link(new_link, source_link, target_type):
+            def _append_events_for_link(link_index, source_link, target_type):
                 nonlocal events_added
-                event_uids = []
-                frame_id_list = []
                 chapters = _iter_chapter_titles(source_link)
                 if not chapters:
                     chapters = [""]
 
                 for chapter_title in chapters:
-                    frame_id = _get_frame_id(chapter_title)
                     event = {
-                        "uid": self.project_manager._gen_uid(),
-                        "source": new_link.get("source", ""),
-                        "target": new_link.get("target", ""),
+                        "source": source_link.get("source", ""),
+                        "target": source_link.get("target", ""),
                         "target_type": target_type,
-                        "label": new_link.get("label", ""),
-                        "description": new_link.get("description", ""),
+                        "label": source_link.get("label", ""),
+                        "description": source_link.get("description", ""),
                         "chapter_title": chapter_title,
-                        "frame_id": frame_id,
+                        "frame_id": _get_frame_id(chapter_title),
                         "created_at": time.time(),
                         "origin": "reverse_engineering"
                     }
                     outline_ref_uid = source_link.get("outline_ref_uid")
                     if outline_ref_uid:
                         event["outline_ref_uid"] = outline_ref_uid
-                    relationship_events.append(event)
-                    event_uids.append(event["uid"])
-                    if frame_id and frame_id not in frame_id_list:
-                        frame_id_list.append(frame_id)
-
-                if event_uids:
-                    new_link["event_uids"] = event_uids
-                if frame_id_list:
-                    new_link["event_frame_ids"] = frame_id_list
-                events_added = True
+                    if self._execute_command(
+                        AddRelationshipEventCommand(
+                            self.project_manager,
+                            link_index,
+                            event
+                        )
+                    ):
+                        events_added = True
 
             for link in sel_rels:
                 src = link.get("source", "").strip()
@@ -1211,10 +1225,13 @@ class ReverseEngineeringView(ttk.Frame):
                 if tgt_type == "faction":
                     # 1. 创建势力（如果不存在）
                     if tgt not in faction_names:
-                        new_uid = self.project_manager.add_faction(tgt)
-                        faction_names[tgt] = new_uid
+                        faction_cmd = AddFactionCommand(self.project_manager, tgt)
+                        if self._execute_command(faction_cmd):
+                            faction_names[tgt] = faction_cmd.added_uid
 
-                    faction_uid = faction_names[tgt]
+                    faction_uid = faction_names.get(tgt, "")
+                    if not faction_uid:
+                        continue
 
                     # 2. 添加可视化关系链接
                     new_link = {
@@ -1225,30 +1242,27 @@ class ReverseEngineeringView(ttk.Frame):
                         "description": description,
                         "target_type": "faction"
                     }
-                    if self._execute_command(AddLinkCommand(self.project_manager, new_link)):
-                        _append_events_for_link(new_link, link, "faction")
+                    link_cmd = AddLinkCommand(self.project_manager, new_link)
+                    if self._execute_command(link_cmd):
+                        _append_events_for_link(link_cmd.added_index, new_link, "faction")
                         imported_links.append(_build_snapshot_link(new_link, link))
 
                     # 3. 更新势力成员信息
                     # 查找角色并关联到势力
                     if src in char_name_to_uid:
                         char_uid = char_name_to_uid[src]
-                        # 更新势力的成员列表（存储在势力的描述或专用字段中）
-                        for faction in factions:
-                            if faction["uid"] == faction_uid:
-                                if "members" not in faction:
-                                    faction["members"] = []
-                                member_entry = {
-                                    "char_uid": char_uid,
-                                    "char_name": src,
-                                    "role": label
-                                }
-                                # 避免重复添加
-                                existing_uids = [m.get("char_uid") for m in faction["members"]]
-                                if char_uid not in existing_uids:
-                                    faction["members"].append(member_entry)
-                                break
-                        self.project_manager.mark_modified("factions")
+                        member_entry = {
+                            "char_uid": char_uid,
+                            "char_name": src,
+                            "role": label
+                        }
+                        self._execute_command(
+                            AddFactionMemberCommand(
+                                self.project_manager,
+                                faction_uid,
+                                member_entry
+                            )
+                        )
 
                     # 4. 同步到Wiki
                     self.project_manager.sync_to_wiki(
@@ -1267,8 +1281,9 @@ class ReverseEngineeringView(ttk.Frame):
                         "description": description,
                         "target_type": "character"
                     }
-                    if self._execute_command(AddLinkCommand(self.project_manager, new_link)):
-                        _append_events_for_link(new_link, link, "character")
+                    link_cmd = AddLinkCommand(self.project_manager, new_link)
+                    if self._execute_command(link_cmd):
+                        _append_events_for_link(link_cmd.added_index, new_link, "character")
                         imported_links.append(_build_snapshot_link(new_link, link))
 
             self.project_manager.mark_modified("script")  # 因为更新了角色UID
@@ -1293,37 +1308,20 @@ class ReverseEngineeringView(ttk.Frame):
                         self._build_relationship_keyframes(imported_links, min_changes)
                 else:
                     # 即使不生成多帧，也创建一个"全部关系"快照
-                    rels = self.project_manager.get_relationships()
-                    if "snapshots" not in rels:
-                        rels["snapshots"] = []
-                    rels["snapshots"].append({
+                    snapshot = {
                         "name": "反推导导入 - 完整关系图",
                         "links": imported_links,
                         "timestamp": time.time()
-                    })
-                    self.project_manager.mark_modified("relationships")
+                    }
+                    self._execute_command(AddRelationshipSnapshotCommand(self.project_manager, snapshot))
 
             if renamed_char_uids:
-                rels = self.project_manager.get_relationships()
-                layout = rels.get("evidence_layout", {})
-                updated_layout = {}
-                for key, pos in layout.items():
-                    if key in renamed_char_uids:
-                        updated_layout[renamed_char_uids[key]] = pos
-                    else:
-                        updated_layout[key] = pos
-                rels["evidence_layout"] = updated_layout
-
-                ev_links = rels.get("evidence_links", [])
-                for link in ev_links:
-                    src = link.get("source")
-                    tgt = link.get("target")
-                    if src in renamed_char_uids:
-                        link["source"] = renamed_char_uids[src]
-                    if tgt in renamed_char_uids:
-                        link["target"] = renamed_char_uids[tgt]
-
-                self.project_manager.mark_modified("evidence")
+                self._execute_command(
+                    RemapEvidenceReferencesCommand(
+                        self.project_manager,
+                        renamed_char_uids
+                    )
+                )
 
         # 6. Style
         sel_style = self.result_trees["style"].get_selected_items()
@@ -1336,27 +1334,33 @@ class ReverseEngineeringView(ttk.Frame):
             
             # Update Preset
             full_style = "\n".join(style_texts)
-            if "ai_context" not in self.project_manager.project_data["meta"]:
-                self.project_manager.project_data["meta"]["ai_context"] = {}
-            
             # Append or Replace? Let's Append to not lose previous manual edits if any, or just overwrite?
             # Preset implies "The current style". Overwrite is probably expected for "Apply".
-            self.project_manager.project_data["meta"]["ai_context"]["style_preset"] = full_style
-            
+            self._execute_command(
+                SetAIContextValueCommand(
+                    self.project_manager,
+                    "style_preset",
+                    full_style,
+                    "反推导更新文笔预设"
+                )
+            )
+
             self.project_manager.mark_modified("ideas")
-            self.project_manager.mark_modified("meta")
             count += 1
 
         # 7. Summary
         sel_summary = self.result_trees["summary"].get_selected_items()
         if sel_summary:
             full_recap = "\n\n".join([f"### {s.get('chapter_title')}\n{s.get('content')}" for s in sel_summary])
-            
-            if "ai_context" not in self.project_manager.project_data["meta"]:
-                self.project_manager.project_data["meta"]["ai_context"] = {}
-            
-            self.project_manager.project_data["meta"]["ai_context"]["summary_recap"] = full_recap
-            self.project_manager.mark_modified("meta")
+
+            self._execute_command(
+                SetAIContextValueCommand(
+                    self.project_manager,
+                    "summary_recap",
+                    full_recap,
+                    "反推导更新剧情回顾"
+                )
+            )
             self.project_manager.add_idea(f"【剧情前情提要】\n{full_recap}", tags=["反推导", "回顾"])
             count += 1
 

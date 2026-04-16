@@ -5,6 +5,7 @@ from writer_app.core.commands import (
     AddEvidenceNodeCommand,
     DeleteEvidenceLinkCommand,
     EditEvidenceNodeCommand,
+    RemapEvidenceReferencesCommand,
     UpdateEvidenceNodeLayoutCommand,
 )
 from writer_app.core.history_manager import CommandHistory
@@ -76,6 +77,29 @@ class TestEvidenceCommands(unittest.TestCase):
         self.assertTrue(self.history.undo())
         self.assertEqual(len(rels["evidence_links"]), 1)
         self.assertEqual(rels["evidence_links"][0]["label"], "tests")
+
+    def test_remap_evidence_references_command_supports_undo(self):
+        rels = self.pm.get_relationships()
+        rels["evidence_layout"] = {
+            "Alice": [10, 10],
+            "clue-1": [20, 20],
+        }
+        rels["evidence_links"] = [
+            {"source": "Alice", "target": "clue-1", "label": "关联", "type": "relates_to"},
+            {"source": "clue-1", "target": "Alice", "label": "反向", "type": "relates_to"},
+        ]
+
+        cmd = RemapEvidenceReferencesCommand(self.pm, {"Alice": "char-uid-1"})
+        self.assertTrue(self.history.execute_command(cmd))
+        self.assertIn("char-uid-1", rels["evidence_layout"])
+        self.assertNotIn("Alice", rels["evidence_layout"])
+        self.assertEqual(rels["evidence_links"][0]["source"], "char-uid-1")
+        self.assertEqual(rels["evidence_links"][1]["target"], "char-uid-1")
+
+        self.assertTrue(self.history.undo())
+        self.assertIn("Alice", rels["evidence_layout"])
+        self.assertEqual(rels["evidence_links"][0]["source"], "Alice")
+        self.assertEqual(rels["evidence_links"][1]["target"], "Alice")
 
 
 if __name__ == "__main__":

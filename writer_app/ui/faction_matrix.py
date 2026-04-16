@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, simpledialog
-from writer_app.core.commands import UpdateFactionRelationCommand
+from writer_app.core.commands import AddFactionCommand, UpdateFactionRelationCommand
 
 class FactionMatrixCanvas(tk.Canvas):
     def __init__(self, parent, project_manager, on_relation_select=None, **kwargs):
@@ -243,7 +243,11 @@ class FactionMatrixController:
     def add_faction(self):
         name = simpledialog.askstring("添加势力", "势力名称:")
         if name:
-            self.project_manager.add_faction(name)
+            cmd = AddFactionCommand(self.project_manager, name)
+            if self.command_executor:
+                self.command_executor(cmd)
+            else:
+                cmd.execute()
             self.refresh()
 
     def refresh(self):

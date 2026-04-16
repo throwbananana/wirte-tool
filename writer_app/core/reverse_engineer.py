@@ -796,30 +796,109 @@ class ReverseEngineeringManager:
         """Splits text into chunks, respecting paragraph boundaries."""
         if chunk_size is None:
             chunk_size = self.max_chunk_size
-        
+
         if len(text) <= chunk_size:
             return [text]
 
         chunks = []
         current_chunk = []
         current_len = 0
-        
+
         # Split by double newlines to keep paragraphs
         paragraphs = text.split('\n\n')
-        
+
         for para in paragraphs:
-            if current_len + len(para) > chunk_size and current_chunk:
-                chunks.append("\n\n".join(current_chunk))
-                current_chunk = []
-                current_len = 0
-            
-            current_chunk.append(para)
-            current_len += len(para)
-        
+            if len(para) > chunk_size:
+                oversized_parts = self._split_oversized_block(para, chunk_size)
+            else:
+                oversized_parts = [para]
+
+            for part in oversized_parts:
+                part_len = len(part)
+                if current_len + part_len > chunk_size and current_chunk:
+                    chunks.append("\n\n".join(current_chunk))
+                    current_chunk = []
+                    current_len = 0
+
+                current_chunk.append(part)
+                current_len += part_len
+
         if current_chunk:
             chunks.append("\n\n".join(current_chunk))
-            
+
         return chunks
+
+    def _split_oversized_block(self, text: str, chunk_size: int) -> List[str]:
+        """将超长段落继续拆分，避免单段文本突破模型上下文限制。"""
+        if len(text) <= chunk_size:
+            return [text]
+
+        blocks = []
+        current = []
+        current_len = 0
+        # 优先按中文/英文句末断开，其次保底硬切
+        sentences = re.split(r'(?<=[。！？!?；;])', text)
+        sentences = [s for s in sentences if s]
+
+        if len(sentences) == 1:
+            sentences = text.splitlines(keepends=True) or [text]
+
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+
+            if len(sentence) > chunk_size:
+                if current:
+                    blocks.append("".join(current).strip())
+                    current = []
+                    current_len = 0
+
+                start = 0
+                while start < len(sentence):
+                    blocks.append(sentence[start:start + chunk_size].strip())
+                    start += chunk_size
+                continue
+
+            if current_len + len(sentence) > chunk_size and current:
+                blocks.append("".join(current).strip())
+                current = []
+                current_len = 0
+
+            current.append(sentence)
+            current_len += len(sentence)
+
+        if current:
+            blocks.append("".join(current).strip())
+
+        return [block for block in blocks if block]
+
+    def build_processing_units(self, file_path: str = "", text: str = "") -> List[Dict[str, str]]:
+        """根据文件或内存文本构建处理单元，支持剪贴板等无文件来源。"""
+        structured_chapters: List[Dict[str, str]] = []
+
+        if file_path and os.path.exists(file_path):
+            structured_chapters = self.load_file_structured(file_path)
+        if not structured_chapters and text:
+            structured_chapters = self._split_txt_into_chapters(text)
+
+        if not structured_chapters:
+            return []
+
+        if len(structured_chapters) == 1 and structured_chapters[0]["title"] == "Full Text":
+            raw_chunks = self.split_text(structured_chapters[0]["content"])
+            return [{"title": f"Chunk {i+1}", "content": c} for i, c in enumerate(raw_chunks)]
+
+        processing_units = []
+        for chap in structured_chapters:
+            sub_chunks = self.split_text(chap["content"])
+            for i, sub in enumerate(sub_chunks):
+                title = chap["title"]
+                if len(sub_chunks) > 1:
+                    title += f" ({i+1})"
+                processing_units.append({"title": title, "content": sub})
+
+        return processing_units
 
     def analyze_chunk(
         self,

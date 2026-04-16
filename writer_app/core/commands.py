@@ -32,8 +32,11 @@ from writer_app.core.commands_wiki import (
     EditWikiEntryCommand,
 )
 from writer_app.core.commands_relationship import (
+    AddFactionCommand,
+    AddFactionMemberCommand,
     AddLinkCommand,
     AddRelationshipEventCommand,
+    AddRelationshipSnapshotCommand,
     DeleteLinkCommand,
     DeleteRelationshipEventCommand,
     EditLinkCommand,
@@ -48,9 +51,14 @@ from writer_app.core.commands_evidence import (
     DeleteEvidenceNodeCommand,
     EditEvidenceLinkCommand,
     EditEvidenceNodeCommand,
+    RemapEvidenceReferencesCommand,
     UpdateEvidenceNodeLayoutCommand,
 )
-from writer_app.core.commands_global import ConvertIdeaToNodeCommand, GlobalRenameCommand
+from writer_app.core.commands_global import (
+    ConvertIdeaToNodeCommand,
+    GlobalRenameCommand,
+    SetAIContextValueCommand,
+)
 from writer_app.core.commands_timeline import (
     AddTimelineEventCommand,
     DeleteTimelineEventCommand,
@@ -85,19 +93,24 @@ __all__ = [
     'AddLinkCommand',
     'DeleteLinkCommand',
     'EditLinkCommand',
+    'AddFactionCommand',
     'AddRelationshipEventCommand',
+    'AddRelationshipSnapshotCommand',
     'UpdateRelationshipEventCommand',
     'DeleteRelationshipEventCommand',
+    'AddFactionMemberCommand',
     'AddEvidenceNodeCommand',
     'EditEvidenceNodeCommand',
     'DeleteEvidenceNodeCommand',
     'UpdateEvidenceNodeLayoutCommand',
+    'RemapEvidenceReferencesCommand',
     'AddEvidenceLinkCommand',
     'EditEvidenceLinkCommand',
     'DeleteEvidenceLinkCommand',
     'UpdateFactionRelationCommand',
     'GlobalRenameCommand',
     'ConvertIdeaToNodeCommand',
+    'SetAIContextValueCommand',
     'AddTimelineEventCommand',
     'DeleteTimelineEventCommand',
     'EditTimelineEventCommand',

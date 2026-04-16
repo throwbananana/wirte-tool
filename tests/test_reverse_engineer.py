@@ -13,6 +13,28 @@ class TestReverseEngineeringManager(unittest.TestCase):
         self.assertTrue(len(chunks) >= 2)
         self.assertIn("Para 1", chunks[0])
 
+    def test_split_text_breaks_oversized_paragraph(self):
+        text = "这是一段很长的文字。" * 40
+        chunks = self.manager.split_text(text, chunk_size=60)
+
+        self.assertGreater(len(chunks), 1)
+        self.assertTrue(all(len(chunk) <= 60 for chunk in chunks))
+
+    def test_build_processing_units_from_in_memory_text(self):
+        text = """这是序章的内容。故事发生在一个遥远的国度，那里有高山流水，有繁华都市。主角小明是一个普通的少年，却有着不平凡的命运。他的故事从这里开始。
+
+第一章 开始
+这是第一章的内容。小明踏上了冒险的旅程，遇到了许多志同道合的伙伴。他们一起面对各种挑战，逐渐成长为真正的英雄。这是一段令人难忘的经历。
+
+第二章 发展
+这是第二章的内容。故事在这里逐渐发展，冲突开始显现。敌人的阴谋逐渐浮出水面，小明必须做出艰难的选择。命运的齿轮开始转动。
+"""
+        units = self.manager.build_processing_units(text=text)
+
+        self.assertGreaterEqual(len(units), 2)
+        self.assertEqual(units[0]["title"], "序章")
+        self.assertTrue(any(unit["title"].startswith("第一章 开始") for unit in units))
+
     def test_merge_results_characters_accumulates_description(self):
         """测试角色合并时描述会累加（多视角）"""
         batch1 = [{"name": "Alice", "role": "Protag", "description": "Short desc"}]

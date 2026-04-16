@@ -268,4 +268,70 @@ class DeleteEvidenceLinkCommand(Command):
         return False
 
 
+class RemapEvidenceReferencesCommand(Command):
+    """批量迁移 evidence_layout / evidence_links 中的节点引用。"""
+
+    def __init__(self, project_manager, uid_map):
+        super().__init__("迁移线索板引用")
+        self.project_manager = project_manager
+        self.uid_map = dict(uid_map or {})
+        self.old_layout = None
+        self.old_links = None
+
+    def execute(self):
+        if not self.uid_map:
+            return False
+
+        rels = self.project_manager.get_relationships()
+        layout = rels.get("evidence_layout", {})
+        links = rels.get("evidence_links", [])
+
+        self.old_layout = json.loads(json.dumps(layout))
+        self.old_links = json.loads(json.dumps(links))
+
+        changed = False
+        new_layout = {}
+        for key, pos in layout.items():
+            mapped_key = self.uid_map.get(key, key)
+            if mapped_key != key:
+                changed = True
+            if mapped_key not in new_layout:
+                new_layout[mapped_key] = pos
+
+        new_links = []
+        for link in links:
+            new_link = json.loads(json.dumps(link))
+            source = new_link.get("source")
+            target = new_link.get("target")
+            mapped_source = self.uid_map.get(source, source)
+            mapped_target = self.uid_map.get(target, target)
+            if mapped_source != source or mapped_target != target:
+                changed = True
+            new_link["source"] = mapped_source
+            new_link["target"] = mapped_target
+            new_links.append(new_link)
+
+        if not changed:
+            return False
+
+        rels["evidence_layout"] = new_layout
+        rels["evidence_links"] = new_links
+        self.project_manager.mark_modified("evidence")
+        get_event_bus().publish(Events.EVIDENCE_LAYOUT_UPDATED)
+        get_event_bus().publish(Events.EVIDENCE_UPDATED)
+        return True
+
+    def undo(self):
+        if self.old_layout is None or self.old_links is None:
+            return False
+
+        rels = self.project_manager.get_relationships()
+        rels["evidence_layout"] = json.loads(json.dumps(self.old_layout))
+        rels["evidence_links"] = json.loads(json.dumps(self.old_links))
+        self.project_manager.mark_modified("evidence")
+        get_event_bus().publish(Events.EVIDENCE_LAYOUT_UPDATED)
+        get_event_bus().publish(Events.EVIDENCE_UPDATED)
+        return True
+
+
 # --- Faction Commands ---
