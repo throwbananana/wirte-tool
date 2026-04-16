@@ -11,6 +11,8 @@ from enum import Enum
 from typing import Dict, Set, List, Any, Callable
 from dataclasses import dataclass, field
 
+from writer_app.core.tone_outline import create_default_tone_outline
+
 
 class DataModule(Enum):
     """Available data modules that can be conditionally loaded."""
@@ -32,6 +34,7 @@ class DataModule(Enum):
     GALGAME_ASSETS = "galgame_assets" # Galgame/LightNovel: sprites, CGs
     HEARTBEAT = "heartbeat_data"      # Romance: emotion tracking
     EVIDENCE = "evidence_data"        # Suspense: clue board specific data
+    TONE_OUTLINE = "tone_outline"     # Shared tone-outline baseline and character lines
 
 
 @dataclass
@@ -149,6 +152,12 @@ MODULE_SCHEMAS: Dict[DataModule, ModuleSchema] = {
         },
         cleanup_fields=["clues", "connections", "reveals"],
         description="证据板专用数据（悬疑）"
+    ),
+    DataModule.TONE_OUTLINE: ModuleSchema(
+        key="tone_outline",
+        default_factory=create_default_tone_outline,
+        cleanup_fields=["axis_nodes", "lines"],
+        description="基调大纲线与时间节点"
     ),
 }
 

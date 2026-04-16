@@ -58,6 +58,13 @@ def get_data_module_counts(project_data: dict) -> Dict[DataModule, int]:
             + len(project_data.get("evidence_data", {}).get("connections", []))
             + len(project_data.get("evidence_data", {}).get("reveals", []))
         ),
+        DataModule.TONE_OUTLINE: (
+            len(project_data.get("tone_outline", {}).get("axis_nodes", []))
+            + sum(
+                len((line or {}).get("nodes", []))
+                for line in project_data.get("tone_outline", {}).get("lines", [])
+            )
+        ),
     }
     return counts
 

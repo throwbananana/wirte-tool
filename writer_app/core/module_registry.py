@@ -49,6 +49,14 @@ MODULES: Dict[str, ModuleInfo] = {
         data_modules=[DataModule.SCRIPT],
         order=40
     ),
+    "tone_outline": ModuleInfo(
+        key="tone_outline",
+        name="基调大纲",
+        desc="围绕统一主轴管理情节线与人物基调线。",
+        group="structure",
+        data_modules=[DataModule.TONE_OUTLINE],
+        order=45
+    ),
     "evidence_board": ModuleInfo(
         key="evidence_board",
         name="线索墙",

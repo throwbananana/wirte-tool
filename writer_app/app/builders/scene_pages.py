@@ -154,6 +154,25 @@ def build_story_curve_tab(builder):
     )
 
 
+def build_tone_outline_tab(builder):
+    from writer_app.ui.tone_outline import ToneOutlineController
+
+    app = builder.app
+    app.tone_outline_frame = ttk.Frame(app.notebook)
+    builder._register_tab("tone_outline", app.tone_outline_frame, "  基调大纲  ")
+    app.tone_outline_controller = ToneOutlineController(
+        app.tone_outline_frame,
+        app.project_manager,
+        app._execute_command,
+        app.theme_manager,
+    )
+    app.registry.register(
+        "tone_outline",
+        app.tone_outline_controller,
+        refresh_groups=[RefreshGroups.SCENE, RefreshGroups.CHARACTER],
+    )
+
+
 def build_swimlanes_tab(builder):
     from writer_app.ui.swimlanes import SwimlaneView
 
@@ -251,6 +270,7 @@ TAB_BUILDERS = {
     "evidence_board": build_evidence_board_tab,
     "timeline": build_timeline_tab,
     "story_curve": build_story_curve_tab,
+    "tone_outline": build_tone_outline_tab,
     "swimlanes": build_swimlanes_tab,
     "dual_timeline": build_dual_timeline_tab,
     "kanban": build_kanban_tab,

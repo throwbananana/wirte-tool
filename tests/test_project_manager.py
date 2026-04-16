@@ -47,5 +47,13 @@ class TestProjectManager(unittest.TestCase):
         self.pm.mark_modified()
         self.assertTrue(self.pm.modified)
 
+    def test_get_tone_outline_returns_default_plot_line(self):
+        tone_outline = self.pm.get_tone_outline()
+        self.assertIn("lines", tone_outline)
+        self.assertEqual(len(tone_outline["lines"]), 1)
+        self.assertEqual(tone_outline["lines"][0]["uid"], "plot-main")
+        self.assertIn("segments", tone_outline["lines"][0])
+        self.assertEqual(tone_outline["axis_nodes"], [])
+
 if __name__ == '__main__':
     unittest.main()

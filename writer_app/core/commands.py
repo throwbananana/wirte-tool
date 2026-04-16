@@ -64,6 +64,7 @@ from writer_app.core.commands_timeline import (
     DeleteTimelineEventCommand,
     EditTimelineEventCommand,
 )
+from writer_app.core.commands_tone import UpdateToneOutlineCommand
 
 __all__ = [
     'Command',
@@ -118,4 +119,5 @@ __all__ = [
     'BatchSetPOVCommand',
     'UpdateNarratorReliabilityCommand',
     'SetCharacterNarratorCommand',
+    'UpdateToneOutlineCommand',
 ]

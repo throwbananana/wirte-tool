@@ -298,6 +298,7 @@ class SidebarPanel(ttk.Frame):
                 SidebarItem("relationship", "🔗", "人物关系图"),
                 SidebarItem("timeline", "⏱️", "时间轴"),
                 SidebarItem("story_curve", "📈", "故事曲线"),
+                SidebarItem("tone_outline", "〰️", "基调大纲"),
                 SidebarItem("swimlanes", "🏊", "故事泳道"),
                 SidebarItem("kanban", "📋", "场次看板"),
                 SidebarItem("calendar", "📅", "故事日历"),

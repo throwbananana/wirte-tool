@@ -340,6 +340,7 @@ CONTROLLER_GROUP_MAPPING = {
     "calendar": [RefreshGroups.SCENE],
     "swimlane": [RefreshGroups.SCENE],
     "story_curve": [RefreshGroups.SCENE],
+    "tone_outline": [RefreshGroups.SCENE, RefreshGroups.CHARACTER],
     "relationship": [RefreshGroups.CHARACTER, RefreshGroups.RELATIONSHIP],
     "wiki": [RefreshGroups.WIKI, RefreshGroups.CHARACTER],
     "mindmap": [RefreshGroups.OUTLINE],

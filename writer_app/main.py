@@ -229,7 +229,7 @@ class WriterTool:
             "calendar_controller", "dual_timeline_controller", "flowchart_controller",
             "analytics_controller", "idea_controller", "training_controller",
             "chat_controller", "research_controller", "sidebar_controller",
-            "story_curve_controller", "heartbeat_controller", "alibi_controller",
+            "story_curve_controller", "tone_outline_controller", "heartbeat_controller", "alibi_controller",
             "iceberg_controller", "faction_controller", "variable_controller"
         ]
         for attr in controller_attrs:
@@ -651,6 +651,7 @@ class WriterTool:
             "world": [RefreshGroups.WIKI],
             "wiki": [RefreshGroups.WIKI],
             "timeline": [RefreshGroups.TIMELINE],
+            "tone_outline": [RefreshGroups.SCENE, RefreshGroups.CHARACTER],
             "relationships": [RefreshGroups.RELATIONSHIP],
             "factions": [RefreshGroups.RELATIONSHIP],
             "kanban": [RefreshGroups.KANBAN],

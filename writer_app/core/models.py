@@ -25,6 +25,10 @@ from writer_app.core.project_services import (
     ProjectSceneService,
     ProjectSearchService,
 )
+from writer_app.core.tone_outline import (
+    create_default_tone_outline,
+    ensure_tone_outline_defaults,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +130,7 @@ class ProjectManager:
                 "groups": [],
                 "matrix": {}
             },
+            "tone_outline": create_default_tone_outline(),
             "variables": [],
             "research": [],
             "ideas": [],
@@ -479,6 +484,22 @@ class ProjectManager:
     # --- Variable Helpers (Galgame State) ---
     def get_variables(self):
         return self.project_data.get("variables", [])
+
+    def get_tone_outline(self):
+        data = self.project_data.get("tone_outline")
+        if not isinstance(data, dict):
+            data = create_default_tone_outline()
+            self.project_data["tone_outline"] = data
+        ensure_tone_outline_defaults(data, uid_generator=self._gen_uid)
+        return data
+
+    def set_tone_outline(self, tone_outline_data):
+        normalized = ensure_tone_outline_defaults(
+            tone_outline_data,
+            uid_generator=self._gen_uid,
+        )
+        self.project_data["tone_outline"] = normalized
+        self.mark_modified("tone_outline")
 
     def add_variable(self, name, var_type="bool", value=None, desc=""):
         """

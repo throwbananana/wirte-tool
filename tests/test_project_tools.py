@@ -32,6 +32,13 @@ class TestProjectTools(unittest.TestCase):
         self.assertIn("relationships", self.pm.project_data)
         self.assertIn("evidence_data", self.pm.project_data)
 
+    def test_set_enabled_tools_creates_tone_outline_module(self):
+        self.pm.new_project("Poetry")
+        self.pm.set_enabled_tools(["tone_outline"])
+        self.assertIn("tone_outline", self.pm.project_data)
+        self.assertIn("lines", self.pm.project_data["tone_outline"])
+        self.assertEqual(self.pm.project_data["tone_outline"]["lines"][0]["uid"], "plot-main")
+
 
 if __name__ == "__main__":
     unittest.main()

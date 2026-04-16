@@ -1,7 +1,13 @@
 import unittest
 from writer_app.core.models import ProjectManager
 from writer_app.core.history_manager import CommandHistory
-from writer_app.core.commands import AddNodeCommand, DeleteNodesCommand, EditNodeCommand, SetAIContextValueCommand
+from writer_app.core.commands import (
+    AddNodeCommand,
+    DeleteNodesCommand,
+    EditNodeCommand,
+    SetAIContextValueCommand,
+    UpdateToneOutlineCommand,
+)
 
 class TestCommands(unittest.TestCase):
     def setUp(self):
@@ -114,6 +120,61 @@ class TestCommands(unittest.TestCase):
 
         self.assertTrue(self.history.undo())
         self.assertNotIn("ai_context", self.pm.project_data.get("meta", {}))
+
+    def test_update_tone_outline_command_supports_undo(self):
+        original = self.pm.get_tone_outline()
+        updated = {
+            "axis_nodes": [
+                {"uid": "axis-1", "title": "开场", "description": ""},
+                {"uid": "axis-2", "title": "对抗", "description": ""},
+            ],
+            "lines": [
+                {
+                    "uid": "plot-main",
+                    "name": "情节线",
+                    "line_type": "plot",
+                    "color": "#2563EB",
+                    "nodes": [
+                        {
+                            "uid": "point-1",
+                            "axis_uid": "axis-2",
+                            "amplitude": 55,
+                            "curvature": 0.7,
+                            "label": "抬升",
+                            "description": "冲突增压",
+                        }
+                    ],
+                    "segments": [],
+                },
+                {
+                    "uid": "char-line-1",
+                    "name": "女主线",
+                    "line_type": "character",
+                    "character_name": "女主",
+                    "color": "#E11D48",
+                    "segments": [
+                        {
+                            "uid": "seg-1",
+                            "start_axis_uid": "axis-1",
+                            "end_axis_uid": "",
+                        }
+                    ],
+                    "nodes": [],
+                }
+            ],
+        }
+        cmd = UpdateToneOutlineCommand(self.pm, original, updated)
+
+        self.assertTrue(self.history.execute_command(cmd))
+        tone_outline = self.pm.get_tone_outline()
+        self.assertEqual(len(tone_outline["axis_nodes"]), 2)
+        self.assertEqual(tone_outline["lines"][0]["nodes"][0]["label"], "抬升")
+        self.assertEqual(tone_outline["lines"][1]["segments"][0]["start_axis_uid"], "axis-1")
+
+        self.assertTrue(self.history.undo())
+        reverted = self.pm.get_tone_outline()
+        self.assertEqual(reverted["lines"][0]["uid"], "plot-main")
+        self.assertEqual(reverted["axis_nodes"], [])
 
 if __name__ == '__main__':
     unittest.main()
