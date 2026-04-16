@@ -134,17 +134,23 @@ class TestCommands(unittest.TestCase):
                     "name": "情节线",
                     "line_type": "plot",
                     "color": "#2563EB",
-                    "nodes": [
+                    "segments": [
                         {
-                            "uid": "point-1",
-                            "axis_uid": "axis-2",
-                            "amplitude": 55,
-                            "curvature": 0.7,
-                            "label": "抬升",
-                            "description": "冲突增压",
+                            "uid": "plot-main-segment",
+                            "start_curve": 0.3,
+                            "end_curve": 0.5,
+                            "points": [
+                                {
+                                    "uid": "point-1",
+                                    "axis_uid": "axis-2",
+                                    "amplitude": 55,
+                                    "curvature": 0.7,
+                                    "label": "抬升",
+                                    "description": "冲突增压",
+                                }
+                            ],
                         }
                     ],
-                    "segments": [],
                 },
                 {
                     "uid": "char-line-1",
@@ -168,7 +174,10 @@ class TestCommands(unittest.TestCase):
         self.assertTrue(self.history.execute_command(cmd))
         tone_outline = self.pm.get_tone_outline()
         self.assertEqual(len(tone_outline["axis_nodes"]), 2)
-        self.assertEqual(tone_outline["lines"][0]["nodes"][0]["label"], "抬升")
+        self.assertEqual(
+            tone_outline["lines"][0]["segments"][0]["points"][0]["label"],
+            "抬升",
+        )
         self.assertEqual(tone_outline["lines"][1]["segments"][0]["start_axis_uid"], "axis-1")
 
         self.assertTrue(self.history.undo())

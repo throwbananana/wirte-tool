@@ -2,6 +2,7 @@ from typing import Dict
 
 from writer_app.core.typed_data import DataModule
 from writer_app.core.module_registry import MODULES
+from writer_app.core.tone_outline import iter_line_points, iter_tone_interactions
 
 
 def _count_outline_nodes(outline: dict) -> int:
@@ -61,9 +62,10 @@ def get_data_module_counts(project_data: dict) -> Dict[DataModule, int]:
         DataModule.TONE_OUTLINE: (
             len(project_data.get("tone_outline", {}).get("axis_nodes", []))
             + sum(
-                len((line or {}).get("nodes", []))
+                len((line or {}).get("segments", [])) + len(iter_line_points(line or {}))
                 for line in project_data.get("tone_outline", {}).get("lines", [])
             )
+            + len(iter_tone_interactions(project_data.get("tone_outline", {})))
         ),
     }
     return counts
