@@ -4,6 +4,78 @@ from typing import List, Tuple, Callable
 
 from writer_app.core.event_bus import get_event_bus, Events
 
+SENTENCE_ENDINGS = {'。', '！', '？', '.', '!', '?', '；', ';'}
+CLAUSE_ENDINGS = SENTENCE_ENDINGS | {'，', '、', ','}
+
+
+def _split_text_into_offsets(text: str, endings: set[str]) -> List[Tuple[int, int]]:
+    """Return trimmed spans as character offsets within the text."""
+    if not text:
+        return []
+
+    spans: List[Tuple[int, int]] = []
+    segment_start = 0
+
+    for idx, char in enumerate(text):
+        if char in endings:
+            spans.append((segment_start, idx + 1))
+            segment_start = idx + 1
+
+    if segment_start < len(text):
+        spans.append((segment_start, len(text)))
+
+    normalized: List[Tuple[int, int]] = []
+    for start, end in spans:
+        segment = text[start:end]
+        leading_ws = len(segment) - len(segment.lstrip())
+        trailing_ws = len(segment) - len(segment.rstrip())
+        normalized_start = start + leading_ws
+        normalized_end = max(normalized_start, end - trailing_ws)
+        if normalized_start < normalized_end:
+            normalized.append((normalized_start, normalized_end))
+
+    return normalized
+
+
+def split_text_into_sentence_offsets(text: str) -> List[Tuple[int, int]]:
+    """Return trimmed sentence spans as character offsets within the text."""
+    return _split_text_into_offsets(text, SENTENCE_ENDINGS)
+
+
+def split_text_into_clause_offsets(text: str) -> List[Tuple[int, int]]:
+    """Return trimmed clause spans, splitting on weak and strong punctuation."""
+    return _split_text_into_offsets(text, CLAUSE_ENDINGS)
+
+
+def split_text_into_paragraph_offsets(text: str) -> List[Tuple[int, int]]:
+    """Return paragraph spans as character offsets, using blank lines as separators."""
+    if not text:
+        return []
+
+    spans: List[Tuple[int, int]] = []
+    current_start = None
+    offset = 0
+
+    def _trim_newlines(start: int, end: int) -> Tuple[int, int]:
+        while end > start and text[end - 1] in "\r\n":
+            end -= 1
+        return start, end
+
+    for line in text.splitlines(keepends=True):
+        line_end = offset + len(line)
+        if line.strip():
+            if current_start is None:
+                current_start = offset
+        elif current_start is not None:
+            spans.append(_trim_newlines(current_start, offset))
+            current_start = None
+        offset = line_end
+
+    if current_start is not None:
+        spans.append(_trim_newlines(current_start, len(text)))
+
+    return spans
+
 
 class ScriptEditor(tk.Text):
     """Enhanced script editor with focus mode, syntax highlighting, and AI integration."""
@@ -43,6 +115,9 @@ class ScriptEditor(tk.Text):
         self._focus_highlight_current = True
         self._focus_with_typewriter = True
         self._current_theme = "Light"
+        self._focus_restore_on_init = False
+        self._focus_controls_typewriter = False
+        self._focus_session_paused = False
 
         # Focus mode debounce
         self._focus_update_job = None
@@ -91,6 +166,9 @@ class ScriptEditor(tk.Text):
 
         # 订阅事件总线
         self._subscribe_events()
+
+        if self._focus_restore_on_init:
+            self.after_idle(self._restore_initial_focus_mode)
 
     def _add_project_listener(self, handler: Callable) -> None:
         """添加项目监听器并追踪以便清理"""
@@ -315,11 +393,20 @@ class ScriptEditor(tk.Text):
         """Load focus mode configuration from config manager."""
         if self.config_manager:
             config = self.config_manager.get_focus_mode_config()
+            self._focus_restore_on_init = config.get("enabled", False)
             self._focus_level = config.get("level", self.FOCUS_LINE)
             self._focus_context_lines = config.get("context_lines", 3)
             self._focus_gradient = config.get("gradient", True)
             self._focus_highlight_current = config.get("highlight_current", True)
             self._focus_with_typewriter = config.get("with_typewriter", True)
+
+    def _restore_initial_focus_mode(self):
+        """Restore focus mode after widget initialization when config requests it."""
+        if self._destroyed:
+            return
+        self._focus_restore_on_init = False
+        if not self.focus_mode:
+            self.toggle_focus_mode(True, save_config=False)
 
     def save_focus_config(self):
         """Save current focus mode settings to config."""
@@ -337,13 +424,58 @@ class ScriptEditor(tk.Text):
     def toggle_typewriter_mode(self, enabled):
         self.typewriter_mode = enabled
         if enabled:
-            self.yview_pickplace("insert")
+            self.after_idle(self._sync_typewriter_view)
 
         # 发布事件
         bus = get_event_bus()
         bus.publish(Events.TYPEWRITER_MODE_CHANGED, enabled=enabled)
 
-    def toggle_focus_mode(self, enabled, save_config=True):
+    def _start_focus_session(self, publish_event=True):
+        """Start timing the current focus session."""
+        import time
+        self._focus_session_start = time.time()
+        self._focus_session_paused = False
+
+        if publish_event:
+            bus = get_event_bus()
+            bus.publish(Events.FOCUS_SESSION_STARTED, level=self._focus_level)
+
+    def _end_focus_session(self, publish_event=True):
+        """End the current focus session and optionally publish its duration."""
+        duration = 0
+        if hasattr(self, "_focus_session_start"):
+            import time
+            duration = time.time() - self._focus_session_start
+            del self._focus_session_start
+
+            if publish_event:
+                bus = get_event_bus()
+                bus.publish(
+                    Events.FOCUS_SESSION_ENDED,
+                    duration=duration,
+                    level=self._focus_level,
+                )
+
+        self._focus_session_paused = False
+        return duration
+
+    def pause_focus_session(self, publish_event=True):
+        """Pause focus session tracking while keeping focus visuals active."""
+        if not self.focus_mode:
+            return 0
+
+        duration = self._end_focus_session(publish_event=publish_event)
+        self._focus_session_paused = True
+        return duration
+
+    def resume_focus_session(self, publish_event=True):
+        """Resume focus session tracking after a temporary pause."""
+        if not self.focus_mode or not self._focus_session_paused:
+            return
+
+        self._start_focus_session(publish_event=publish_event)
+
+    def toggle_focus_mode(self, enabled, save_config=True, track_session=True):
         """Toggle focus mode on/off with full feature support."""
         was_enabled = self.focus_mode
         self.focus_mode = enabled
@@ -351,23 +483,21 @@ class ScriptEditor(tk.Text):
         if enabled:
             # Auto-enable typewriter mode if configured
             if self._focus_with_typewriter and not self.typewriter_mode:
+                self._focus_controls_typewriter = True
                 self.toggle_typewriter_mode(True)
             self._apply_focus_effect()
-            # 记录专注会话开始时间
-            if not was_enabled:
-                import time
-                self._focus_session_start = time.time()
+            if not was_enabled and track_session:
+                self._start_focus_session()
         else:
             self._clear_focus_effect()
-            # 记录专注会话结束并发布统计
-            if was_enabled and hasattr(self, '_focus_session_start'):
-                import time
-                duration = time.time() - self._focus_session_start
-                bus = get_event_bus()
-                bus.publish(Events.FOCUS_SESSION_ENDED,
-                            duration=duration,
-                            level=self._focus_level)
-                del self._focus_session_start
+            if self._focus_controls_typewriter and self.typewriter_mode:
+                self.toggle_typewriter_mode(False)
+            self._focus_controls_typewriter = False
+            if was_enabled:
+                if track_session:
+                    self._end_focus_session()
+                else:
+                    self._focus_session_paused = False
 
         # 发布专注模式变化事件
         bus = get_event_bus()
@@ -375,10 +505,6 @@ class ScriptEditor(tk.Text):
                     enabled=enabled,
                     level=self._focus_level,
                     settings=self.get_focus_settings())
-
-        # 发布会话开始事件
-        if enabled and not was_enabled:
-            bus.publish(Events.FOCUS_SESSION_STARTED, level=self._focus_level)
 
         # Notify listeners
         if self.on_focus_mode_change:
@@ -445,7 +571,7 @@ class ScriptEditor(tk.Text):
     def on_click_cursor_move(self, event):
         self._hide_autocomplete()
         if self.typewriter_mode:
-            self.after_idle(lambda: self.yview_pickplace("insert"))
+            self.after_idle(self._sync_typewriter_view)
         if self.focus_mode:
             self._schedule_focus_update()
 
@@ -764,6 +890,10 @@ class ScriptEditor(tk.Text):
             self.on_content_change()
 
         self._schedule_content_change_event()
+        if self.typewriter_mode:
+            self.after_idle(self._sync_typewriter_view)
+        if self.focus_mode:
+            self._schedule_focus_update()
 
     def _schedule_content_change_event(self):
         if self._content_change_job:
@@ -789,9 +919,36 @@ class ScriptEditor(tk.Text):
         )
 
         if self.typewriter_mode:
-            self.yview_pickplace("insert")
+            self._sync_typewriter_view()
         if self.focus_mode:
             self._schedule_focus_update()
+
+    def _sync_typewriter_view(self):
+        """Keep the insertion line near the middle of the viewport."""
+        if not self.typewriter_mode:
+            return
+
+        try:
+            self.see("insert")
+            self.update_idletasks()
+            line_info = self.dlineinfo("insert")
+            if not line_info:
+                return
+
+            line_y = line_info[1]
+            line_height = max(1, line_info[3])
+            viewport_height = max(line_height, self.winfo_height())
+            target_y = max(0, (viewport_height - line_height) // 2)
+            delta_pixels = line_y - target_y
+
+            if abs(delta_pixels) < line_height:
+                return
+
+            scroll_units = int(round(delta_pixels / line_height))
+            if scroll_units:
+                self.yview_scroll(scroll_units, "units")
+        except tk.TclError:
+            return
 
     def _do_highlight(self):
         """Perform actual highlighting (debounced)."""
@@ -978,7 +1135,12 @@ class ScriptEditor(tk.Text):
 
         # Apply dimming with optional gradient
         if self._focus_gradient:
-            self._apply_gradient_dim(focus_start, focus_end)
+            if self._focus_level == self.FOCUS_SENTENCE:
+                self._apply_sentence_gradient_dim(focus_start, focus_end)
+            elif self._focus_level == self.FOCUS_PARAGRAPH:
+                self._apply_paragraph_gradient_dim(focus_start, focus_end)
+            else:
+                self._apply_gradient_dim(focus_start, focus_end)
         else:
             self._apply_simple_dim(focus_start, focus_end)
 
@@ -1015,35 +1177,18 @@ class ScriptEditor(tk.Text):
         return self.index("insert linestart"), self.index("insert lineend + 1 chars")
 
     def _get_sentence_range(self, cursor_idx):
-        """Find the sentence containing the cursor."""
-        # Get surrounding text
+        """Find the current short sentence/clause containing the cursor."""
+        paragraph_start, paragraph_end = self._get_paragraph_range(cursor_idx)
+        clause_spans = self._get_clause_spans_in_range(paragraph_start, paragraph_end)
+        for start, end in clause_spans:
+            if self.compare(cursor_idx, ">=", start) and self.compare(cursor_idx, "<", end):
+                return start, end
+
+        if clause_spans:
+            return clause_spans[0]
+
         line_start = self.index(f"{cursor_idx} linestart")
-        line_end = self.index(f"{cursor_idx} lineend")
-        line_text = self.get(line_start, line_end)
-
-        # Find cursor position in line
-        cursor_col = int(cursor_idx.split('.')[1])
-
-        # Chinese and English sentence endings
-        sentence_ends = ['。', '！', '？', '.', '!', '?', '；', ';']
-
-        # Find sentence start (search backward)
-        sent_start = 0
-        for i in range(cursor_col - 1, -1, -1):
-            if i < len(line_text) and line_text[i] in sentence_ends:
-                sent_start = i + 1
-                break
-
-        # Find sentence end (search forward)
-        sent_end = len(line_text)
-        for i in range(cursor_col, len(line_text)):
-            if line_text[i] in sentence_ends:
-                sent_end = i + 1
-                break
-
-        start = f"{line_start} + {sent_start} chars"
-        end = f"{line_start} + {sent_end} chars"
-        return self.index(start), self.index(end)
+        return line_start, self.index(f"{cursor_idx} lineend + 1 chars")
 
     def _get_paragraph_range(self, cursor_idx):
         """Find the paragraph containing the cursor (text between blank lines)."""
@@ -1112,6 +1257,110 @@ class ScriptEditor(tk.Text):
     def _apply_current_highlight(self, focus_start, focus_end):
         """Apply background highlight to the current focus area."""
         self.tag_add("focus_current", focus_start, focus_end)
+
+    def _get_sentence_spans_in_range(self, range_start, range_end):
+        text = self.get(range_start, range_end)
+        spans = []
+        for start_offset, end_offset in split_text_into_sentence_offsets(text):
+            start = self.index(f"{range_start} + {start_offset} chars")
+            end = self.index(f"{range_start} + {end_offset} chars")
+            spans.append((start, end))
+        return spans
+
+    def _get_clause_spans_in_range(self, range_start, range_end):
+        text = self.get(range_start, range_end)
+        spans = []
+        for start_offset, end_offset in split_text_into_clause_offsets(text):
+            start = self.index(f"{range_start} + {start_offset} chars")
+            end = self.index(f"{range_start} + {end_offset} chars")
+            spans.append((start, end))
+        return spans
+
+    def _get_paragraph_spans_in_document(self):
+        text_end = self.index("end-1c")
+        text = self.get("1.0", text_end)
+        spans = []
+        for start_offset, end_offset in split_text_into_paragraph_offsets(text):
+            start = self.index(f"1.0 + {start_offset} chars")
+            end = self.index(f"1.0 + {end_offset} chars")
+            spans.append((start, end))
+        return spans
+
+    def _apply_sentence_gradient_dim(self, focus_start, focus_end):
+        cursor_idx = self.index("insert")
+        paragraph_start, paragraph_end = self._get_paragraph_range(cursor_idx)
+        clause_spans = self._get_clause_spans_in_range(paragraph_start, paragraph_end)
+
+        if not clause_spans:
+            self._apply_gradient_dim(focus_start, focus_end)
+            return
+
+        focus_idx = None
+        for idx, (start, end) in enumerate(clause_spans):
+            if start == focus_start and end == focus_end:
+                focus_idx = idx
+                break
+            if self.compare(cursor_idx, ">=", start) and self.compare(cursor_idx, "<", end):
+                focus_idx = idx
+                break
+
+        if focus_idx is None:
+            self._apply_gradient_dim(focus_start, focus_end)
+            return
+
+        if self.compare(paragraph_start, ">", "1.0"):
+            self.tag_add("focus_dim", "1.0", paragraph_start)
+        if self.compare(paragraph_end, "<", "end"):
+            self.tag_add("focus_dim", paragraph_end, "end")
+
+        context = self._focus_context_lines
+        for idx, (start, end) in enumerate(clause_spans):
+            if idx == focus_idx:
+                continue
+            distance = abs(idx - focus_idx)
+            if context and distance <= context:
+                self.tag_add(f"focus_dim_{min(distance, 5)}", start, end)
+            else:
+                self.tag_add("focus_dim", start, end)
+
+    def _apply_paragraph_gradient_dim(self, focus_start, focus_end):
+        paragraph_spans = self._get_paragraph_spans_in_document()
+        if not paragraph_spans:
+            self._apply_gradient_dim(focus_start, focus_end)
+            return
+
+        focus_idx = None
+        for idx, (start, end) in enumerate(paragraph_spans):
+            if start == focus_start and end == focus_end:
+                focus_idx = idx
+                break
+
+        if focus_idx is None:
+            self._apply_gradient_dim(focus_start, focus_end)
+            return
+
+        if self.compare(paragraph_spans[0][0], ">", "1.0"):
+            self.tag_add("focus_dim", "1.0", paragraph_spans[0][0])
+
+        for idx in range(len(paragraph_spans) - 1):
+            gap_start = paragraph_spans[idx][1]
+            gap_end = paragraph_spans[idx + 1][0]
+            if self.compare(gap_start, "<", gap_end):
+                self.tag_add("focus_dim", gap_start, gap_end)
+
+        last_end = paragraph_spans[-1][1]
+        if self.compare(last_end, "<", "end"):
+            self.tag_add("focus_dim", last_end, "end")
+
+        context = self._focus_context_lines
+        for idx, (start, end) in enumerate(paragraph_spans):
+            if idx == focus_idx:
+                continue
+            distance = abs(idx - focus_idx)
+            if context and distance <= context:
+                self.tag_add(f"focus_dim_{min(distance, 5)}", start, end)
+            else:
+                self.tag_add("focus_dim", start, end)
 
     def _apply_simple_dim(self, focus_start, focus_end):
         """Apply simple (non-gradient) dimming to non-focus areas."""

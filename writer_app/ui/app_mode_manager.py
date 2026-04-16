@@ -11,6 +11,7 @@ class AppModeManager:
     def __init__(self, app):
         self.app = app
         self.sound_var = None
+        self._pre_zen_state = None
 
     def toggle_focus_mode(self):
         """Toggle focus mode on/off with enhanced features."""
@@ -25,15 +26,7 @@ class AppModeManager:
         editor.toggle_focus_mode(new_state)
 
         if new_state:
-            level_names = {
-                "line": "行",
-                "sentence": "句子",
-                "paragraph": "段落",
-                "dialogue": "对话",
-            }
-            level = editor._focus_level
-            level_name = level_names.get(level, level)
-            self.app.status_var.set(f"专注模式: 开启 | 级别: {level_name} | F10切换 | Ctrl+Shift+F循环级别")
+            self._set_focus_status(editor)
             self._update_focus_indicator(True)
         else:
             self.app.status_var.set("专注模式: 关闭")
@@ -112,72 +105,81 @@ class AppModeManager:
             return
 
         if not self.app.is_zen_mode:
-            self.app.is_zen_mode = True
             self.app._zen_start_time = time.time()
             self.app.pre_zen_geometry = self.app.root.geometry()
+            self._pre_zen_state = self._capture_pre_zen_state(sc)
 
-            self._zen_fade_transition(entering=True)
+            try:
+                self._zen_fade_transition(entering=True)
+                self.app.root.attributes("-fullscreen", True)
+                self.app.root.config(menu="")
+                self._set_status_ui_visible(False)
+                if hasattr(self.app, "script_frame"):
+                    self.app.notebook.select(self.app.script_frame)
+                self._apply_zen_notebook_style(True)
+                if hasattr(sc, "script_editor"):
+                    editor = sc.script_editor
+                    self._hide_main_sidebar()
+                    if hasattr(sc, "enter_zen_mode"):
+                        sc.enter_zen_mode()
+                    editor.toggle_typewriter_mode(True)
+                    if editor.focus_mode:
+                        editor.pause_focus_session()
+                    if (
+                        self.app.config_manager.get("focus_mode_auto_in_zen", True)
+                        and not editor.focus_mode
+                    ):
+                        editor.toggle_focus_mode(True, save_config=False, track_session=False)
+                    self._create_zen_exit_button()
+                    self._create_zen_info_panel()
+                    editor.focus_set()
 
-            self.app.root.attributes("-fullscreen", True)
-            self.app.root.config(menu="")
-            self.app.status_frame.pack_forget()
-            if hasattr(self.app, "script_frame"):
-                self.app.notebook.select(self.app.script_frame)
-            self._apply_zen_notebook_style(True)
-
-            if hasattr(sc, "script_paned") and hasattr(sc, "char_frame_ui") and hasattr(sc, "scene_frame_ui"):
-                sc.script_paned.forget(sc.char_frame_ui)
-                sc.script_paned.forget(sc.scene_frame_ui)
-            if hasattr(sc, "script_editor"):
-                sc.script_editor.toggle_typewriter_mode(True)
-                if self.app.config_manager.get("focus_mode_auto_in_zen", True):
-                    sc.script_editor.toggle_focus_mode(True, save_config=False)
-                sc.script_editor.focus_set()
-
-            self._create_zen_exit_button()
-
-            bus = get_event_bus()
-            bus.publish(Events.ZEN_MODE_ENTERED)
-
-            self._create_zen_info_panel()
-
-            self.app.ambiance_player.toggle(True)
-            self.app.status_var.set("沉浸模式: 已开启 | 按 F11 退出")
+                self.app.is_zen_mode = True
+                bus = get_event_bus()
+                bus.publish(Events.ZEN_MODE_ENTERED)
+                self.app.ambiance_player.toggle(True)
+                self.app.status_var.set("沉浸模式: 已开启 | 按 F11 退出")
+            except Exception:
+                self._rollback_zen_mode(sc)
+                raise
         else:
-            self.app.is_zen_mode = False
+            try:
+                self._zen_fade_transition(entering=False)
+                self.app.root.attributes("-fullscreen", False)
+                if self.app.pre_zen_geometry:
+                    self.app.root.geometry(self.app.pre_zen_geometry)
+                self.app.root.config(menu=self.app.menubar)
+                self._apply_zen_notebook_style(False)
+                self.app.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+                self._set_status_ui_visible(True)
+                if hasattr(self.app, "script_frame"):
+                    self.app.notebook.select(self.app.script_frame)
 
-            self._zen_fade_transition(entering=False)
+                if hasattr(sc, "script_editor"):
+                    if hasattr(sc, "exit_zen_mode"):
+                        sc.exit_zen_mode()
+                    self._restore_main_sidebar()
+                    self._restore_pre_zen_editor_state(sc)
 
-            self.app.root.attributes("-fullscreen", False)
-            if self.app.pre_zen_geometry:
-                self.app.root.geometry(self.app.pre_zen_geometry)
-            self.app.root.config(menu=self.app.menubar)
-            self._apply_zen_notebook_style(False)
-            self.app.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-            self.app.status_frame.pack(side=tk.BOTTOM, fill=tk.X)
-            if hasattr(self.app, "script_frame"):
-                self.app.notebook.select(self.app.script_frame)
+                self._cleanup_zen_ui()
+                self.app.ambiance_player.stop()
+                self.app.ambiance_player.toggle(False)
 
-            if hasattr(sc, "script_paned") and hasattr(sc, "char_frame_ui") and hasattr(sc, "scene_frame_ui"):
-                sc.script_paned.insert(0, sc.scene_frame_ui, weight=1)
-                sc.script_paned.insert(0, sc.char_frame_ui, weight=1)
-            if hasattr(sc, "script_editor"):
-                sc.script_editor.toggle_typewriter_mode(False)
-                if self.app.config_manager.get("focus_mode_auto_in_zen", True):
-                    sc.script_editor.toggle_focus_mode(False, save_config=False)
-                    self._update_focus_indicator(False)
-
-            self._cleanup_zen_ui()
-
-            self.app.ambiance_player.stop()
-            self.app.ambiance_player.toggle(False)
-
-            zen_duration = 0
-            if hasattr(self.app, "_zen_start_time"):
-                zen_duration = time.time() - self.app._zen_start_time
-                del self.app._zen_start_time
-            bus = get_event_bus()
-            bus.publish(Events.ZEN_MODE_EXITED, duration=zen_duration)
+                zen_duration = 0
+                if hasattr(self.app, "_zen_start_time"):
+                    zen_duration = time.time() - self.app._zen_start_time
+                    del self.app._zen_start_time
+                self.app.is_zen_mode = False
+                bus = get_event_bus()
+                bus.publish(Events.ZEN_MODE_EXITED, duration=zen_duration)
+                if hasattr(sc, "script_editor"):
+                    self._set_post_zen_status(sc.script_editor)
+                else:
+                    self.app.status_var.set("沉浸模式: 已关闭")
+                self._pre_zen_state = None
+            except Exception:
+                self._rollback_zen_mode(sc)
+                raise
 
     def open_word_sprint(self):
         sc = getattr(self.app, "script_controller", None)
@@ -192,6 +194,25 @@ class AppModeManager:
                 self.app.focus_indicator_label.configure(text="[专注]", foreground="#4CAF50")
             else:
                 self.app.focus_indicator_label.configure(text="")
+
+    def _set_focus_status(self, editor):
+        level_names = {
+            "line": "行",
+            "sentence": "句子",
+            "paragraph": "段落",
+            "dialogue": "对话",
+        }
+        level = getattr(editor, "_focus_level", "line")
+        level_name = level_names.get(level, level)
+        self.app.status_var.set(
+            f"专注模式: 开启 | 级别: {level_name} | F10切换 | Ctrl+Shift+F循环级别"
+        )
+
+    def _set_post_zen_status(self, editor):
+        if getattr(editor, "focus_mode", False):
+            self._set_focus_status(editor)
+        else:
+            self.app.status_var.set("沉浸模式: 已关闭")
 
     def _zen_fade_transition(self, entering: bool):
         try:
@@ -344,8 +365,126 @@ class AppModeManager:
         if enable:
             if not self.app._zen_style_created:
                 style.layout("Zen.TNotebook.Tab", [])
-                style.configure("Zen.TNotebook", tabmargins=[0, 0, 0, 0])
+                style.configure("Zen.TNotebook", tabmargins=[0, 0, 0, 0], borderwidth=0, padding=0)
                 self.app._zen_style_created = True
             self.app.notebook.configure(style="Zen.TNotebook")
         else:
             self.app.notebook.configure(style=self.app._orig_notebook_style or "TNotebook")
+
+    def _capture_pre_zen_state(self, script_controller):
+        state = {
+            "sidebar_visible": self._is_sidebar_visible(),
+            "typewriter_mode": False,
+            "focus_mode": False,
+            "main_paned_pack": self._pack_info_or_none(getattr(self.app, "main_paned", None)),
+            "status_visible": self._is_status_ui_visible(),
+        }
+
+        editor = getattr(script_controller, "script_editor", None)
+        if editor:
+            state["typewriter_mode"] = editor.typewriter_mode
+            state["focus_mode"] = editor.focus_mode
+
+        return state
+
+    def _restore_pre_zen_editor_state(self, script_controller):
+        state = self._pre_zen_state or {}
+        editor = getattr(script_controller, "script_editor", None)
+        if not editor:
+            return
+
+        desired_typewriter = state.get("typewriter_mode", False)
+        desired_focus = state.get("focus_mode", False)
+
+        if editor.focus_mode != desired_focus:
+            editor.toggle_focus_mode(desired_focus, save_config=False, track_session=False)
+        editor.toggle_typewriter_mode(desired_typewriter)
+        if desired_focus:
+            editor.resume_focus_session()
+        self._update_focus_indicator(desired_focus)
+
+    def _is_sidebar_visible(self):
+        main_paned = getattr(self.app, "main_paned", None)
+        sidebar = getattr(self.app, "sidebar", None)
+        return bool(main_paned and sidebar and str(sidebar) in main_paned.panes())
+
+    def _hide_main_sidebar(self):
+        main_paned = getattr(self.app, "main_paned", None)
+        sidebar = getattr(self.app, "sidebar", None)
+        if main_paned and sidebar and str(sidebar) in main_paned.panes():
+            main_paned.forget(sidebar)
+        if main_paned and main_paned.winfo_manager() == "pack":
+            main_paned.pack_configure(padx=0, pady=0)
+
+    def _restore_main_sidebar(self):
+        state = self._pre_zen_state or {}
+        main_paned = getattr(self.app, "main_paned", None)
+        sidebar = getattr(self.app, "sidebar", None)
+        if state.get("sidebar_visible") and main_paned and sidebar and str(sidebar) not in main_paned.panes():
+            main_paned.insert(0, sidebar, weight=0)
+        pack_info = state.get("main_paned_pack")
+        if main_paned and pack_info and main_paned.winfo_manager() == "pack":
+            main_paned.pack_configure(**pack_info)
+
+    def _pack_info_or_none(self, widget):
+        if widget and widget.winfo_manager() == "pack":
+            info = widget.pack_info()
+            info.pop("in", None)
+            return info
+        return None
+
+    def _is_status_ui_visible(self):
+        status_frame = getattr(self.app, "status_frame", None)
+        if not status_frame:
+            return False
+        return status_frame.winfo_manager() == "pack"
+
+    def _set_status_ui_visible(self, visible):
+        status_frame = getattr(self.app, "status_frame", None)
+        if not status_frame:
+            return
+        if visible:
+            if status_frame.winfo_manager() != "pack":
+                status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        else:
+            if status_frame.winfo_manager() == "pack":
+                status_frame.pack_forget()
+
+    def _rollback_zen_mode(self, script_controller):
+        try:
+            self.app.root.attributes("-fullscreen", False)
+        except Exception:
+            pass
+        try:
+            if getattr(self.app, "pre_zen_geometry", None):
+                self.app.root.geometry(self.app.pre_zen_geometry)
+        except Exception:
+            pass
+        try:
+            if hasattr(self.app, "menubar"):
+                self.app.root.config(menu=self.app.menubar)
+        except Exception:
+            pass
+        try:
+            self._apply_zen_notebook_style(False)
+        except Exception:
+            pass
+        try:
+            self._restore_main_sidebar()
+        except Exception:
+            pass
+        try:
+            self._set_status_ui_visible(bool((self._pre_zen_state or {}).get("status_visible")))
+        except Exception:
+            pass
+        try:
+            if hasattr(script_controller, "exit_zen_mode"):
+                script_controller.exit_zen_mode()
+        except Exception:
+            pass
+        try:
+            self._cleanup_zen_ui()
+        except Exception:
+            pass
+        self.app.is_zen_mode = False
+        self._pre_zen_state = None

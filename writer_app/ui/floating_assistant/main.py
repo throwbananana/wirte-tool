@@ -1043,18 +1043,16 @@ class FloatingAssistant(tk.Toplevel):
         """进入禅模式 - 最小化所有干扰"""
         self._is_in_zen_mode = True
         self._enter_focus_mode()  # 继承专注模式行为
-        # 最小化助手窗口到托盘区域
-        self._pre_zen_opacity = self.attributes("-alpha")
-        self.attributes("-alpha", 0.3)  # 半透明
+        self._pre_zen_visible = self.winfo_viewable()
+        if self._pre_zen_visible:
+            self.withdraw()
 
     def _exit_zen_mode(self):
         """退出禅模式 - 恢复显示"""
         self._is_in_zen_mode = False
-        # 恢复透明度
-        if hasattr(self, '_pre_zen_opacity'):
-            self.attributes("-alpha", self._pre_zen_opacity)
-        else:
-            self.attributes("-alpha", 0.95)
+        if getattr(self, '_pre_zen_visible', False):
+            self.deiconify()
+            self._refresh_activity()
         self._exit_focus_mode()
 
     @property

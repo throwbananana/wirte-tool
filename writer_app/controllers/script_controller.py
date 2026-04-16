@@ -64,7 +64,13 @@ class ScriptController(BaseController):
         self.scene_tag_filter = None
         self.script_ai_generating = False
         self.is_reading = False
-        
+        self.script_toolbar = None
+        self.editor_frame_ui = None
+        self.editor_container = None
+        self.editor_scroll = None
+        self._zen_layout_active = False
+        self._zen_layout_state = None
+
         self.setup_ui()
         self._add_theme_listener(self.apply_theme)
         self.set_ai_mode_enabled(self.config_manager.is_ai_enabled())
@@ -109,9 +115,9 @@ class ScriptController(BaseController):
         self.script_paned.add(self.scene_frame_ui, weight=1)
         self.setup_scene_panel(self.scene_frame_ui)
         
-        editor_frame = ttk.LabelFrame(self.script_paned, text="剧本编辑器")
-        self.script_paned.add(editor_frame, weight=3)
-        self.setup_script_editor(editor_frame)
+        self.editor_frame_ui = ttk.LabelFrame(self.script_paned, text="剧本编辑器")
+        self.script_paned.add(self.editor_frame_ui, weight=3)
+        self.setup_script_editor(self.editor_frame_ui)
 
     def setup_character_panel(self, parent):
         toolbar = ttk.Frame(parent)
@@ -229,12 +235,12 @@ class ScriptController(BaseController):
         self.scene_listbox.bind("<Double-1>", lambda e: self.load_scene_to_editor())
 
     def setup_script_editor(self, parent):
-        toolbar = ttk.Frame(parent)
-        toolbar.pack(fill=tk.X, padx=5, pady=5)
-        ttk.Label(toolbar, text="剧本标题:").pack(side=tk.LEFT, padx=5)
-        ttk.Entry(toolbar, textvariable=self.script_title_var, width=30).pack(side=tk.LEFT, padx=5)
-        
-        btn_box = ttk.Frame(toolbar)
+        self.script_toolbar = ttk.Frame(parent)
+        self.script_toolbar.pack(fill=tk.X, padx=5, pady=5)
+        ttk.Label(self.script_toolbar, text="剧本标题:").pack(side=tk.LEFT, padx=5)
+        ttk.Entry(self.script_toolbar, textvariable=self.script_title_var, width=30).pack(side=tk.LEFT, padx=5)
+
+        btn_box = ttk.Frame(self.script_toolbar)
         btn_box.pack(side=tk.RIGHT)
         self.script_btn_box = btn_box
         ttk.Button(btn_box, text="保存场景内容", command=self.save_scene_content).pack(side=tk.LEFT, padx=2)
@@ -257,20 +263,121 @@ class ScriptController(BaseController):
         help_btn = create_module_help_button(btn_box, "script", self._show_full_help)
         help_btn.pack(side=tk.LEFT, padx=4)
 
-        editor_container = ttk.Frame(parent)
-        editor_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.editor_container = tk.Frame(parent, bd=0, highlightthickness=0)
+        self.editor_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.script_editor = ScriptEditor(
-            editor_container, 
+            self.editor_container,
             project_manager=self.project_manager,
             on_ai_continue=self.ai_continue_script,
             on_ai_rewrite=self.ai_rewrite_script,
+            command_executor=self.command_executor,
             on_wiki_click=self.on_wiki_click,
-            on_content_change=None # Could link to productivity
+            on_content_change=None, # Could link to productivity
+            config_manager=self.config_manager,
         )
-        editor_scroll = ttk.Scrollbar(editor_container, orient=tk.VERTICAL, command=self.script_editor.yview)
-        self.script_editor.configure(yscrollcommand=editor_scroll.set)
+        self.editor_scroll = ttk.Scrollbar(self.editor_container, orient=tk.VERTICAL, command=self.script_editor.yview)
+        self.script_editor.configure(yscrollcommand=self.editor_scroll.set)
         self.script_editor.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        editor_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.editor_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def _is_pane_visible(self, widget):
+        return str(widget) in self.script_paned.panes()
+
+    def _pack_info_or_none(self, widget):
+        if widget and widget.winfo_manager() == "pack":
+            info = widget.pack_info()
+            info.pop("in", None)
+            return info
+        return None
+
+    def _restore_pack(self, widget, pack_info):
+        if not widget or not pack_info:
+            return
+        widget.pack(**pack_info)
+
+    def enter_zen_mode(self):
+        if self._zen_layout_active:
+            return
+
+        self._zen_layout_state = {
+            "toolbar_pack": self._pack_info_or_none(self.script_toolbar),
+            "editor_container_pack": self._pack_info_or_none(self.editor_container),
+            "editor_frame_text": self.editor_frame_ui.cget("text") if self.editor_frame_ui else "",
+            "editor_frame_style": self.editor_frame_ui.cget("style") if self.editor_frame_ui else "",
+            "char_pane_visible": self._is_pane_visible(self.char_frame_ui),
+            "scene_pane_visible": self._is_pane_visible(self.scene_frame_ui),
+            "editor_wrap": self.script_editor.cget("wrap"),
+            "editor_padx": self.script_editor.cget("padx"),
+            "editor_pady": self.script_editor.cget("pady"),
+            "editor_bd": self.script_editor.cget("bd"),
+            "editor_relief": self.script_editor.cget("relief"),
+            "editor_highlightthickness": self.script_editor.cget("highlightthickness"),
+        }
+
+        if self._zen_layout_state["char_pane_visible"]:
+            self.script_paned.forget(self.char_frame_ui)
+        if self._zen_layout_state["scene_pane_visible"]:
+            self.script_paned.forget(self.scene_frame_ui)
+
+        if self.script_toolbar and self.script_toolbar.winfo_manager() == "pack":
+            self.script_toolbar.pack_forget()
+        if self.editor_container and self.editor_container.winfo_manager() == "pack":
+            self.editor_container.pack_forget()
+
+        if self.editor_frame_ui:
+            self.editor_frame_ui.configure(text="")
+            self.editor_frame_ui.configure(style="ZenEditor.TLabelframe")
+
+        self.editor_container.place(
+            relx=0.5,
+            rely=0.5,
+            relwidth=0.78,
+            relheight=0.92,
+            anchor="center",
+        )
+        self.script_editor.configure(
+            wrap=tk.WORD,
+            padx=48,
+            pady=48,
+            bd=0,
+            relief=tk.FLAT,
+            highlightthickness=0,
+        )
+        self._zen_layout_active = True
+        self.apply_theme()
+
+    def exit_zen_mode(self):
+        if not self._zen_layout_active:
+            return
+
+        state = self._zen_layout_state or {}
+
+        if self.editor_container and self.editor_container.winfo_manager() == "place":
+            self.editor_container.place_forget()
+        self._restore_pack(self.script_toolbar, state.get("toolbar_pack"))
+        self._restore_pack(self.editor_container, state.get("editor_container_pack"))
+
+        if self.editor_frame_ui:
+            self.editor_frame_ui.configure(text=state.get("editor_frame_text", "剧本编辑器"))
+            self.editor_frame_ui.configure(style=state.get("editor_frame_style", "TLabelframe"))
+
+        if state.get("char_pane_visible") and not self._is_pane_visible(self.char_frame_ui):
+            self.script_paned.insert(0, self.char_frame_ui, weight=1)
+        if state.get("scene_pane_visible") and not self._is_pane_visible(self.scene_frame_ui):
+            insert_index = 1 if self._is_pane_visible(self.char_frame_ui) else 0
+            self.script_paned.insert(insert_index, self.scene_frame_ui, weight=1)
+
+        self.script_editor.configure(
+            wrap=state.get("editor_wrap", tk.CHAR),
+            padx=state.get("editor_padx", 1),
+            pady=state.get("editor_pady", 1),
+            bd=state.get("editor_bd", 2),
+            relief=state.get("editor_relief", tk.SUNKEN),
+            highlightthickness=state.get("editor_highlightthickness", 0),
+        )
+        self._zen_layout_active = False
+        self._zen_layout_state = None
+        self.apply_theme()
 
     def check_logic(self):
         if not self.ai_controller: return
@@ -350,8 +457,28 @@ class ScriptController(BaseController):
 
     def apply_theme(self):
         theme = self.theme_manager
+        style = ttk.Style(self.parent)
+        style.configure(
+            "ZenEditor.TLabelframe",
+            background=theme.get_color("bg_secondary"),
+            borderwidth=0,
+            relief=tk.FLAT,
+        )
+        style.configure(
+            "ZenEditor.TLabelframe.Label",
+            background=theme.get_color("bg_secondary"),
+            foreground=theme.get_color("bg_secondary"),
+        )
         self.script_editor.apply_theme(theme)
-        
+        if self.editor_container:
+            border_width = 1 if self._zen_layout_active else 0
+            self.editor_container.configure(
+                bg=theme.get_color("editor_bg"),
+                highlightbackground=theme.get_color("border"),
+                highlightcolor=theme.get_color("border"),
+                highlightthickness=border_width,
+            )
+
         # Apply Editor Font
         if self.config_manager:
             font_family = self.config_manager.get("editor_font", "Consolas")

@@ -34,6 +34,14 @@ class WorkspaceConfig:
 class WorkspaceSection(ttk.Frame):
     """A collapsible workspace section containing sidebar items."""
 
+    EXPANDED_ITEMS_PADX = (16, 0)
+    COLLAPSED_ITEMS_PADX = (2, 0)
+    EXPANDED_ITEM_PADDING = (8, 4)
+    COLLAPSED_ITEM_PADDING = (2, 4)
+    EXPANDED_HEADER_PADX = 4
+    COLLAPSED_HEADER_PADX = 0
+    EXPANDED_INDICATOR_PADX = (4, 0)
+
     def __init__(self, parent, key: str, icon: str, label: str,
                  items: List[SidebarItem], on_item_select: Callable,
                  theme_manager=None, collapsed_mode: bool = False):
@@ -65,17 +73,21 @@ class WorkspaceSection(ttk.Frame):
             width=2,
             cursor="hand2"
         )
-        self.expand_indicator.pack(side=tk.LEFT, padx=(4, 0))
+        self.expand_indicator.pack(side=tk.LEFT, padx=self.EXPANDED_INDICATOR_PADX)
 
         # Workspace icon and label
-        header_text = f"{self.icon} {self.label}" if not self.collapsed_mode else self.icon
         self.header_label = ttk.Label(
             self.header_frame,
-            text=header_text,
+            text=self._get_header_text(self.collapsed_mode),
             font=("Microsoft YaHei", 10, "bold"),
             cursor="hand2"
         )
-        self.header_label.pack(side=tk.LEFT, padx=4, fill=tk.X, expand=True)
+        self.header_label.pack(
+            side=tk.LEFT,
+            padx=self._get_header_padx(self.collapsed_mode),
+            fill=tk.X,
+            expand=True,
+        )
 
         # Bind click events to all header elements
         for widget in (self.header_frame, self.expand_indicator, self.header_label):
@@ -85,10 +97,45 @@ class WorkspaceSection(ttk.Frame):
 
         # Items container
         self.items_frame = ttk.Frame(self)
-        self.items_frame.pack(fill=tk.X, padx=(16, 0))
+        self.items_frame.pack(fill=tk.X, padx=self._get_items_frame_padx(self.collapsed_mode))
 
         # Create item buttons
         self._create_item_buttons()
+        self._apply_collapsed_layout(self.collapsed_mode)
+
+    def _get_header_text(self, collapsed: bool) -> str:
+        return self.icon if collapsed else f"{self.icon} {self.label}"
+
+    def _get_header_padx(self, collapsed: bool) -> int:
+        return self.COLLAPSED_HEADER_PADX if collapsed else self.EXPANDED_HEADER_PADX
+
+    def _get_items_frame_padx(self, collapsed: bool):
+        return self.COLLAPSED_ITEMS_PADX if collapsed else self.EXPANDED_ITEMS_PADX
+
+    def _get_item_text(self, item: SidebarItem, collapsed: bool) -> str:
+        return item.icon if collapsed else f"  {item.icon} {item.label}"
+
+    def _get_item_padding(self, collapsed: bool):
+        return self.COLLAPSED_ITEM_PADDING if collapsed else self.EXPANDED_ITEM_PADDING
+
+    def _get_item_anchor(self, collapsed: bool) -> str:
+        return "center" if collapsed else "w"
+
+    def _apply_collapsed_layout(self, collapsed: bool):
+        if collapsed:
+            if self.expand_indicator.winfo_manager() == "pack":
+                self.expand_indicator.pack_forget()
+            self.header_label.pack_configure(padx=self._get_header_padx(True))
+            self.header_label.configure(anchor="center")
+        else:
+            if self.expand_indicator.winfo_manager() != "pack":
+                self.expand_indicator.pack(
+                    side=tk.LEFT,
+                    padx=self.EXPANDED_INDICATOR_PADX,
+                    before=self.header_label,
+                )
+            self.header_label.pack_configure(padx=self._get_header_padx(False))
+            self.header_label.configure(anchor="w")
 
     def _on_header_hover_enter(self, event=None):
         """Handle header hover enter."""
@@ -107,16 +154,12 @@ class WorkspaceSection(ttk.Frame):
             item_frame = ttk.Frame(self.items_frame)
             item_frame.pack(fill=tk.X, pady=1)
 
-            if self.collapsed_mode:
-                text = item.icon
-            else:
-                text = f"  {item.icon} {item.label}"
-
             btn = ttk.Label(
                 item_frame,
-                text=text,
+                text=self._get_item_text(item, self.collapsed_mode),
                 cursor="hand2",
-                padding=(8, 4)
+                padding=self._get_item_padding(self.collapsed_mode),
+                anchor=self._get_item_anchor(self.collapsed_mode),
             )
             btn.pack(fill=tk.X)
             btn.bind("<Button-1>", lambda e, k=key: self._on_item_click(k))
@@ -131,7 +174,7 @@ class WorkspaceSection(ttk.Frame):
         self.expand_indicator.config(text="▼" if self.expanded else "▶")
 
         if self.expanded:
-            self.items_frame.pack(fill=tk.X, padx=(16, 0))
+            self.items_frame.pack(fill=tk.X, padx=self._get_items_frame_padx(self.collapsed_mode))
         else:
             self.items_frame.pack_forget()
 
@@ -184,25 +227,27 @@ class WorkspaceSection(ttk.Frame):
             self._toggle_expand()
 
     def set_collapsed_mode(self, collapsed: bool):
-        """Switch between collapsed (icon-only) and expanded mode."""
+        """Switch between hidden-strip and expanded mode."""
         if self.collapsed_mode == collapsed:
             return
 
         self.collapsed_mode = collapsed
 
-        # Update header
-        header_text = self.icon if collapsed else f"{self.icon} {self.label}"
-        self.header_label.config(text=header_text)
+        self._apply_collapsed_layout(collapsed)
+        self.header_label.config(text=self._get_header_text(collapsed))
+        if self.expanded:
+            self.items_frame.pack_configure(padx=self._get_items_frame_padx(collapsed))
 
         # Update item buttons
         for key in self.item_order:
             item = self.items[key]
             btn = self.item_buttons.get(key)
             if btn:
-                if collapsed:
-                    btn.config(text=item.icon)
-                else:
-                    btn.config(text=f"  {item.icon} {item.label}")
+                btn.config(
+                    text=self._get_item_text(item, collapsed),
+                    padding=self._get_item_padding(collapsed),
+                    anchor=self._get_item_anchor(collapsed),
+                )
 
     def apply_theme(self):
         """Apply theme colors to this workspace section."""
@@ -229,7 +274,7 @@ class SidebarPanel(ttk.Frame):
     The main sidebar navigation panel.
 
     Contains multiple workspace sections that can be expanded/collapsed.
-    Supports collapsed (icon-only) and expanded (icon + label) modes.
+    Supports a hidden-strip collapsed state and a full expanded state.
     """
 
     # Workspace definitions
@@ -295,8 +340,52 @@ class SidebarPanel(ttk.Frame):
         ),
     ]
 
-    COLLAPSED_WIDTH = 50
+    COLLAPSED_WIDTH = 36
     EXPANDED_WIDTH = 200
+    COLLAPSED_CANVAS_PADDING = 2
+    EXPANDED_CANVAS_PADDING = 20
+    COLLAPSED_BUTTON_PADX = 0
+    EXPANDED_BUTTON_PADX = 4
+    COLLAPSED_TOOLBOX_PADX = 0
+    EXPANDED_TOOLBOX_PADX = 8
+
+    def _get_canvas_width(self, collapsed: bool) -> int:
+        base_width = self.COLLAPSED_WIDTH if collapsed else self.EXPANDED_WIDTH
+        canvas_padding = self.COLLAPSED_CANVAS_PADDING if collapsed else self.EXPANDED_CANVAS_PADDING
+        return base_width - canvas_padding
+
+    def _get_toolbox_text(self, collapsed: bool) -> str:
+        return "➕" if collapsed else "➕ 工具箱"
+
+    def _get_toggle_button_text(self, collapsed: bool) -> str:
+        return "»" if collapsed else "≡"
+
+    def _apply_panel_layout(self):
+        if self.collapsed:
+            self.top_bar.pack_configure(pady=(4, 2))
+            self.title_label.pack_forget()
+            self.collapse_btn.configure(width=2, text=self._get_toggle_button_text(True))
+            self.collapse_btn.pack_configure(padx=self.COLLAPSED_BUTTON_PADX)
+            if self.canvas.winfo_manager() == "pack":
+                self.canvas.pack_forget()
+            if self.toolbox_frame.winfo_manager() == "pack":
+                self.toolbox_frame.pack_forget()
+            if self.scrollbar.winfo_manager() == "pack":
+                self.scrollbar.pack_forget()
+        else:
+            self.top_bar.pack_configure(pady=(4, 8))
+            if self.title_label.winfo_manager() != "pack":
+                self.title_label.pack(side=tk.LEFT, padx=8)
+            self.collapse_btn.configure(width=3, text=self._get_toggle_button_text(False))
+            self.collapse_btn.pack_configure(padx=self.EXPANDED_BUTTON_PADX)
+            if self.canvas.winfo_manager() != "pack":
+                self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            if self.scrollbar.winfo_manager() != "pack":
+                self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            self.toolbox_btn.config(text=self._get_toolbox_text(False))
+            self.toolbox_btn.pack_configure(padx=self.EXPANDED_TOOLBOX_PADX)
+            if self.toolbox_frame.winfo_manager() != "pack":
+                self.toolbox_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=4)
 
     def __init__(self, parent, theme_manager, on_item_select: Callable[[str, str], None],
                  config_manager=None):
@@ -327,11 +416,11 @@ class SidebarPanel(ttk.Frame):
 
         self.collapse_btn = ttk.Button(
             self.top_bar,
-            text="≡",
+            text=self._get_toggle_button_text(False),
             width=3,
             command=self.toggle_collapse
         )
-        self.collapse_btn.pack(side=tk.LEFT, padx=4)
+        self.collapse_btn.pack(side=tk.LEFT, padx=self.EXPANDED_BUTTON_PADX)
 
         self.title_label = ttk.Label(
             self.top_bar,
@@ -369,10 +458,10 @@ class SidebarPanel(ttk.Frame):
 
         self.toolbox_btn = ttk.Button(
             self.toolbox_frame,
-            text="➕ 工具箱",
+            text=self._get_toolbox_text(False),
             command=lambda: self.on_item_select("toolbox", "toolbox")
         )
-        self.toolbox_btn.pack(fill=tk.X, padx=8, pady=4)
+        self.toolbox_btn.pack(fill=tk.X, padx=self.EXPANDED_TOOLBOX_PADX, pady=4)
 
     def _create_workspaces(self):
         """Create workspace sections from definitions."""
@@ -437,20 +526,11 @@ class SidebarPanel(ttk.Frame):
             self.canvas.yview_scroll(1, "units")
 
     def toggle_collapse(self):
-        """Toggle between collapsed (icon-only) and expanded mode."""
+        """Toggle between hidden-strip and expanded mode."""
         self.collapsed = not self.collapsed
         new_width = self.COLLAPSED_WIDTH if self.collapsed else self.EXPANDED_WIDTH
 
-        if self.collapsed:
-            self.title_label.pack_forget()
-            self.toolbox_btn.config(text="➕")
-            # Hide scrollbar in collapsed mode
-            self.scrollbar.pack_forget()
-        else:
-            self.title_label.pack(side=tk.LEFT, padx=8)
-            self.toolbox_btn.config(text="➕ 工具箱")
-            # Show scrollbar in expanded mode
-            self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self._apply_panel_layout()
 
         # Update all workspaces
         for ws in self.workspaces.values():
@@ -458,6 +538,7 @@ class SidebarPanel(ttk.Frame):
 
         # Update width - need to configure and force geometry update
         self.configure(width=new_width)
+        self.update_idletasks()
 
         # Force PanedWindow to update sash position if we're in a PanedWindow
         parent = self.master
@@ -475,8 +556,7 @@ class SidebarPanel(ttk.Frame):
 
     def _update_canvas_width(self):
         """Update canvas window width to match sidebar width."""
-        width = self.COLLAPSED_WIDTH - 10 if self.collapsed else self.EXPANDED_WIDTH - 20
-        self.canvas.itemconfigure(self.canvas_window, width=width)
+        self.canvas.itemconfigure(self.canvas_window, width=self._get_canvas_width(self.collapsed))
 
     def select_item(self, workspace_key: str, item_key: str):
         """Programmatically select an item."""
