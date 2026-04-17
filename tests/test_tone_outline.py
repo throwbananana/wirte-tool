@@ -13,6 +13,7 @@ from writer_app.core.tone_outline import (
     shift_segment,
     split_segment,
 )
+from writer_app.ui.tone_outline import find_points_in_selection
 
 
 class TestToneOutline(unittest.TestCase):
@@ -514,6 +515,44 @@ class TestToneOutline(unittest.TestCase):
         self.assertEqual(relation_summary[0]["axis_title"], "碰撞")
         self.assertEqual(relation_summary[0]["relation_label"], "实线单箭头")
         self.assertEqual(relation_summary[0]["target_line_name"], "情节线")
+
+    def test_find_points_in_selection_returns_current_segment_points_in_order(self):
+        point_positions = [
+            {"line_uid": "plot-main", "segment_uid": "seg-1", "point_uid": "p-2", "x": 220, "y": 180},
+            {"line_uid": "plot-main", "segment_uid": "seg-1", "point_uid": "p-1", "x": 120, "y": 160},
+            {"line_uid": "plot-main", "segment_uid": "seg-2", "point_uid": "p-3", "x": 180, "y": 150},
+        ]
+
+        selected = find_points_in_selection(
+            point_positions,
+            "plot-main",
+            "seg-1",
+            100,
+            140,
+            240,
+            200,
+        )
+
+        self.assertEqual(selected, ["p-1", "p-2"])
+
+    def test_find_points_in_selection_ignores_other_segments_and_outside_points(self):
+        point_positions = [
+            {"line_uid": "plot-main", "segment_uid": "seg-1", "point_uid": "p-1", "x": 120, "y": 160},
+            {"line_uid": "plot-main", "segment_uid": "seg-1", "point_uid": "p-2", "x": 260, "y": 220},
+            {"line_uid": "hero-line", "segment_uid": "seg-1", "point_uid": "p-3", "x": 140, "y": 170},
+        ]
+
+        selected = find_points_in_selection(
+            point_positions,
+            "plot-main",
+            "seg-1",
+            100,
+            140,
+            180,
+            190,
+        )
+
+        self.assertEqual(selected, ["p-1"])
 
 
 if __name__ == "__main__":

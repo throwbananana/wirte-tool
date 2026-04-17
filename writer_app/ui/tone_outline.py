@@ -63,6 +63,23 @@ NOTE_TYPE_OPTIONS = list(NOTE_TYPE_LABELS.items())
 NOTE_LABEL_TO_TYPE = {label: key for key, label in NOTE_TYPE_OPTIONS}
 
 
+def find_points_in_selection(point_positions, line_uid, segment_uid, start_x, start_y, end_x, end_y):
+    if not line_uid or not segment_uid:
+        return []
+    left, right = sorted((float(start_x), float(end_x)))
+    top, bottom = sorted((float(start_y), float(end_y)))
+    matches = [
+        item
+        for item in point_positions or []
+        if item.get("line_uid") == line_uid
+        and item.get("segment_uid") == segment_uid
+        and left <= float(item.get("x", -10**9)) <= right
+        and top <= float(item.get("y", -10**9)) <= bottom
+    ]
+    matches.sort(key=lambda item: (float(item.get("x", 0)), float(item.get("y", 0))))
+    return [item.get("point_uid", "") for item in matches if item.get("point_uid")]
+
+
 class ToneOutlineCanvas(tk.Canvas):
     def __init__(
         self,
@@ -70,6 +87,8 @@ class ToneOutlineCanvas(tk.Canvas):
         on_axis_selected,
         on_segment_selected,
         on_point_selected,
+        on_points_selected,
+        on_context_requested,
         on_interaction_selected,
         on_segment_boundary_drag,
         on_drag_preview,
@@ -86,6 +105,8 @@ class ToneOutlineCanvas(tk.Canvas):
         self.on_axis_selected = on_axis_selected
         self.on_segment_selected = on_segment_selected
         self.on_point_selected = on_point_selected
+        self.on_points_selected = on_points_selected
+        self.on_context_requested = on_context_requested
         self.on_interaction_selected = on_interaction_selected
         self.on_segment_boundary_drag = on_segment_boundary_drag
         self.on_drag_preview = on_drag_preview
@@ -101,9 +122,11 @@ class ToneOutlineCanvas(tk.Canvas):
         self.selected_line_uid = ""
         self.selected_segment_uid = ""
         self.selected_point_uid = ""
+        self.selected_point_uids = []
         self.selected_interaction_uid = ""
         self._axis_positions = {}
         self._axis_slots = {}
+        self._point_positions = []
         self._chart_bounds = (0, 0, 0)
         self._chart_x_bounds = (0, 0)
         self._dragging_boundary = None
@@ -111,10 +134,12 @@ class ToneOutlineCanvas(tk.Canvas):
         self._drag_target_axis_uid = ""
         self._interaction_arm = None
         self._dragging_interaction = None
+        self._selection_box = None
         self._apply_theme()
         self.bind("<ButtonPress-1>", self._handle_press)
         self.bind("<B1-Motion>", self._handle_drag)
         self.bind("<ButtonRelease-1>", self._handle_release)
+        self.bind("<Button-3>", self._handle_context_menu)
         self.bind("<Configure>", lambda _event: self.refresh())
 
     def _theme_color(self, key, fallback):
@@ -135,6 +160,7 @@ class ToneOutlineCanvas(tk.Canvas):
         selected_line_uid="",
         selected_segment_uid="",
         selected_point_uid="",
+        selected_point_uids=None,
         selected_interaction_uid="",
     ):
         self.data = clone_tone_outline(data or {})
@@ -142,6 +168,32 @@ class ToneOutlineCanvas(tk.Canvas):
         self.selected_line_uid = selected_line_uid or ""
         self.selected_segment_uid = selected_segment_uid or ""
         self.selected_point_uid = selected_point_uid or ""
+        self.selected_point_uids = [
+            point_uid for point_uid in (selected_point_uids or []) if point_uid
+        ]
+        if self.selected_point_uid and self.selected_point_uid not in self.selected_point_uids:
+            self.selected_point_uids.insert(0, self.selected_point_uid)
+        self.selected_interaction_uid = selected_interaction_uid or ""
+        self.refresh()
+
+    def update_selection(
+        self,
+        selected_axis_uid="",
+        selected_line_uid="",
+        selected_segment_uid="",
+        selected_point_uid="",
+        selected_point_uids=None,
+        selected_interaction_uid="",
+    ):
+        self.selected_axis_uid = selected_axis_uid or ""
+        self.selected_line_uid = selected_line_uid or ""
+        self.selected_segment_uid = selected_segment_uid or ""
+        self.selected_point_uid = selected_point_uid or ""
+        self.selected_point_uids = [
+            point_uid for point_uid in (selected_point_uids or []) if point_uid
+        ]
+        if self.selected_point_uid and self.selected_point_uid not in self.selected_point_uids:
+            self.selected_point_uids.insert(0, self.selected_point_uid)
         self.selected_interaction_uid = selected_interaction_uid or ""
         self.refresh()
 
@@ -220,8 +272,12 @@ class ToneOutlineCanvas(tk.Canvas):
         amplitude_scale = (chart_bottom - chart_top) / 220.0
         axis_index_map = get_axis_index_map(data)
         last_axis_uid = axis_nodes[-1]["uid"]
+        selected_point_uids = set(self.selected_point_uids)
+        if self.selected_point_uid:
+            selected_point_uids.add(self.selected_point_uid)
         self._chart_bounds = (chart_top, chart_bottom, baseline_y)
         self._chart_x_bounds = (margin_left, total_width - margin_right)
+        self._point_positions = []
 
         self.create_line(
             margin_left,
@@ -385,17 +441,23 @@ class ToneOutlineCanvas(tk.Canvas):
                         continue
                     x = self._axis_positions[axis_uid]
                     y = baseline_y - float(point.get("amplitude", 0)) * amplitude_scale
+                    point_uid = point.get("uid", "")
                     is_selected = (
                         line.get("uid") == self.selected_line_uid
                         and segment_uid == self.selected_segment_uid
-                        and point.get("uid") == self.selected_point_uid
+                        and point_uid in selected_point_uids
                     )
-                    radius = 7 if is_selected else 5
+                    is_primary = (
+                        line.get("uid") == self.selected_line_uid
+                        and segment_uid == self.selected_segment_uid
+                        and point_uid == self.selected_point_uid
+                    )
+                    radius = 7 if is_primary else (6 if is_selected else 5)
                     tags = (
                         "point",
                         f"line:{line['uid']}",
                         f"segment:{line['uid']}:{segment_uid}",
-                        f"point:{line['uid']}:{segment_uid}:{point['uid']}",
+                        f"point:{line['uid']}:{segment_uid}:{point_uid}",
                     )
                     self.create_oval(
                         x - radius,
@@ -404,8 +466,18 @@ class ToneOutlineCanvas(tk.Canvas):
                         y + radius,
                         fill=line.get("color") or "#2563EB",
                         outline=colors["selected"] if is_selected else "#FFFFFF",
-                        width=2,
+                        width=3 if is_primary else 2,
                         tags=tags,
+                    )
+                    self._point_positions.append(
+                        {
+                            "line_uid": line.get("uid", ""),
+                            "segment_uid": segment_uid,
+                            "point_uid": point_uid,
+                            "axis_uid": axis_uid,
+                            "x": x,
+                            "y": y,
+                        }
                     )
                     label = point.get("label")
                     if not label:
@@ -430,6 +502,8 @@ class ToneOutlineCanvas(tk.Canvas):
             self._draw_drag_preview()
         if self._dragging_interaction:
             self._draw_interaction_preview()
+        if self._selection_box:
+            self._draw_selection_preview()
 
     def _rebuild_axis_slots(self, data, baseline_y, amplitude_scale):
         axis_nodes = data.get("axis_nodes", [])
@@ -729,6 +803,72 @@ class ToneOutlineCanvas(tk.Canvas):
             key=lambda axis_uid: abs(self._axis_positions[axis_uid] - canvas_x),
         )
 
+    def _tags_at(self, canvas_x, canvas_y, padding=6):
+        items = self.find_overlapping(
+            canvas_x - padding,
+            canvas_y - padding,
+            canvas_x + padding,
+            canvas_y + padding,
+        )
+        for item_id in reversed(items):
+            tags = self.gettags(item_id)
+            if tags:
+                return tags
+        return ()
+
+    def _is_chart_area(self, canvas_y):
+        chart_top, chart_bottom, _baseline_y = self._chart_bounds
+        return chart_top <= canvas_y <= chart_bottom
+
+    @staticmethod
+    def _selection_drag_threshold():
+        return 8
+
+    def _selection_box_is_drag(self):
+        if not self._selection_box:
+            return False
+        return (
+            abs(float(self._selection_box.get("current_x", 0)) - float(self._selection_box.get("start_x", 0))) >= self._selection_drag_threshold()
+            or abs(float(self._selection_box.get("current_y", 0)) - float(self._selection_box.get("start_y", 0))) >= self._selection_drag_threshold()
+        )
+
+    def _selection_box_point_uids(self):
+        if not self._selection_box:
+            return []
+        return find_points_in_selection(
+            self._point_positions,
+            self._selection_box.get("line_uid", ""),
+            self._selection_box.get("segment_uid", ""),
+            self._selection_box.get("start_x", 0),
+            self._selection_box.get("start_y", 0),
+            self._selection_box.get("current_x", 0),
+            self._selection_box.get("current_y", 0),
+        )
+
+    def _draw_selection_preview(self):
+        self.delete("selection-preview")
+        if not self._selection_box:
+            return
+        start_x = float(self._selection_box.get("start_x", 0))
+        start_y = float(self._selection_box.get("start_y", 0))
+        current_x = float(self._selection_box.get("current_x", start_x))
+        current_y = float(self._selection_box.get("current_y", start_y))
+        if abs(current_x - start_x) < 1 and abs(current_y - start_y) < 1:
+            return
+        left, right = sorted((start_x, current_x))
+        top, bottom = sorted((start_y, current_y))
+        preview_color = self._theme_color("accent", "#2563EB")
+        self.create_rectangle(
+            left,
+            top,
+            right,
+            bottom,
+            outline=preview_color,
+            width=2,
+            dash=(6, 4),
+            tags=("selection-preview",),
+        )
+
     def _draw_drag_preview(self):
         self.delete("drag-preview")
         if (
@@ -947,10 +1087,82 @@ class ToneOutlineCanvas(tk.Canvas):
         if self.on_interaction_preview:
             self.on_interaction_preview(message)
 
+    def _emit_context_request(self, kind, payload, x_root, y_root):
+        if self.on_context_requested:
+            self.on_context_requested(kind, payload, x_root, y_root)
+
+    def _get_point_drag_preview_sample(self):
+        if not self.data or not self._dragging_point:
+            return [], ""
+        line_uid = self._dragging_point.get("line_uid", "")
+        segment_uid = self._dragging_point.get("segment_uid", "")
+        point_uid = self._dragging_point.get("point_uid", "")
+        target_axis_uid = self._dragging_point.get("target_axis_uid", "")
+        data = self.data or {}
+        line = next(
+            (item for item in data.get("lines", []) if item.get("uid") == line_uid),
+            None,
+        )
+        segment = next(
+            (item for item in (line or {}).get("segments", []) if item.get("uid") == segment_uid),
+            None,
+        )
+        axis_nodes = data.get("axis_nodes", [])
+        if not line or not segment or not axis_nodes or not target_axis_uid:
+            return [], ""
+        start_uid = segment.get("start_axis_uid")
+        end_uid = segment.get("end_axis_uid") or axis_nodes[-1]["uid"]
+        if start_uid not in self._axis_positions or end_uid not in self._axis_positions:
+            return [], ""
+
+        preview_segment = dict(segment)
+        preview_segment["points"] = []
+        for point in segment.get("points", []):
+            preview_point = dict(point)
+            if preview_point.get("uid") == point_uid:
+                preview_point["axis_uid"] = target_axis_uid
+                preview_point["amplitude"] = float(
+                    self._dragging_point.get("target_amplitude", preview_point.get("amplitude", 0))
+                )
+            preview_segment["points"].append(preview_point)
+
+        chart_top, chart_bottom, baseline_y = self._chart_bounds
+        amplitude_scale = (chart_bottom - chart_top) / 220.0 if chart_bottom > chart_top else 1.0
+        sampled = self._sample_curve(
+            self._build_segment_points(
+                line,
+                preview_segment,
+                start_uid,
+                end_uid,
+                baseline_y,
+                amplitude_scale,
+                self._chart_x_bounds[0],
+                self._chart_x_bounds[1],
+                get_axis_index_map(data),
+            )
+        )
+        return sampled, line.get("color") or "#2563EB"
+
     def _draw_point_drag_preview(self):
         self.delete("point-preview")
         if not self._dragging_point:
             return
+        sampled, line_color = self._get_point_drag_preview_sample()
+        if len(sampled) >= 2:
+            self.create_line(
+                *[value for point in sampled for value in point],
+                fill="#BFDBFE",
+                width=8,
+                smooth=True,
+                tags=("point-preview",),
+            )
+            self.create_line(
+                *[value for point in sampled for value in point],
+                fill=line_color or self._theme_color("accent", "#2563EB"),
+                width=3,
+                smooth=True,
+                tags=("point-preview",),
+            )
         axis_uid = self._dragging_point.get("target_axis_uid", "")
         if axis_uid not in self._axis_positions:
             return
@@ -1051,10 +1263,7 @@ class ToneOutlineCanvas(tk.Canvas):
     def _handle_press(self, event):
         x = self.canvasx(event.x)
         y = self.canvasy(event.y)
-        item = self.find_closest(x, y)
-        if not item:
-            return
-        tags = self.gettags(item[0])
+        tags = self._tags_at(x, y)
         if self._interaction_arm:
             source_point_tag = (
                 f"point:{self._interaction_arm['source_line_uid']}:"
@@ -1131,8 +1340,31 @@ class ToneOutlineCanvas(tk.Canvas):
             if tag.startswith("axis:"):
                 self.on_axis_selected(tag.split(":", 1)[1])
                 return
+        if (
+            not self._interaction_arm
+            and self.selected_line_uid
+            and self.selected_segment_uid
+            and self._is_chart_area(y)
+        ):
+            self._selection_box = {
+                "line_uid": self.selected_line_uid,
+                "segment_uid": self.selected_segment_uid,
+                "start_x": x,
+                "start_y": y,
+                "current_x": x,
+                "current_y": y,
+            }
+            self._draw_selection_preview()
+            self._emit_point_preview("框选预览：拖拽覆盖当前过程段的多个波动点。")
 
     def _handle_drag(self, event):
+        if self._selection_box:
+            self._selection_box["current_x"] = self.canvasx(event.x)
+            self._selection_box["current_y"] = self.canvasy(event.y)
+            self._draw_selection_preview()
+            point_count = len(self._selection_box_point_uids()) if self._selection_box_is_drag() else 0
+            self._emit_point_preview(f"框选预览：已命中 {point_count} 个波动点。")
+            return
         if self._dragging_point:
             canvas_x = self.canvasx(event.x)
             canvas_y = self.canvasy(event.y)
@@ -1180,6 +1412,19 @@ class ToneOutlineCanvas(tk.Canvas):
         self._draw_drag_preview()
 
     def _handle_release(self, event):
+        if self._selection_box:
+            point_uids = self._selection_box_point_uids() if self._selection_box_is_drag() else None
+            selection_box = dict(self._selection_box)
+            self._selection_box = None
+            self.delete("selection-preview")
+            self._emit_point_preview("")
+            if point_uids is not None and self.on_points_selected:
+                self.on_points_selected(
+                    selection_box.get("line_uid", ""),
+                    selection_box.get("segment_uid", ""),
+                    point_uids,
+                )
+            return
         if self._dragging_point:
             dragging_point = dict(self._dragging_point)
             self._dragging_point = None
@@ -1247,6 +1492,61 @@ class ToneOutlineCanvas(tk.Canvas):
                     target_axis_uid,
                 )
 
+    def _handle_context_menu(self, event):
+        x = self.canvasx(event.x)
+        y = self.canvasy(event.y)
+        tags = self._tags_at(x, y, padding=8)
+        if not tags:
+            return
+        for tag in tags:
+            if tag.startswith("interaction:"):
+                interaction_uid = tag.split(":", 1)[1]
+                self.on_interaction_selected(interaction_uid)
+                self._emit_context_request(
+                    "interaction",
+                    {"interaction_uid": interaction_uid},
+                    event.x_root,
+                    event.y_root,
+                )
+                return
+        for tag in tags:
+            if tag.startswith("point:"):
+                _, line_uid, segment_uid, point_uid = tag.split(":", 3)
+                if point_uid not in self.selected_point_uids or len(self.selected_point_uids) <= 1:
+                    self.on_point_selected(line_uid, segment_uid, point_uid)
+                self._emit_context_request(
+                    "point",
+                    {
+                        "line_uid": line_uid,
+                        "segment_uid": segment_uid,
+                        "point_uid": point_uid,
+                    },
+                    event.x_root,
+                    event.y_root,
+                )
+                return
+        for tag in tags:
+            if tag.startswith("segment:"):
+                _, line_uid, segment_uid = tag.split(":", 2)
+                self.on_segment_selected(line_uid, segment_uid)
+                self._emit_context_request(
+                    "segment",
+                    {"line_uid": line_uid, "segment_uid": segment_uid},
+                    event.x_root,
+                    event.y_root,
+                )
+                return
+        for tag in tags:
+            if tag.startswith("axis:"):
+                axis_uid = tag.split(":", 1)[1]
+                self.on_axis_selected(axis_uid)
+                self._emit_context_request(
+                    "axis",
+                    {"axis_uid": axis_uid},
+                    event.x_root,
+                    event.y_root,
+                )
+                return
 
 class ToneOutlineSummaryPanel(ttk.Frame):
     def __init__(self, parent):
@@ -1465,6 +1765,7 @@ class ToneOutlineEditor(ttk.Frame):
         self.selected_line_uid = DEFAULT_PLOT_LINE_UID
         self.selected_segment_uid = ""
         self.selected_point_uid = ""
+        self.selected_point_uids = []
         self.selected_interaction_uid = ""
         self.axis_order = []
         self.active_line_order = []
@@ -1472,6 +1773,7 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_order = []
         self.point_order = []
         self.interaction_order = []
+        self._synced_selection_snapshot = {}
 
         self.axis_title_var = tk.StringVar()
         self.line_name_var = tk.StringVar()
@@ -1487,6 +1789,8 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_note_type_var = tk.StringVar(value=NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
         self.segment_start_curve_var = tk.DoubleVar(value=DEFAULT_SEGMENT_CURVE)
         self.segment_end_curve_var = tk.DoubleVar(value=DEFAULT_SEGMENT_CURVE)
+        self.segment_start_curve_display_var = tk.StringVar()
+        self.segment_end_curve_display_var = tk.StringVar()
         self.point_axis_var = tk.StringVar()
         self.point_label_var = tk.StringVar()
         self.point_node_type_var = tk.StringVar(value=NODE_TYPE_LABELS[DEFAULT_NODE_TYPE])
@@ -1495,13 +1799,231 @@ class ToneOutlineEditor(ttk.Frame):
         self.point_status_var = tk.StringVar()
         self.point_amplitude_var = tk.DoubleVar(value=0.0)
         self.point_curvature_var = tk.DoubleVar(value=0.45)
+        self.point_amplitude_display_var = tk.StringVar()
+        self.point_curvature_display_var = tk.StringVar()
         self.interaction_type_var = tk.StringVar(value=INTERACTION_TYPE_LABELS[DEFAULT_INTERACTION_TYPE])
         self.interaction_status_var = tk.StringVar()
         self.interaction_source_var = tk.StringVar()
         self.interaction_target_var = tk.StringVar()
 
+        self._bind_scale_display(
+            self.segment_start_curve_var,
+            self.segment_start_curve_display_var,
+            lambda value: f"{float(value):.2f}",
+        )
+        self._bind_scale_display(
+            self.segment_end_curve_var,
+            self.segment_end_curve_display_var,
+            lambda value: f"{float(value):.2f}",
+        )
+        self._bind_scale_display(
+            self.point_amplitude_var,
+            self.point_amplitude_display_var,
+            lambda value: f"{int(round(float(value))):+d}",
+        )
+        self._bind_scale_display(
+            self.point_curvature_var,
+            self.point_curvature_display_var,
+            lambda value: f"{float(value):.2f}",
+        )
+
         self._setup_ui()
         self.refresh()
+
+    def _bind_scale_display(self, source_var, display_var, formatter):
+        def _update(*_args):
+            display_var.set(formatter(source_var.get()))
+
+        source_var.trace_add("write", _update)
+        _update()
+
+    def _snap_scale_value(self, variable, step, digits=2):
+        value = float(variable.get())
+        snapped = round(value / step) * step
+        snapped = round(snapped, digits)
+        if abs(value - snapped) > 1e-9:
+            variable.set(snapped)
+
+    def _create_labeled_scale(
+        self,
+        parent,
+        variable,
+        display_var,
+        from_,
+        to,
+        step,
+        digits=2,
+        orient=tk.HORIZONTAL,
+        length=220,
+    ):
+        row = ttk.Frame(parent)
+        row.pack(fill=tk.X, padx=6, pady=(0, 2))
+        scale = ttk.Scale(
+            row,
+            from_=from_,
+            to=to,
+            variable=variable,
+            orient=orient,
+            length=length,
+            command=lambda _value: self._snap_scale_value(variable, step, digits),
+        )
+        if orient == tk.VERTICAL:
+            scale.pack(side=tk.LEFT, fill=tk.Y, expand=False)
+        else:
+            scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Label(row, textvariable=display_var, width=7, anchor="e").pack(side=tk.RIGHT, padx=(8, 0))
+        return scale
+
+    def _clear_point_selection(self):
+        self.selected_point_uid = ""
+        self.selected_point_uids = []
+
+    def _set_selected_points(self, point_uids):
+        ordered_uids = []
+        seen = set()
+        for point_uid in point_uids or []:
+            if point_uid and point_uid not in seen:
+                ordered_uids.append(point_uid)
+                seen.add(point_uid)
+        self.selected_point_uids = ordered_uids
+        self.selected_point_uid = ordered_uids[0] if ordered_uids else ""
+
+    def _capture_selection_snapshot(self):
+        return {
+            "axis_uid": self.selected_axis_uid or "",
+            "line_uid": self.selected_line_uid or "",
+            "segment_uid": self.selected_segment_uid or "",
+            "point_uid": self.selected_point_uid or "",
+            "point_uids": list(self.selected_point_uids),
+            "interaction_uid": self.selected_interaction_uid or "",
+        }
+
+    def _remember_synced_selection_snapshot(self):
+        self._synced_selection_snapshot = self._capture_selection_snapshot()
+
+    def _restore_selection_snapshot(self, snapshot):
+        snapshot = snapshot or {}
+        self.selected_axis_uid = snapshot.get("axis_uid", "") or ""
+        self.selected_line_uid = snapshot.get("line_uid", "") or self.selected_line_uid
+        self.selected_segment_uid = snapshot.get("segment_uid", "") or ""
+        point_uids = list(snapshot.get("point_uids") or [])
+        point_uid = snapshot.get("point_uid", "") or ""
+        if point_uid and point_uid not in point_uids:
+            point_uids.insert(0, point_uid)
+        self._set_selected_points(point_uids)
+        self.selected_interaction_uid = snapshot.get("interaction_uid", "") or ""
+
+    def _prepare_view_state(self, data):
+        self.axis_order = [axis["uid"] for axis in data.get("axis_nodes", [])]
+        if self.selected_axis_uid not in self.axis_order:
+            self.selected_axis_uid = self.axis_order[0] if self.axis_order else ""
+
+        active_lines = []
+        potential_lines = []
+        for line in data.get("lines", []):
+            if line.get("line_type") == "plot" or not is_character_line_potential(line):
+                active_lines.append(line)
+            else:
+                potential_lines.append(line)
+        self.active_line_order = [line["uid"] for line in active_lines]
+        self.potential_line_order = [line["uid"] for line in potential_lines]
+
+        all_line_ids = set(self.active_line_order + self.potential_line_order)
+        if self.selected_line_uid not in all_line_ids:
+            self.selected_line_uid = (
+                DEFAULT_PLOT_LINE_UID
+                if DEFAULT_PLOT_LINE_UID in all_line_ids
+                else (
+                    self.active_line_order[0]
+                    if self.active_line_order
+                    else (self.potential_line_order[0] if self.potential_line_order else "")
+                )
+            )
+
+        selected_line = self._find_line(data, self.selected_line_uid)
+        self.segment_order = [segment.get("uid") for segment in selected_line.get("segments", [])] if selected_line else []
+        if self.selected_segment_uid not in self.segment_order:
+            default_segment = None
+            if selected_line:
+                default_segment = get_open_segment(selected_line) if selected_line.get("line_type") == "character" else None
+                if not default_segment and selected_line.get("segments"):
+                    default_segment = selected_line["segments"][0]
+            self.selected_segment_uid = default_segment.get("uid") if default_segment else ""
+
+        segment = self._find_segment(selected_line, self.selected_segment_uid) if selected_line else None
+        valid_point_uids = {
+            point.get("uid")
+            for point in (segment or {}).get("points", [])
+            if point.get("uid")
+        }
+        if valid_point_uids:
+            selected_point_uids = [uid for uid in self.selected_point_uids if uid in valid_point_uids]
+            if self.selected_point_uid in valid_point_uids and self.selected_point_uid not in selected_point_uids:
+                selected_point_uids.insert(0, self.selected_point_uid)
+            self._set_selected_points(selected_point_uids)
+        else:
+            self._clear_point_selection()
+
+        if self.selected_interaction_uid and not self._find_interaction(data, self.selected_interaction_uid):
+            self.selected_interaction_uid = ""
+
+        return active_lines, potential_lines
+
+    def _sync_axis_list_selection(self):
+        self.axis_list.selection_clear(0, tk.END)
+        if self.selected_axis_uid in self.axis_order:
+            self.axis_list.selection_set(self.axis_order.index(self.selected_axis_uid))
+
+    def _sync_line_list_selection(self):
+        self.active_line_list.selection_clear(0, tk.END)
+        self.potential_line_list.selection_clear(0, tk.END)
+        if self.selected_line_uid in self.active_line_order:
+            self.active_line_list.selection_set(self.active_line_order.index(self.selected_line_uid))
+        elif self.selected_line_uid in self.potential_line_order:
+            self.potential_line_list.selection_set(self.potential_line_order.index(self.selected_line_uid))
+
+    def _sync_selection_ui(self, data=None):
+        data = data or self.project_manager.get_tone_outline()
+        self._prepare_view_state(data)
+        self._sync_axis_list_selection()
+        self._sync_line_list_selection()
+        self._refresh_segment_history(data)
+        self._refresh_point_list(data)
+        self._refresh_interaction_list(data)
+        self._load_axis_form(data)
+        self._load_line_form(data)
+        self._load_segment_form(data)
+        self._load_point_form(data)
+        self._load_interaction_form(data)
+        self.canvas.update_selection(
+            self.selected_axis_uid,
+            self.selected_line_uid,
+            self.selected_segment_uid,
+            self.selected_point_uid,
+            self.selected_point_uids,
+            self.selected_interaction_uid,
+        )
+        self._remember_synced_selection_snapshot()
+
+    def _bind_config_mousewheel(self, _event=None):
+        if hasattr(self, "_config_canvas") and self._config_canvas.winfo_exists():
+            self._config_canvas.bind_all("<MouseWheel>", self._on_config_mousewheel)
+
+    def _unbind_config_mousewheel(self, _event=None):
+        if hasattr(self, "_config_canvas") and self._config_canvas.winfo_exists():
+            self._config_canvas.unbind_all("<MouseWheel>")
+
+    def _on_config_mousewheel(self, event):
+        if hasattr(self, "_config_canvas") and self._config_canvas.winfo_exists():
+            self._config_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _update_config_scrollregion(self, _event=None):
+        if hasattr(self, "_config_canvas") and self._config_canvas.winfo_exists():
+            self._config_canvas.configure(scrollregion=self._config_canvas.bbox("all"))
+
+    def _sync_config_width(self, event):
+        if hasattr(self, "_config_canvas_window"):
+            self._config_canvas.itemconfigure(self._config_canvas_window, width=event.width)
 
     def _setup_ui(self):
         toolbar = ttk.Frame(self)
@@ -1517,9 +2039,9 @@ class ToneOutlineEditor(ttk.Frame):
         paned.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
 
         canvas_frame = ttk.LabelFrame(paned, text="基调图")
-        config_frame = ttk.Frame(paned)
+        config_outer = ttk.Frame(paned)
         paned.add(canvas_frame, weight=3)
-        paned.add(config_frame, weight=2)
+        paned.add(config_outer, weight=2)
 
         canvas_container = ttk.Frame(canvas_frame)
         canvas_container.pack(fill=tk.BOTH, expand=True)
@@ -1528,6 +2050,8 @@ class ToneOutlineEditor(ttk.Frame):
             on_axis_selected=self.select_axis,
             on_segment_selected=self.select_segment,
             on_point_selected=self.select_point,
+            on_points_selected=self.select_points,
+            on_context_requested=self.show_canvas_context_menu,
             on_interaction_selected=self.select_interaction,
             on_segment_boundary_drag=self.move_segment_boundary,
             on_drag_preview=self.preview_drag_status,
@@ -1543,6 +2067,19 @@ class ToneOutlineEditor(ttk.Frame):
         self.canvas.configure(xscrollcommand=h_scroll.set)
         self.canvas.pack(fill=tk.BOTH, expand=True)
         h_scroll.pack(fill=tk.X)
+
+        self._config_canvas = tk.Canvas(config_outer, highlightthickness=0, borderwidth=0)
+        config_scroll = ttk.Scrollbar(config_outer, orient=tk.VERTICAL, command=self._config_canvas.yview)
+        self._config_canvas.configure(yscrollcommand=config_scroll.set)
+        config_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self._config_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        config_frame = ttk.Frame(self._config_canvas)
+        self._config_canvas_window = self._config_canvas.create_window((0, 0), window=config_frame, anchor="nw")
+        config_frame.bind("<Configure>", self._update_config_scrollregion)
+        self._config_canvas.bind("<Configure>", self._sync_config_width)
+        for widget in (config_outer, self._config_canvas, config_frame):
+            widget.bind("<Enter>", self._bind_config_mousewheel)
+            widget.bind("<Leave>", self._unbind_config_mousewheel)
 
         axis_frame = ttk.LabelFrame(config_frame, text="主轴节点")
         axis_frame.pack(fill=tk.X, pady=(0, 8))
@@ -1625,27 +2162,29 @@ class ToneOutlineEditor(ttk.Frame):
         ttk.Label(segment_frame, text="起点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_start_var).pack(anchor="w", padx=6)
         ttk.Label(segment_frame, text="起始曲率").pack(anchor="w", padx=6, pady=(6, 0))
-        tk.Scale(
+        self._create_labeled_scale(
             segment_frame,
-            from_=0.10,
-            to=1.50,
-            resolution=0.05,
-            orient=tk.HORIZONTAL,
-            variable=self.segment_start_curve_var,
+            self.segment_start_curve_var,
+            self.segment_start_curve_display_var,
+            0.10,
+            1.50,
+            0.05,
+            digits=2,
             length=180,
-        ).pack(anchor="w", padx=6)
+        )
         ttk.Label(segment_frame, text="终点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_end_var).pack(anchor="w", padx=6)
         ttk.Label(segment_frame, text="结束曲率").pack(anchor="w", padx=6, pady=(6, 0))
-        tk.Scale(
+        self._create_labeled_scale(
             segment_frame,
-            from_=0.10,
-            to=1.50,
-            resolution=0.05,
-            orient=tk.HORIZONTAL,
-            variable=self.segment_end_curve_var,
+            self.segment_end_curve_var,
+            self.segment_end_curve_display_var,
+            0.10,
+            1.50,
+            0.05,
+            digits=2,
             length=180,
-        ).pack(anchor="w", padx=6)
+        )
         ttk.Label(segment_frame, text="阶段说明").pack(anchor="w", padx=6, pady=(6, 0))
         self.segment_desc_text = tk.Text(segment_frame, height=3, wrap="word")
         self.segment_desc_text.pack(fill=tk.X, padx=6, pady=(0, 6))
@@ -1653,7 +2192,7 @@ class ToneOutlineEditor(ttk.Frame):
 
         point_frame = ttk.LabelFrame(config_frame, text="波动点")
         point_frame.pack(fill=tk.BOTH, expand=True)
-        self.point_list = tk.Listbox(point_frame, height=6, exportselection=False)
+        self.point_list = tk.Listbox(point_frame, height=6, exportselection=False, selectmode=tk.EXTENDED)
         self.point_list.pack(fill=tk.X, padx=6, pady=(6, 4))
         self.point_list.bind("<<ListboxSelect>>", self._on_point_list_select)
 
@@ -1661,6 +2200,7 @@ class ToneOutlineEditor(ttk.Frame):
         point_btns.pack(fill=tk.X, padx=6)
         ttk.Button(point_btns, text="在当前节点新增", command=self.add_point).pack(side=tk.LEFT)
         ttk.Button(point_btns, text="删除波动点", command=self.delete_point).pack(side=tk.LEFT, padx=(4, 0))
+        ttk.Button(point_btns, text="清空选择", command=self.clear_point_selection).pack(side=tk.LEFT, padx=(4, 0))
 
         ttk.Label(point_frame, text="当前节点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(point_frame, textvariable=self.point_axis_var).pack(anchor="w", padx=6)
@@ -1682,25 +2222,28 @@ class ToneOutlineEditor(ttk.Frame):
         )
         self.point_note_type_combo.pack(fill=tk.X, padx=6)
         ttk.Label(point_frame, text="波动强度").pack(anchor="w", padx=6, pady=(6, 0))
-        tk.Scale(
+        self._create_labeled_scale(
             point_frame,
-            from_=100,
-            to=-100,
-            resolution=1,
-            orient=tk.VERTICAL,
-            variable=self.point_amplitude_var,
-            length=120,
-        ).pack(anchor="w", padx=6)
-        ttk.Label(point_frame, text="节点曲率").pack(anchor="w", padx=6, pady=(6, 0))
-        tk.Scale(
-            point_frame,
-            from_=0.10,
-            to=1.50,
-            resolution=0.05,
+            self.point_amplitude_var,
+            self.point_amplitude_display_var,
+            -100,
+            100,
+            1,
+            digits=0,
             orient=tk.HORIZONTAL,
-            variable=self.point_curvature_var,
             length=180,
-        ).pack(anchor="w", padx=6)
+        )
+        ttk.Label(point_frame, text="节点曲率").pack(anchor="w", padx=6, pady=(6, 0))
+        self._create_labeled_scale(
+            point_frame,
+            self.point_curvature_var,
+            self.point_curvature_display_var,
+            0.10,
+            1.50,
+            0.05,
+            digits=2,
+            length=180,
+        )
         ttk.Label(point_frame, text="标签").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Entry(point_frame, textvariable=self.point_label_var).pack(fill=tk.X, padx=6)
         ttk.Label(point_frame, text="标签组").pack(anchor="w", padx=6, pady=(6, 0))
@@ -1708,7 +2251,7 @@ class ToneOutlineEditor(ttk.Frame):
         ttk.Label(point_frame, text="情节/人物说明").pack(anchor="w", padx=6, pady=(6, 0))
         self.point_desc_text = tk.Text(point_frame, height=4, wrap="word")
         self.point_desc_text.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 6))
-        ttk.Button(point_frame, text="保存波动点", command=self.save_point).pack(anchor="e", padx=6, pady=(0, 6))
+        ttk.Button(point_frame, text="保存 / 批量应用", command=self.save_point).pack(anchor="e", padx=6, pady=(0, 6))
 
         ttk.Separator(point_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=6, pady=(2, 6))
         ttk.Label(point_frame, text="作用箭头").pack(anchor="w", padx=6)
@@ -1741,38 +2284,7 @@ class ToneOutlineEditor(ttk.Frame):
 
     def refresh(self):
         data = self.project_manager.get_tone_outline()
-        self.axis_order = [axis["uid"] for axis in data.get("axis_nodes", [])]
-        if self.selected_axis_uid not in self.axis_order:
-            self.selected_axis_uid = self.axis_order[0] if self.axis_order else ""
-
-        active_lines = []
-        potential_lines = []
-        for line in data.get("lines", []):
-            if line.get("line_type") == "plot" or not is_character_line_potential(line):
-                active_lines.append(line)
-            else:
-                potential_lines.append(line)
-        self.active_line_order = [line["uid"] for line in active_lines]
-        self.potential_line_order = [line["uid"] for line in potential_lines]
-
-        all_line_ids = set(self.active_line_order + self.potential_line_order)
-        if self.selected_line_uid not in all_line_ids:
-            self.selected_line_uid = (
-                DEFAULT_PLOT_LINE_UID
-                if DEFAULT_PLOT_LINE_UID in all_line_ids
-                else (self.active_line_order[0] if self.active_line_order else (self.potential_line_order[0] if self.potential_line_order else ""))
-            )
-
-        selected_line = self._find_line(data, self.selected_line_uid)
-        self.segment_order = [segment.get("uid") for segment in selected_line.get("segments", [])] if selected_line else []
-        if self.selected_segment_uid not in self.segment_order:
-            default_segment = None
-            if selected_line:
-                default_segment = get_open_segment(selected_line) if selected_line.get("line_type") == "character" else None
-                if not default_segment and selected_line.get("segments"):
-                    default_segment = selected_line["segments"][0]
-            self.selected_segment_uid = default_segment.get("uid") if default_segment else ""
-
+        active_lines, potential_lines = self._prepare_view_state(data)
         self._refresh_axis_list(data)
         self._refresh_line_lists(active_lines, potential_lines)
         self._refresh_segment_history(data)
@@ -1789,32 +2301,34 @@ class ToneOutlineEditor(ttk.Frame):
             self.selected_line_uid,
             self.selected_segment_uid,
             self.selected_point_uid,
+            self.selected_point_uids,
             self.selected_interaction_uid,
         )
+        self._remember_synced_selection_snapshot()
 
     def select_axis(self, axis_uid):
         self.selected_axis_uid = axis_uid or ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def select_line(self, line_uid):
         self.selected_line_uid = line_uid or ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def select_segment(self, line_uid, segment_uid):
         self.selected_line_uid = line_uid or ""
         self.selected_segment_uid = segment_uid or ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def select_point(self, line_uid, segment_uid, point_uid):
         self.selected_line_uid = line_uid or ""
         self.selected_segment_uid = segment_uid or ""
-        self.selected_point_uid = point_uid or ""
+        self._set_selected_points([point_uid])
         self.selected_interaction_uid = ""
         data = self.project_manager.get_tone_outline()
         line = self._find_line(data, self.selected_line_uid)
@@ -1822,7 +2336,20 @@ class ToneOutlineEditor(ttk.Frame):
         point = self._find_point(segment, self.selected_point_uid) if segment else None
         if point:
             self.selected_axis_uid = point.get("axis_uid") or self.selected_axis_uid
-        self.refresh()
+        self._sync_selection_ui(data)
+
+    def select_points(self, line_uid, segment_uid, point_uids):
+        self.selected_line_uid = line_uid or self.selected_line_uid
+        self.selected_segment_uid = segment_uid or self.selected_segment_uid
+        self._set_selected_points(point_uids)
+        self.selected_interaction_uid = ""
+        data = self.project_manager.get_tone_outline()
+        line = self._find_line(data, self.selected_line_uid)
+        segment = self._find_segment(line, self.selected_segment_uid) if line else None
+        point = self._find_point(segment, self.selected_point_uid) if segment else None
+        if point:
+            self.selected_axis_uid = point.get("axis_uid") or self.selected_axis_uid
+        self._sync_selection_ui(data)
 
     def select_interaction(self, interaction_uid):
         data = self.project_manager.get_tone_outline()
@@ -1832,15 +2359,15 @@ class ToneOutlineEditor(ttk.Frame):
         self.selected_interaction_uid = interaction_uid or ""
         self.selected_line_uid = interaction.get("source_line_uid", "") or self.selected_line_uid
         self.selected_segment_uid = interaction.get("source_segment_uid", "") or self.selected_segment_uid
-        self.selected_point_uid = interaction.get("source_point_uid", "") or self.selected_point_uid
+        self._set_selected_points([interaction.get("source_point_uid", "") or self.selected_point_uid])
         self.selected_axis_uid = interaction.get("axis_uid", "") or self.selected_axis_uid
-        self.refresh()
+        self._sync_selection_ui(data)
 
     def move_segment_boundary(self, line_uid, segment_uid, boundary, axis_uid):
         self.selected_line_uid = line_uid or ""
         self.selected_segment_uid = segment_uid or ""
         self.selected_axis_uid = axis_uid or self.selected_axis_uid
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self._set_segment_boundary_to_axis(boundary, axis_uid)
 
     def preview_drag_status(self, message):
@@ -1867,7 +2394,7 @@ class ToneOutlineEditor(ttk.Frame):
     def shift_segment_drag(self, line_uid, segment_uid, origin_axis_uid, target_axis_uid):
         self.selected_line_uid = line_uid or ""
         self.selected_segment_uid = segment_uid or ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self._shift_segment_to_axis(origin_axis_uid, target_axis_uid)
 
     def move_point_by_drag(self, line_uid, segment_uid, point_uid, axis_uid, amplitude):
@@ -1893,7 +2420,7 @@ class ToneOutlineEditor(ttk.Frame):
                 "人物线节点必须保留在当前过程段内。请先调整过程段边界后再拖拽。",
                 parent=self.winfo_toplevel(),
             )
-            self.refresh()
+            self._sync_selection_ui(data)
             return
         if any(
             other_point.get("uid") != point_uid and other_point.get("axis_uid") == axis_uid
@@ -1904,12 +2431,12 @@ class ToneOutlineEditor(ttk.Frame):
                 "当前过程段在该主轴节点上已经存在一个波动点，不能重复占用同一时间点。",
                 parent=self.winfo_toplevel(),
             )
-            self.refresh()
+            self._sync_selection_ui(data)
             return
 
         self.selected_line_uid = line_uid
         self.selected_segment_uid = segment_uid
-        self.selected_point_uid = point_uid
+        self._set_selected_points([point_uid])
         self.selected_axis_uid = axis_uid
 
         def mutate(new_data):
@@ -2060,16 +2587,23 @@ class ToneOutlineEditor(ttk.Frame):
             extra = f" / {label}" if label else f" / {type_label}"
             self.point_list.insert(tk.END, f"{axis_title} | {amplitude:+d}{extra}")
             self.point_order.append(point.get("uid"))
-        if self.selected_point_uid in self.point_order:
-            idx = self.point_order.index(self.selected_point_uid)
+        selected_uids = [uid for uid in self.selected_point_uids if uid in self.point_order]
+        if self.selected_point_uid in self.point_order and self.selected_point_uid not in selected_uids:
+            selected_uids.insert(0, self.selected_point_uid)
+        if selected_uids:
             self.point_list.selection_clear(0, tk.END)
-            self.point_list.selection_set(idx)
-        elif self.selected_point_uid:
-            self.selected_point_uid = ""
+            for point_uid in selected_uids:
+                self.point_list.selection_set(self.point_order.index(point_uid))
+            self._set_selected_points(selected_uids)
+        elif self.selected_point_uid or self.selected_point_uids:
+            self._clear_point_selection()
 
     def _refresh_interaction_list(self, data):
         self.interaction_list.delete(0, tk.END)
         self.interaction_order = []
+        if len(self.selected_point_uids) > 1:
+            self.selected_interaction_uid = ""
+            return
         interactions = [
             interaction for interaction in data.get("interactions", [])
             if interaction.get("source_point_uid") == self.selected_point_uid
@@ -2161,7 +2695,17 @@ class ToneOutlineEditor(ttk.Frame):
     def _load_point_form(self, data):
         line = self._find_line(data, self.selected_line_uid)
         segment = self._find_segment(line, self.selected_segment_uid) if line else None
-        point = self._find_point(segment, self.selected_point_uid) if segment else None
+        selected_uids = []
+        if segment:
+            point_uids = {point.get("uid") for point in segment.get("points", []) if point.get("uid")}
+            for point_uid in self.selected_point_uids:
+                if point_uid in point_uids:
+                    selected_uids.append(point_uid)
+            if self.selected_point_uid in point_uids and self.selected_point_uid not in selected_uids:
+                selected_uids.insert(0, self.selected_point_uid)
+        point = self._find_point(segment, selected_uids[0]) if segment and selected_uids else None
+        if selected_uids:
+            self._set_selected_points(selected_uids)
         axis = self._find_axis(data, self.selected_axis_uid)
         self.point_axis_var.set(axis.get("title", "未选择节点") if axis else "未选择节点")
         self.point_status_var.set("")
@@ -2173,7 +2717,22 @@ class ToneOutlineEditor(ttk.Frame):
             self.point_tags_var.set("")
             self.point_amplitude_var.set(0.0)
             self.point_curvature_var.set(0.45)
+            if segment:
+                self.point_status_var.set("可在画布空白处拖拽框选当前过程段的多个波动点，再用右侧表单批量应用强度和曲率。")
             return
+        if len(selected_uids) > 1:
+            axis_map = {item.get("uid"): item.get("title", "未命名节点") for item in data.get("axis_nodes", [])}
+            axis_titles = [
+                axis_map.get(
+                    (self._find_point(segment, point_uid) or {}).get("axis_uid"),
+                    "未命名节点",
+                )
+                for point_uid in selected_uids[:3]
+            ]
+            preview = "、".join(axis_titles)
+            if len(selected_uids) > 3:
+                preview = f"{preview} 等"
+            self.point_axis_var.set(f"已选 {len(selected_uids)} 个节点：{preview}")
         self.point_label_var.set(point.get("label", ""))
         self.point_node_type_var.set(
             get_node_type_label(point.get("node_type", DEFAULT_NODE_TYPE))
@@ -2185,7 +2744,12 @@ class ToneOutlineEditor(ttk.Frame):
         self.point_amplitude_var.set(float(point.get("amplitude", 0)))
         self.point_curvature_var.set(float(point.get("curvature", 0.45)))
         self.point_desc_text.insert("1.0", point.get("description", ""))
-        self.point_status_var.set("可在画布上直接拖拽这个波动点，调整发生时机与强度。")
+        if len(selected_uids) > 1:
+            self.point_status_var.set(
+                f"已选中 {len(selected_uids)} 个波动点，保存将批量应用当前表单值。拖拽和作用箭头仅支持单点。"
+            )
+        else:
+            self.point_status_var.set("可在画布上直接拖拽这个波动点，调整发生时机与强度。")
 
     def _load_interaction_form(self, data):
         interaction = self._find_interaction(data, self.selected_interaction_uid)
@@ -2196,7 +2760,10 @@ class ToneOutlineEditor(ttk.Frame):
         self.interaction_target_var.set("未选择目标线段")
         self.interaction_note_text.delete("1.0", tk.END)
         if not interaction:
-            if self.selected_point_uid:
+            if len(self.selected_point_uids) > 1:
+                self.interaction_source_var.set("已选中多个波动点")
+                self.interaction_status_var.set("请只保留一个波动点后，再创建或编辑作用箭头。")
+            elif self.selected_point_uid:
                 point = self._find_point(
                     self._find_segment(
                         self._find_line(data, self.selected_line_uid),
@@ -2229,42 +2796,47 @@ class ToneOutlineEditor(ttk.Frame):
         if not selection:
             return
         self.selected_axis_uid = self.axis_order[selection[0]]
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def _on_active_line_select(self, _event=None):
         selection = self.active_line_list.curselection()
         if not selection:
             return
         self.selected_line_uid = self.active_line_order[selection[0]]
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def _on_potential_line_select(self, _event=None):
         selection = self.potential_line_list.curselection()
         if not selection:
             return
         self.selected_line_uid = self.potential_line_order[selection[0]]
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def _on_segment_list_select(self, _event=None):
         selection = self.segment_history.curselection()
         if not selection or not self.segment_order:
             return
         self.selected_segment_uid = self.segment_order[selection[0]]
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
-        self.refresh()
+        self._sync_selection_ui()
 
     def _on_point_list_select(self, _event=None):
         selection = self.point_list.curselection()
         if not selection:
             return
-        self.selected_point_uid = self.point_order[selection[0]]
+        point_uids = [
+            self.point_order[index]
+            for index in selection
+            if 0 <= index < len(self.point_order)
+        ]
+        self._set_selected_points(point_uids)
         self.selected_interaction_uid = ""
         data = self.project_manager.get_tone_outline()
         line = self._find_line(data, self.selected_line_uid)
@@ -2272,14 +2844,365 @@ class ToneOutlineEditor(ttk.Frame):
         point = self._find_point(segment, self.selected_point_uid) if segment else None
         if point:
             self.selected_axis_uid = point.get("axis_uid") or self.selected_axis_uid
-        self.refresh()
+        self._sync_selection_ui(data)
+
+    def clear_point_selection(self):
+        self._clear_point_selection()
+        self.selected_interaction_uid = ""
+        self._sync_selection_ui()
+
+    def _selected_point_uid_list(self):
+        point_uids = list(self.selected_point_uids)
+        if self.selected_point_uid and self.selected_point_uid not in point_uids:
+            point_uids.insert(0, self.selected_point_uid)
+        return [point_uid for point_uid in point_uids if point_uid]
+
+    def _ask_text_block(self, title, initial_value="", prompt=""):
+        dialog = tk.Toplevel(self.winfo_toplevel())
+        dialog.title(title)
+        dialog.transient(self.winfo_toplevel())
+        dialog.resizable(True, True)
+        dialog.geometry("460x280")
+        result = {"value": None}
+
+        ttk.Frame(dialog, padding=10).pack(fill=tk.BOTH, expand=True)
+        body = dialog.winfo_children()[0]
+        if prompt:
+            ttk.Label(body, text=prompt).pack(anchor="w", pady=(0, 6))
+        text = tk.Text(body, wrap="word", height=10)
+        text.pack(fill=tk.BOTH, expand=True)
+        text.insert("1.0", initial_value or "")
+        text.focus_set()
+
+        buttons = ttk.Frame(body)
+        buttons.pack(fill=tk.X, pady=(8, 0))
+
+        def _confirm(_event=None):
+            result["value"] = text.get("1.0", tk.END).strip()
+            dialog.destroy()
+
+        def _cancel(_event=None):
+            dialog.destroy()
+
+        ttk.Button(buttons, text="确定", command=_confirm).pack(side=tk.RIGHT)
+        ttk.Button(buttons, text="取消", command=_cancel).pack(side=tk.RIGHT, padx=(0, 6))
+        dialog.bind("<Escape>", _cancel)
+        dialog.bind("<Control-Return>", _confirm)
+        dialog.protocol("WM_DELETE_WINDOW", _cancel)
+        dialog.grab_set()
+        self.winfo_toplevel().wait_window(dialog)
+        return result["value"]
+
+    def _update_axis_fields(self, axis_uid, description, **fields):
+        if not axis_uid:
+            return
+        self.selected_axis_uid = axis_uid
+
+        def mutate(data):
+            axis = self._find_axis(data, axis_uid)
+            if axis:
+                axis.update(fields)
+
+        self._apply_update(mutate, description)
+
+    def _update_segment_fields(self, line_uid, segment_uid, description, **fields):
+        if not line_uid or not segment_uid:
+            return
+        self.selected_line_uid = line_uid
+        self.selected_segment_uid = segment_uid
+
+        def mutate(data):
+            line = self._find_line(data, line_uid)
+            segment = self._find_segment(line, segment_uid) if line else None
+            if segment:
+                segment.update(fields)
+
+        self._apply_update(mutate, description)
+
+    def _update_point_fields(self, line_uid, segment_uid, point_uids, description, **fields):
+        point_uids = [point_uid for point_uid in point_uids if point_uid]
+        if not line_uid or not segment_uid or not point_uids:
+            return
+        self.selected_line_uid = line_uid
+        self.selected_segment_uid = segment_uid
+        self._set_selected_points(point_uids)
+
+        def mutate(data):
+            line = self._find_line(data, line_uid)
+            segment = self._find_segment(line, segment_uid) if line else None
+            if not segment:
+                return
+            for point_uid in point_uids:
+                point = self._find_point(segment, point_uid)
+                if point:
+                    point.update(fields)
+
+        self._apply_update(mutate, description)
+
+    def _update_interaction_fields(self, interaction_uid, description, **fields):
+        if not interaction_uid:
+            return
+        self.selected_interaction_uid = interaction_uid
+
+        def mutate(data):
+            interaction = self._find_interaction(data, interaction_uid)
+            if interaction:
+                interaction.update(fields)
+
+        self._apply_update(mutate, description)
+
+    def show_canvas_context_menu(self, kind, payload, x_root, y_root):
+        menu = tk.Menu(self, tearoff=False)
+        if kind == "axis":
+            self._populate_axis_context_menu(menu, payload.get("axis_uid", ""))
+        elif kind == "segment":
+            self._populate_segment_context_menu(
+                menu,
+                payload.get("line_uid", ""),
+                payload.get("segment_uid", ""),
+            )
+        elif kind == "point":
+            self._populate_point_context_menu(
+                menu,
+                payload.get("line_uid", ""),
+                payload.get("segment_uid", ""),
+                payload.get("point_uid", ""),
+            )
+        elif kind == "interaction":
+            self._populate_interaction_context_menu(menu, payload.get("interaction_uid", ""))
+        if menu.index("end") is None:
+            return
+        try:
+            menu.tk_popup(x_root, y_root)
+        finally:
+            menu.grab_release()
+
+    def _populate_axis_context_menu(self, menu, axis_uid):
+        data = self.project_manager.get_tone_outline()
+        axis = self._find_axis(data, axis_uid)
+        if not axis:
+            return
+
+        def edit_title():
+            value = simpledialog.askstring(
+                "编辑节点标题",
+                "输入节点标题：",
+                initialvalue=axis.get("title", ""),
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            self._update_axis_fields(axis_uid, "右键编辑主轴节点标题", title=value.strip() or "未命名节点")
+
+        def edit_description():
+            value = self._ask_text_block("编辑节点说明", axis.get("description", ""), "输入当前主轴节点说明：")
+            if value is None:
+                return
+            self._update_axis_fields(axis_uid, "右键编辑主轴节点说明", description=value)
+
+        menu.add_command(label="编辑节点标题...", command=edit_title)
+        menu.add_command(label="编辑节点说明...", command=edit_description)
+        menu.add_separator()
+        menu.add_command(label="前移节点", command=lambda: (self.select_axis(axis_uid), self.move_axis(-1)))
+        menu.add_command(label="后移节点", command=lambda: (self.select_axis(axis_uid), self.move_axis(1)))
+        menu.add_separator()
+        menu.add_command(label="删除节点", command=lambda: (self.select_axis(axis_uid), self.delete_axis()))
+
+    def _populate_segment_context_menu(self, menu, line_uid, segment_uid):
+        data = self.project_manager.get_tone_outline()
+        line = self._find_line(data, line_uid)
+        segment = self._find_segment(line, segment_uid) if line else None
+        if not line or not segment:
+            return
+
+        def edit_title():
+            value = simpledialog.askstring(
+                "编辑阶段标题",
+                "输入阶段标题：",
+                initialvalue=segment.get("title", ""),
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            self._update_segment_fields(line_uid, segment_uid, "右键编辑过程段标题", title=value.strip())
+
+        def edit_description():
+            value = self._ask_text_block("编辑阶段说明", segment.get("description", ""), "输入当前过程段说明：")
+            if value is None:
+                return
+            self._update_segment_fields(line_uid, segment_uid, "右键编辑过程段说明", description=value)
+
+        def edit_curve(field_name, label):
+            value = simpledialog.askfloat(
+                f"编辑{label}",
+                f"输入{label}（0.10 - 1.50）：",
+                initialvalue=float(segment.get(field_name, DEFAULT_SEGMENT_CURVE)),
+                minvalue=0.10,
+                maxvalue=1.50,
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            self._update_segment_fields(
+                line_uid,
+                segment_uid,
+                f"右键编辑{label}",
+                **{field_name: round(float(value), 2)},
+            )
+
+        menu.add_command(label="编辑阶段标题...", command=edit_title)
+        menu.add_command(label="编辑阶段说明...", command=edit_description)
+        menu.add_command(label="编辑起始曲率...", command=lambda: edit_curve("start_curve", "起始曲率"))
+        menu.add_command(label="编辑结束曲率...", command=lambda: edit_curve("end_curve", "结束曲率"))
+
+        note_menu = tk.Menu(menu, tearoff=False)
+        for note_key, note_label in NOTE_TYPE_OPTIONS:
+            note_menu.add_command(
+                label=note_label,
+                command=lambda value=note_key: self._update_segment_fields(
+                    line_uid,
+                    segment_uid,
+                    "右键切换过程段说明分类",
+                    note_type=value,
+                ),
+            )
+        menu.add_cascade(label="说明分类", menu=note_menu)
+        menu.add_separator()
+        menu.add_command(label="复制一段", command=lambda: (self.select_segment(line_uid, segment_uid), self.copy_segment()))
+        menu.add_command(
+            label="删除过程段",
+            state=tk.DISABLED if line.get("line_type") == "plot" else tk.NORMAL,
+            command=lambda: (self.select_segment(line_uid, segment_uid), self.delete_segment()),
+        )
+
+    def _populate_point_context_menu(self, menu, line_uid, segment_uid, point_uid):
+        data = self.project_manager.get_tone_outline()
+        line = self._find_line(data, line_uid)
+        segment = self._find_segment(line, segment_uid) if line else None
+        point = self._find_point(segment, point_uid) if segment else None
+        if not line or not segment or not point:
+            return
+        point_uids = self._selected_point_uid_list()
+        if point_uid not in point_uids:
+            point_uids = [point_uid]
+        count = len(point_uids)
+        action_prefix = f"批量设置 {count} 个波动点" if count > 1 else "编辑波动点"
+
+        def edit_label():
+            value = simpledialog.askstring(
+                "编辑标签",
+                "输入波动点标签：",
+                initialvalue=point.get("label", ""),
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            self._update_point_fields(line_uid, segment_uid, point_uids, f"{action_prefix}标签", label=value.strip())
+
+        def edit_description():
+            value = self._ask_text_block("编辑说明", point.get("description", ""), "输入波动点说明：")
+            if value is None:
+                return
+            self._update_point_fields(line_uid, segment_uid, point_uids, f"{action_prefix}说明", description=value)
+
+        def edit_tags():
+            value = simpledialog.askstring(
+                "编辑标签组",
+                "输入标签组，使用逗号分隔：",
+                initialvalue=", ".join(point.get("tags", [])),
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            tags = [item.strip() for item in value.replace("，", ",").split(",") if item.strip()]
+            self._update_point_fields(line_uid, segment_uid, point_uids, f"{action_prefix}标签组", tags=tags)
+
+        def edit_float(field_name, title, prompt, min_value, max_value):
+            value = simpledialog.askfloat(
+                title,
+                prompt,
+                initialvalue=float(point.get(field_name, 0)),
+                minvalue=min_value,
+                maxvalue=max_value,
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            digits = 2 if field_name == "curvature" else 0
+            normalized = round(float(value), digits)
+            self._update_point_fields(line_uid, segment_uid, point_uids, f"{action_prefix}{title}", **{field_name: normalized})
+
+        menu.add_command(label="编辑标签...", command=edit_label)
+        menu.add_command(label="编辑说明...", command=edit_description)
+        menu.add_command(label="编辑标签组...", command=edit_tags)
+        menu.add_command(label="编辑波动强度...", command=lambda: edit_float("amplitude", "波动强度", "输入强度（-100 到 100）：", -100.0, 100.0))
+        menu.add_command(label="编辑节点曲率...", command=lambda: edit_float("curvature", "节点曲率", "输入曲率（0.10 到 1.50）：", 0.10, 1.50))
+
+        node_type_menu = tk.Menu(menu, tearoff=False)
+        for node_key, node_label in NODE_TYPE_OPTIONS:
+            node_type_menu.add_command(
+                label=node_label,
+                command=lambda value=node_key: self._update_point_fields(
+                    line_uid,
+                    segment_uid,
+                    point_uids,
+                    f"{action_prefix}节点类型",
+                    node_type=value,
+                ),
+            )
+        menu.add_cascade(label="节点类型", menu=node_type_menu)
+
+        note_menu = tk.Menu(menu, tearoff=False)
+        for note_key, note_label in NOTE_TYPE_OPTIONS:
+            note_menu.add_command(
+                label=note_label,
+                command=lambda value=note_key: self._update_point_fields(
+                    line_uid,
+                    segment_uid,
+                    point_uids,
+                    f"{action_prefix}说明分类",
+                    note_type=value,
+                ),
+            )
+        menu.add_cascade(label="说明分类", menu=note_menu)
+        menu.add_separator()
+        if count == 1:
+            menu.add_command(label="创建作用箭头", command=lambda: (self.select_point(line_uid, segment_uid, point_uid), self.arm_interaction_drag()))
+        menu.add_command(label="删除波动点", command=lambda: (self._set_selected_points(point_uids), self.delete_point()))
+
+    def _populate_interaction_context_menu(self, menu, interaction_uid):
+        data = self.project_manager.get_tone_outline()
+        interaction = self._find_interaction(data, interaction_uid)
+        if not interaction:
+            return
+
+        def edit_note():
+            value = self._ask_text_block("编辑箭头备注", interaction.get("note", ""), "输入作用箭头备注：")
+            if value is None:
+                return
+            self._update_interaction_fields(interaction_uid, "右键编辑作用箭头备注", note=value)
+
+        menu.add_command(label="编辑箭头备注...", command=edit_note)
+        type_menu = tk.Menu(menu, tearoff=False)
+        for interaction_key, interaction_label in INTERACTION_TYPE_OPTIONS:
+            type_menu.add_command(
+                label=interaction_label,
+                command=lambda value=interaction_key: self._update_interaction_fields(
+                    interaction_uid,
+                    "右键切换作用箭头类型",
+                    interaction_type=value,
+                ),
+            )
+        menu.add_cascade(label="箭头类型", menu=type_menu)
+        menu.add_separator()
+        menu.add_command(label="删除作用箭头", command=lambda: (self.select_interaction(interaction_uid), self.delete_interaction()))
 
     def _on_interaction_list_select(self, _event=None):
         selection = self.interaction_list.curselection()
         if not selection or not self.interaction_order:
             return
         self.selected_interaction_uid = self.interaction_order[selection[0]]
-        self.refresh()
+        self._sync_selection_ui()
 
     def add_axis(self):
         title = simpledialog.askstring("新增主轴节点", "输入节点标题：", parent=self.winfo_toplevel())
@@ -2340,7 +3263,7 @@ class ToneOutlineEditor(ttk.Frame):
                     ]
 
         self.selected_axis_uid = ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self._apply_update(mutate, "删除基调节点")
 
     def move_axis(self, delta):
@@ -2399,7 +3322,7 @@ class ToneOutlineEditor(ttk.Frame):
 
         self.selected_line_uid = new_uid
         self.selected_segment_uid = ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self._apply_update(mutate, "新增人物基调线")
 
     def introduce_line(self):
@@ -2474,7 +3397,7 @@ class ToneOutlineEditor(ttk.Frame):
         def mutate(data):
             data["lines"] = [item for item in data.get("lines", []) if item.get("uid") != self.selected_line_uid]
 
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_segment_uid = ""
         self.selected_line_uid = DEFAULT_PLOT_LINE_UID
         self._apply_update(mutate, "删除人物线")
@@ -2520,12 +3443,11 @@ class ToneOutlineEditor(ttk.Frame):
                     self.selected_segment_uid,
                     uid_generator=self.project_manager._gen_uid,
                 )
+            if new_segment_uid:
+                self.selected_segment_uid = new_segment_uid
+                self._clear_point_selection()
 
         self._apply_update(mutate, "复制过程段")
-        if new_segment_uid:
-            self.selected_segment_uid = new_segment_uid
-            self.selected_point_uid = ""
-            self.refresh()
 
     def split_selected_segment(self):
         data = self.project_manager.get_tone_outline()
@@ -2567,13 +3489,12 @@ class ToneOutlineEditor(ttk.Frame):
                     uid_generator=self.project_manager._gen_uid,
                     last_axis_uid=new_data.get("axis_nodes", [])[-1]["uid"] if new_data.get("axis_nodes") else "",
                 )
+            if right_uid:
+                self.selected_segment_uid = right_uid
+                self._clear_point_selection()
 
         self._apply_update(mutate, "拆分过程段")
-        if right_uid:
-            self.selected_segment_uid = right_uid
-            self.selected_point_uid = ""
-            self.refresh()
-        elif not left_uid:
+        if not left_uid:
             messagebox.showinfo(
                 "提示",
                 "拆分节点必须位于过程段内部，不能等于起点或终点。",
@@ -2670,12 +3591,11 @@ class ToneOutlineEditor(ttk.Frame):
                     uid_generator=self.project_manager._gen_uid,
                     conflict_strategy=conflict_strategy,
                 )
+            if merged_uid:
+                self.selected_segment_uid = merged_uid
+                self._clear_point_selection()
 
         self._apply_update(mutate, "合并过程段")
-        if merged_uid:
-            self.selected_segment_uid = merged_uid
-            self.selected_point_uid = ""
-            self.refresh()
 
     def delete_segment(self):
         line = self._find_line(self.project_manager.get_tone_outline(), self.selected_line_uid)
@@ -2693,7 +3613,7 @@ class ToneOutlineEditor(ttk.Frame):
                     if segment.get("uid") != self.selected_segment_uid
                 ]
 
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_segment_uid = ""
         self._apply_update(mutate, "删除过程段")
 
@@ -2771,16 +3691,13 @@ class ToneOutlineEditor(ttk.Frame):
                     delta,
                     uid_generator=self.project_manager._gen_uid,
                 )
+                if shifted:
+                    updated_segment = self._find_segment(target_line, self.selected_segment_uid)
+                    if updated_segment:
+                        self.selected_axis_uid = updated_segment.get("start_axis_uid") or self.selected_axis_uid
 
         self._apply_update(mutate, "平移过程段")
-        if shifted:
-            updated_data = self.project_manager.get_tone_outline()
-            updated_line = self._find_line(updated_data, self.selected_line_uid)
-            updated_segment = self._find_segment(updated_line, self.selected_segment_uid) if updated_line else None
-            if updated_segment:
-                self.selected_axis_uid = updated_segment.get("start_axis_uid") or self.selected_axis_uid
-                self.refresh()
-        else:
+        if not shifted:
             messagebox.showinfo(
                 "提示",
                 "整体平移后会超出主轴范围，无法完成本次拖拽。",
@@ -2851,7 +3768,7 @@ class ToneOutlineEditor(ttk.Frame):
                 None,
             )
             if existing:
-                self.selected_point_uid = existing.get("uid")
+                self._set_selected_points([existing.get("uid")])
                 return
             point_uid = self.project_manager._gen_uid()
             target_segment.setdefault("points", []).append(
@@ -2867,14 +3784,18 @@ class ToneOutlineEditor(ttk.Frame):
                     "tags": [],
                 }
             )
-            self.selected_point_uid = point_uid
+            self._set_selected_points([point_uid])
 
         self._apply_update(mutate, "新增波动点")
 
     def delete_point(self):
-        if not self.selected_point_uid:
+        point_uids = list(self.selected_point_uids)
+        if self.selected_point_uid and self.selected_point_uid not in point_uids:
+            point_uids.insert(0, self.selected_point_uid)
+        point_uids = [point_uid for point_uid in point_uids if point_uid]
+        if not point_uids:
             return
-        point_uid = self.selected_point_uid
+        point_uid_set = set(point_uids)
 
         def mutate(data):
             line = self._find_line(data, self.selected_line_uid)
@@ -2882,17 +3803,21 @@ class ToneOutlineEditor(ttk.Frame):
             if segment:
                 segment["points"] = [
                     point for point in segment.get("points", [])
-                    if point.get("uid") != point_uid
+                    if point.get("uid") not in point_uid_set
                 ]
 
-        self.selected_point_uid = ""
-        self._apply_update(mutate, "删除波动点")
+        self._clear_point_selection()
+        self._apply_update(mutate, "批量删除波动点" if len(point_uids) > 1 else "删除波动点")
 
     def save_point(self):
         data = self.project_manager.get_tone_outline()
         line = self._find_line(data, self.selected_line_uid)
         segment = self._find_segment(line, self.selected_segment_uid) if line else None
-        point = self._find_point(segment, self.selected_point_uid) if segment else None
+        point_uids = list(self.selected_point_uids)
+        if self.selected_point_uid and self.selected_point_uid not in point_uids:
+            point_uids.insert(0, self.selected_point_uid)
+        point_uids = [point_uid for point_uid in point_uids if point_uid]
+        point = self._find_point(segment, point_uids[0]) if segment and point_uids else None
         if not point:
             return
         label = self.point_label_var.get().strip()
@@ -2912,8 +3837,12 @@ class ToneOutlineEditor(ttk.Frame):
         def mutate(data):
             target_line = self._find_line(data, self.selected_line_uid)
             target_segment = self._find_segment(target_line, self.selected_segment_uid) if target_line else None
-            target_point = self._find_point(target_segment, self.selected_point_uid) if target_segment else None
-            if target_point:
+            if not target_segment:
+                return
+            for point_uid in point_uids:
+                target_point = self._find_point(target_segment, point_uid)
+                if not target_point:
+                    continue
                 target_point["label"] = label
                 target_point["description"] = description
                 target_point["node_type"] = node_type
@@ -2922,13 +3851,22 @@ class ToneOutlineEditor(ttk.Frame):
                 target_point["amplitude"] = amplitude
                 target_point["curvature"] = curvature
 
-        self._apply_update(mutate, "编辑波动点")
+        self._set_selected_points(point_uids)
+        self._apply_update(mutate, "批量编辑波动点" if len(point_uids) > 1 else "编辑波动点")
 
     def arm_interaction_drag(self):
+        point_uids = list(self.selected_point_uids)
+        if self.selected_point_uid and self.selected_point_uid not in point_uids:
+            point_uids.insert(0, self.selected_point_uid)
+        point_uids = [point_uid for point_uid in point_uids if point_uid]
+        if len(point_uids) > 1:
+            messagebox.showinfo("提示", "请只保留一个波动点后，再拖拽创建作用箭头。", parent=self.winfo_toplevel())
+            return
         data = self.project_manager.get_tone_outline()
         line = self._find_line(data, self.selected_line_uid)
         segment = self._find_segment(line, self.selected_segment_uid) if line else None
-        point = self._find_point(segment, self.selected_point_uid) if segment else None
+        point_uid = point_uids[0] if point_uids else self.selected_point_uid
+        point = self._find_point(segment, point_uid) if segment else None
         if not line or not segment or not point:
             messagebox.showinfo("提示", "请先选中一个波动点，再拖拽创建作用箭头。", parent=self.winfo_toplevel())
             return
@@ -2936,11 +3874,12 @@ class ToneOutlineEditor(ttk.Frame):
             self.interaction_type_var.get(),
             DEFAULT_INTERACTION_TYPE,
         )
+        self._set_selected_points([point_uid])
         self.selected_interaction_uid = ""
         self.canvas.arm_interaction_creation(
             self.selected_line_uid,
             self.selected_segment_uid,
-            self.selected_point_uid,
+            point_uid,
             point.get("axis_uid", ""),
             interaction_type,
         )
@@ -3011,19 +3950,29 @@ class ToneOutlineEditor(ttk.Frame):
                 self.selected_axis_uid = axis_nodes[0]["uid"]
 
         self.selected_segment_uid = ""
-        self.selected_point_uid = ""
+        self._clear_point_selection()
         self.selected_interaction_uid = ""
         self._apply_update(mutate, "从场景生成主轴")
 
     def _apply_update(self, mutator, description):
+        before_selection = dict(self._synced_selection_snapshot or self._capture_selection_snapshot())
         old_data = clone_tone_outline(self.project_manager.get_tone_outline())
         new_data = clone_tone_outline(old_data)
         mutator(new_data)
         ensure_tone_outline_defaults(new_data, uid_generator=self.project_manager._gen_uid)
+        after_selection = self._capture_selection_snapshot()
         if old_data == new_data:
-            self.refresh()
+            self._sync_selection_ui(old_data)
             return
-        command = UpdateToneOutlineCommand(self.project_manager, old_data, new_data, description)
+        command = UpdateToneOutlineCommand(
+            self.project_manager,
+            old_data,
+            new_data,
+            description,
+            before_selection=before_selection,
+            after_selection=after_selection,
+            selection_restorer=self._restore_selection_snapshot,
+        )
         if self.command_executor(command):
             self.refresh()
 

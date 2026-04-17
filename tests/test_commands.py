@@ -185,5 +185,33 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(reverted["lines"][0]["uid"], "plot-main")
         self.assertEqual(reverted["axis_nodes"], [])
 
+    def test_update_tone_outline_command_restores_selection_snapshots_on_execute_undo_redo(self):
+        original = self.pm.get_tone_outline()
+        updated = {
+            "axis_nodes": [
+                {"uid": "axis-1", "title": "开场", "description": ""},
+            ],
+            "lines": original.get("lines", []),
+        }
+        restored = []
+
+        cmd = UpdateToneOutlineCommand(
+            self.pm,
+            original,
+            updated,
+            before_selection={"axis_uid": "", "line_uid": "plot-main"},
+            after_selection={"axis_uid": "axis-1", "line_uid": "plot-main"},
+            selection_restorer=lambda snapshot: restored.append(dict(snapshot)),
+        )
+
+        self.assertTrue(self.history.execute_command(cmd))
+        self.assertEqual(restored[-1], {"axis_uid": "axis-1", "line_uid": "plot-main"})
+
+        self.assertTrue(self.history.undo())
+        self.assertEqual(restored[-1], {"axis_uid": "", "line_uid": "plot-main"})
+
+        self.assertTrue(self.history.redo())
+        self.assertEqual(restored[-1], {"axis_uid": "axis-1", "line_uid": "plot-main"})
+
 if __name__ == '__main__':
     unittest.main()
