@@ -6,6 +6,7 @@ DEFAULT_PLOT_LINE_UID = "plot-main"
 DEFAULT_PLOT_SEGMENT_UID = "plot-main-segment"
 DEFAULT_PLOT_LINE_COLOR = "#2563EB"
 DEFAULT_SEGMENT_CURVE = 0.35
+DEFAULT_SEGMENT_ARC = 0.0
 DEFAULT_INTERACTION_TYPE = "solid_single"
 DEFAULT_NODE_TYPE = "normal"
 DEFAULT_NOTE_TYPE = "plot"
@@ -110,6 +111,7 @@ def create_default_tone_outline() -> Dict[str, Any]:
                         "uid": DEFAULT_PLOT_SEGMENT_UID,
                         "start_axis_uid": "",
                         "end_axis_uid": "",
+                        "arc_height": DEFAULT_SEGMENT_ARC,
                         "start_curve": DEFAULT_SEGMENT_CURVE,
                         "end_curve": DEFAULT_SEGMENT_CURVE,
                         "title": "",
@@ -170,7 +172,7 @@ def get_axis_index_map(data: Dict[str, Any]) -> Dict[str, int]:
 def _axis_range_text(axis_map: Dict[str, Dict[str, Any]], start_uid: str, end_uid: str) -> str:
     start_name = axis_map.get(start_uid, {}).get("title", "未设置")
     if not end_uid:
-        return f"{start_name} -> 进行中"
+        return start_name
     end_name = axis_map.get(end_uid, {}).get("title", "未设置")
     return f"{start_name} -> {end_name}"
 
@@ -180,6 +182,32 @@ def _normalize_curve(value: Any, default: float = DEFAULT_SEGMENT_CURVE) -> floa
         return max(0.1, min(1.5, float(value)))
     except (TypeError, ValueError):
         return default
+
+
+def _legacy_curve_to_arc_height(start_curve: Any, end_curve: Any) -> float:
+    average_curve = (
+        _normalize_curve(start_curve)
+        + _normalize_curve(end_curve)
+    ) / 2.0
+    return max(-100.0, min(100.0, (average_curve - DEFAULT_SEGMENT_CURVE) * 100.0))
+
+
+def _normalize_arc_height(value: Any, default: float = DEFAULT_SEGMENT_ARC) -> float:
+    try:
+        return max(-100.0, min(100.0, float(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _get_segment_arc_height(segment: Dict[str, Any]) -> float:
+    if not isinstance(segment, dict):
+        return DEFAULT_SEGMENT_ARC
+    if segment.get("arc_height") is not None:
+        return _normalize_arc_height(segment.get("arc_height"))
+    return _legacy_curve_to_arc_height(
+        segment.get("start_curve"),
+        segment.get("end_curve"),
+    )
 
 
 def _normalize_point(
@@ -310,6 +338,118 @@ def _assign_legacy_points_to_segments(
             break
 
 
+def _get_segment_point_axis_uids(
+    points: List[Dict[str, Any]],
+    axis_index_map: Dict[str, int],
+) -> List[str]:
+    point_axis_uids = [
+        point.get("axis_uid")
+        for point in points
+        if point.get("axis_uid") in axis_index_map
+    ]
+    point_axis_uids.sort(key=lambda axis_uid: axis_index_map.get(axis_uid, 10**6))
+    return point_axis_uids
+
+
+def _sync_segment_bounds_with_points(
+    segment: Dict[str, Any],
+    axis_index_map: Dict[str, int],
+) -> bool:
+    points = [
+        point
+        for point in segment.get("points", [])
+        if point.get("axis_uid") in axis_index_map
+    ]
+    _sort_points(points, axis_index_map)
+    segment["points"] = points
+
+    point_axis_uids = _get_segment_point_axis_uids(points, axis_index_map)
+    if not point_axis_uids:
+        segment["start_axis_uid"] = ""
+        segment["end_axis_uid"] = ""
+        return False
+
+    segment["start_axis_uid"] = point_axis_uids[0]
+    segment["end_axis_uid"] = point_axis_uids[-1]
+    return True
+
+
+def sync_line_segments_with_points(
+    line: Dict[str, Any],
+    axis_index_map: Dict[str, int],
+) -> List[Dict[str, Any]]:
+    segments = [
+        segment
+        for segment in line.get("segments", [])
+        if isinstance(segment, dict)
+    ]
+
+    if line.get("line_type") == "plot":
+        if not segments:
+            segments = [
+                {
+                    "uid": DEFAULT_PLOT_SEGMENT_UID,
+                    "start_axis_uid": "",
+                    "end_axis_uid": "",
+                    "arc_height": DEFAULT_SEGMENT_ARC,
+                    "start_curve": DEFAULT_SEGMENT_CURVE,
+                    "end_curve": DEFAULT_SEGMENT_CURVE,
+                    "title": "",
+                    "description": "",
+                    "note_type": DEFAULT_NOTE_TYPE,
+                    "points": [],
+                }
+            ]
+        plot_segment = segments[0]
+        plot_segment["uid"] = DEFAULT_PLOT_SEGMENT_UID
+        _sync_segment_bounds_with_points(plot_segment, axis_index_map)
+        line["segments"] = [plot_segment]
+        return line["segments"]
+
+    normalized_segments = []
+    for segment in segments:
+        if _sync_segment_bounds_with_points(segment, axis_index_map):
+            normalized_segments.append(segment)
+
+    normalized_segments.sort(
+        key=lambda seg: (
+            axis_index_map.get(seg.get("start_axis_uid"), 10**6),
+            axis_index_map.get(seg.get("end_axis_uid"), 10**6),
+        )
+    )
+    line["segments"] = normalized_segments
+    return line["segments"]
+
+
+def _resolve_segment_display_bounds(
+    segment: Dict[str, Any],
+    points: List[Dict[str, Any]],
+    axis_index_map: Dict[str, int],
+) -> tuple[str, str]:
+    point_axis_uids = _get_segment_point_axis_uids(points, axis_index_map)
+    point_start = point_axis_uids[0] if point_axis_uids else ""
+    point_end = point_axis_uids[-1] if point_axis_uids else ""
+
+    if point_start:
+        return point_start, point_end or point_start
+
+    start_uid = segment.get("start_axis_uid") or ""
+    end_uid = segment.get("end_axis_uid") or start_uid
+
+    if start_uid not in axis_index_map:
+        start_uid = ""
+    if end_uid not in axis_index_map:
+        end_uid = start_uid
+
+    if (
+        start_uid in axis_index_map
+        and end_uid in axis_index_map
+        and axis_index_map[end_uid] < axis_index_map[start_uid]
+    ):
+        start_uid, end_uid = end_uid, start_uid
+    return start_uid, end_uid
+
+
 def _normalize_plot_segments(
     line: Dict[str, Any],
     axis_index_map: Dict[str, int],
@@ -339,6 +479,7 @@ def _normalize_plot_segments(
             "uid": DEFAULT_PLOT_SEGMENT_UID,
             "start_axis_uid": "",
             "end_axis_uid": "",
+            "arc_height": _get_segment_arc_height(first_segment),
             "start_curve": _normalize_curve(first_segment.get("start_curve")),
             "end_curve": _normalize_curve(first_segment.get("end_curve")),
             "title": first_segment.get("title") or "",
@@ -364,6 +505,12 @@ def _normalize_character_segments(
     if not isinstance(raw_segments, list):
         raw_segments = []
 
+    legacy_points = _normalize_point_list(
+        line.get("nodes", []),
+        uid,
+        axis_index_map,
+        uid_generator,
+    )
     legacy_start = line.get("start_axis_uid")
     legacy_end = line.get("end_axis_uid")
     if not raw_segments and legacy_start in axis_index_map:
@@ -372,6 +519,19 @@ def _normalize_character_segments(
                 "uid": line.get("segment_uid") or "",
                 "start_axis_uid": legacy_start,
                 "end_axis_uid": legacy_end or "",
+                "arc_height": DEFAULT_SEGMENT_ARC,
+                "start_curve": DEFAULT_SEGMENT_CURVE,
+                "end_curve": DEFAULT_SEGMENT_CURVE,
+                "points": [],
+            }
+        ]
+    elif not raw_segments and legacy_points:
+        raw_segments = [
+            {
+                "uid": line.get("segment_uid") or "",
+                "start_axis_uid": legacy_points[0].get("axis_uid", ""),
+                "end_axis_uid": legacy_points[-1].get("axis_uid", ""),
+                "arc_height": DEFAULT_SEGMENT_ARC,
                 "start_curve": DEFAULT_SEGMENT_CURVE,
                 "end_curve": DEFAULT_SEGMENT_CURVE,
                 "points": [],
@@ -383,14 +543,6 @@ def _normalize_character_segments(
     for seg_index, segment in enumerate(raw_segments):
         if not isinstance(segment, dict):
             continue
-        start_uid = segment.get("start_axis_uid")
-        if start_uid not in axis_index_map:
-            continue
-        end_uid = segment.get("end_axis_uid") or ""
-        if end_uid and end_uid not in axis_index_map:
-            end_uid = ""
-        if end_uid and axis_index_map[end_uid] < axis_index_map[start_uid]:
-            start_uid, end_uid = end_uid, start_uid
 
         segment_uid = segment.get("uid") or (
             uid_generator() if uid_generator else f"{uid}-segment-{seg_index + 1}"
@@ -405,22 +557,13 @@ def _normalize_character_segments(
             axis_index_map,
             uid_generator,
         )
-        points = [
-            point
-            for point in points
-            if axis_in_segment(
-                point.get("axis_uid"),
-                {"start_axis_uid": start_uid, "end_axis_uid": end_uid},
-                axis_index_map,
-                last_axis_uid=last_axis_uid,
-            )
-        ]
 
         normalized.append(
             {
                 "uid": segment_uid,
-                "start_axis_uid": start_uid,
-                "end_axis_uid": end_uid,
+                "start_axis_uid": segment.get("start_axis_uid") or "",
+                "end_axis_uid": segment.get("end_axis_uid") or "",
+                "arc_height": _get_segment_arc_height(segment),
                 "start_curve": _normalize_curve(segment.get("start_curve")),
                 "end_curve": _normalize_curve(segment.get("end_curve")),
                 "title": segment.get("title") or "",
@@ -433,22 +576,6 @@ def _normalize_character_segments(
                 "points": points,
             }
         )
-
-    normalized.sort(
-        key=lambda seg: (
-            axis_index_map.get(seg.get("start_axis_uid"), 10**6),
-            axis_index_map.get(seg.get("end_axis_uid"), 10**6)
-            if seg.get("end_axis_uid")
-            else 10**6,
-        )
-    )
-
-    legacy_points = _normalize_point_list(
-        line.get("nodes", []),
-        uid,
-        axis_index_map,
-        uid_generator,
-    )
     if normalized and legacy_points:
         _assign_legacy_points_to_segments(
             normalized,
@@ -457,7 +584,12 @@ def _normalize_character_segments(
             last_axis_uid,
         )
 
-    return normalized
+    temp_line = {
+        "line_type": "character",
+        "segments": normalized,
+    }
+    sync_line_segments_with_points(temp_line, axis_index_map)
+    return temp_line["segments"]
 
 
 def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -474,11 +606,15 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
             if point.get("axis_uid") in axis_index_map
         ]
         _sort_points(points, axis_index_map)
+        start_uid, end_uid = _resolve_segment_display_bounds(raw_segment, points, axis_index_map)
+        if start_uid not in axis_index_map:
+            return []
         return [
             {
                 "uid": raw_segment.get("uid") or DEFAULT_PLOT_SEGMENT_UID,
-                "start_axis_uid": axis_nodes[0]["uid"],
-                "end_axis_uid": axis_nodes[-1]["uid"],
+                "start_axis_uid": start_uid,
+                "end_axis_uid": end_uid,
+                "arc_height": _get_segment_arc_height(raw_segment),
                 "start_curve": _normalize_curve(raw_segment.get("start_curve")),
                 "end_curve": _normalize_curve(raw_segment.get("end_curve")),
                 "title": raw_segment.get("title") or "",
@@ -494,14 +630,20 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
 
     display_segments = []
     for segment in line.get("segments", []):
-        start_uid = segment.get("start_axis_uid")
+        points = [
+            point
+            for point in segment.get("points", [])
+            if point.get("axis_uid") in axis_index_map
+        ]
+        start_uid, end_uid = _resolve_segment_display_bounds(segment, points, axis_index_map)
         if start_uid not in axis_index_map:
             continue
         display_segments.append(
             {
                 "uid": segment.get("uid"),
                 "start_axis_uid": start_uid,
-                "end_axis_uid": segment.get("end_axis_uid") or "",
+                "end_axis_uid": end_uid,
+                "arc_height": _get_segment_arc_height(segment),
                 "start_curve": _normalize_curve(segment.get("start_curve")),
                 "end_curve": _normalize_curve(segment.get("end_curve")),
                 "title": segment.get("title") or "",
@@ -511,27 +653,10 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
                     NOTE_TYPE_LABELS,
                     DEFAULT_NOTE_TYPE,
                 ),
-                "points": [
-                    point
-                    for point in segment.get("points", [])
-                    if point.get("axis_uid") in axis_index_map
-                ],
+                "points": points,
             }
         )
     return display_segments
-
-
-def get_open_segment(line: Dict[str, Any]) -> Dict[str, Any] | None:
-    if line.get("line_type") != "character":
-        return None
-    for segment in reversed(line.get("segments", [])):
-        if not segment.get("end_axis_uid"):
-            return segment
-    return None
-
-
-def is_character_line_potential(line: Dict[str, Any]) -> bool:
-    return line.get("line_type") == "character" and get_open_segment(line) is None
 
 
 def line_covers_axis(data: Dict[str, Any], line: Dict[str, Any], axis_uid: str) -> bool:
@@ -696,6 +821,7 @@ def duplicate_segment(
     line: Dict[str, Any],
     segment_uid: str,
     uid_generator: Callable[[], str] | None = None,
+    axis_index_map: Dict[str, int] | None = None,
 ) -> str:
     segments = line.get("segments", [])
     for index, segment in enumerate(segments):
@@ -711,6 +837,7 @@ def duplicate_segment(
             "uid": new_uid,
             "start_axis_uid": segment.get("start_axis_uid", ""),
             "end_axis_uid": segment.get("end_axis_uid", ""),
+            "arc_height": _get_segment_arc_height(segment),
             "start_curve": _normalize_curve(segment.get("start_curve")),
             "end_curve": _normalize_curve(segment.get("end_curve")),
             "title": segment.get("title") or "",
@@ -722,6 +849,8 @@ def duplicate_segment(
             ),
             "points": copied_points,
         }
+        if axis_index_map:
+            _sync_segment_bounds_with_points(copied_segment, axis_index_map)
         segments.insert(index + 1, copied_segment)
         return new_uid
     return ""
@@ -817,10 +946,7 @@ def split_segment(
 
         left_uid = uid_generator() if uid_generator else f"{segment_uid}-left"
         right_uid = uid_generator() if uid_generator else f"{segment_uid}-right"
-        join_curve = (
-            _normalize_curve(segment.get("start_curve"))
-            + _normalize_curve(segment.get("end_curve"))
-        ) / 2.0
+        arc_height = _get_segment_arc_height(segment)
 
         left_points = []
         right_points = []
@@ -842,8 +968,9 @@ def split_segment(
             "uid": left_uid,
             "start_axis_uid": start_uid,
             "end_axis_uid": split_axis_uid,
+            "arc_height": arc_height,
             "start_curve": _normalize_curve(segment.get("start_curve")),
-            "end_curve": join_curve,
+            "end_curve": _normalize_curve(segment.get("end_curve")),
             "title": segment.get("title") or "",
             "description": segment.get("description") or "",
             "note_type": _normalize_choice(
@@ -857,7 +984,8 @@ def split_segment(
             "uid": right_uid,
             "start_axis_uid": split_axis_uid,
             "end_axis_uid": segment.get("end_axis_uid", ""),
-            "start_curve": join_curve,
+            "arc_height": arc_height,
+            "start_curve": _normalize_curve(segment.get("start_curve")),
             "end_curve": _normalize_curve(segment.get("end_curve")),
             "title": segment.get("title") or "",
             "description": segment.get("description") or "",
@@ -870,68 +998,18 @@ def split_segment(
         }
         _sort_points(left_segment["points"], axis_index_map)
         _sort_points(right_segment["points"], axis_index_map)
-        segments[index:index + 1] = [left_segment, right_segment]
+        replacement_segments = []
+        if _sync_segment_bounds_with_points(left_segment, axis_index_map):
+            replacement_segments.append(left_segment)
+        else:
+            left_uid = ""
+        if _sync_segment_bounds_with_points(right_segment, axis_index_map):
+            replacement_segments.append(right_segment)
+        else:
+            right_uid = ""
+        segments[index:index + 1] = replacement_segments
         return (left_uid, right_uid)
     return ("", "")
-
-
-def shift_segment(
-    line: Dict[str, Any],
-    segment_uid: str,
-    axis_uids: List[str],
-    delta: int,
-    uid_generator: Callable[[], str] | None = None,
-) -> bool:
-    if not delta:
-        return False
-    axis_index_map = {axis_uid: index for index, axis_uid in enumerate(axis_uids)}
-    segments = line.get("segments", [])
-    for segment in segments:
-        if segment.get("uid") != segment_uid:
-            continue
-        start_uid = segment.get("start_axis_uid")
-        end_uid = segment.get("end_axis_uid") or ""
-        if (
-            start_uid not in axis_index_map
-            or not end_uid
-            or end_uid not in axis_index_map
-        ):
-            return False
-        new_start_index = axis_index_map[start_uid] + delta
-        new_end_index = axis_index_map[end_uid] + delta
-        if (
-            new_start_index < 0
-            or new_end_index >= len(axis_uids)
-            or new_start_index >= len(axis_uids)
-            or new_end_index < 0
-        ):
-            return False
-
-        point_map = {
-            axis_uid: axis_uids[axis_index_map[axis_uid] + delta]
-            for axis_uid in [
-                point.get("axis_uid")
-                for point in segment.get("points", [])
-                if point.get("axis_uid") in axis_index_map
-            ]
-        }
-
-        segment["start_axis_uid"] = axis_uids[new_start_index]
-        segment["end_axis_uid"] = axis_uids[new_end_index]
-        for point_index, point in enumerate(segment.get("points", []), start=1):
-            old_axis_uid = point.get("axis_uid")
-            if old_axis_uid not in point_map:
-                continue
-            point["axis_uid"] = point_map[old_axis_uid]
-            if not point.get("uid"):
-                point["uid"] = (
-                    uid_generator()
-                    if uid_generator
-                    else f"{segment_uid}-shift-{point_index}"
-                )
-        _sort_points(segment.get("points", []), axis_index_map)
-        return True
-    return False
 
 
 def merge_adjacent_segments(
@@ -998,6 +1076,9 @@ def merge_adjacent_segments(
         "uid": merged_uid,
         "start_axis_uid": first_segment.get("start_axis_uid", ""),
         "end_axis_uid": second_segment.get("end_axis_uid", ""),
+        "arc_height": (
+            _get_segment_arc_height(first_segment) + _get_segment_arc_height(second_segment)
+        ) / 2.0,
         "start_curve": _normalize_curve(first_segment.get("start_curve")),
         "end_curve": _normalize_curve(second_segment.get("end_curve")),
         "title": first_segment.get("title") or second_segment.get("title") or "",
@@ -1009,6 +1090,7 @@ def merge_adjacent_segments(
         ),
         "points": merged_points,
     }
+    _sync_segment_bounds_with_points(merged_segment, axis_index_map)
     segments[first_index:second_index + 1] = [merged_segment]
     return merged_uid
 
@@ -1107,6 +1189,7 @@ def ensure_tone_outline_defaults(
             "visible": _normalize_flag(line.get("visible"), default=True),
             "segments": segments,
         }
+        sync_line_segments_with_points(normalized_line, axis_index_map)
 
         if line_type == "plot" and plot_line is None:
             plot_line = normalized_line
@@ -1150,7 +1233,7 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     for line in data.get("lines", []):
         status_text = "主轴情节线"
         if line.get("line_type") == "character":
-            status_text = "潜在线" if is_character_line_potential(line) else "活动线"
+            status_text = "人物线"
         if not _normalize_flag(line.get("visible"), default=True):
             status_text = f"{status_text} / 已隐藏"
 
@@ -1160,8 +1243,8 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             segment_summaries.append(
                 {
                     "uid": "",
-                    "range_text": "未引入，保存在潜在栏",
-                    "state_text": "潜在",
+                    "range_text": "尚未形成波动点",
+                    "state_text": "空线",
                     "curve_text": "",
                     "segment_note": "",
                     "segment_title": "",
@@ -1179,7 +1262,7 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             if line.get("line_type") == "plot":
                 state_text = "全程"
             else:
-                state_text = "进行中" if not segment.get("end_axis_uid") else f"第{segment_index + 1}段"
+                state_text = f"第{segment_index + 1}段"
             items = []
             for point in segment.get("points", []):
                 if not axis_in_segment(
@@ -1207,7 +1290,7 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "uid": segment.get("uid"),
                     "range_text": range_text,
                     "state_text": state_text,
-                    "curve_text": f"{segment.get('start_curve', DEFAULT_SEGMENT_CURVE):.2f} / {segment.get('end_curve', DEFAULT_SEGMENT_CURVE):.2f}",
+                    "curve_text": f"拱度 {_get_segment_arc_height(segment):+.0f}",
                     "segment_note": segment.get("description") or "",
                     "segment_title": segment.get("title") or "",
                     "segment_note_type": get_note_type_label(

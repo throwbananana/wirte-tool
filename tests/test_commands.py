@@ -178,7 +178,7 @@ class TestCommands(unittest.TestCase):
             tone_outline["lines"][0]["segments"][0]["points"][0]["label"],
             "抬升",
         )
-        self.assertEqual(tone_outline["lines"][1]["segments"][0]["start_axis_uid"], "axis-1")
+        self.assertEqual(tone_outline["lines"][1]["segments"], [])
 
         self.assertTrue(self.history.undo())
         reverted = self.pm.get_tone_outline()

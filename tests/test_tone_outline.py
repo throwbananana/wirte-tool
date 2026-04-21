@@ -9,11 +9,11 @@ from writer_app.core.tone_outline import (
     build_timeline_summary,
     duplicate_segment,
     ensure_tone_outline_defaults,
+    get_display_segments,
     merge_adjacent_segments,
-    shift_segment,
     split_segment,
 )
-from writer_app.ui.tone_outline import find_points_in_selection
+from writer_app.ui.tone_outline import find_points_in_selection, find_virtual_point_axes
 
 
 class TestToneOutline(unittest.TestCase):
@@ -88,7 +88,14 @@ class TestToneOutline(unittest.TestCase):
                                 "uid": DEFAULT_PLOT_SEGMENT_UID,
                                 "start_curve": 0.4,
                                 "end_curve": 0.9,
-                                "points": [],
+                                "points": [
+                                    {
+                                        "uid": "plot-point",
+                                        "axis_uid": "axis-2",
+                                        "amplitude": 10,
+                                        "curvature": 0.5,
+                                    }
+                                ],
                             }
                         ],
                     }
@@ -98,7 +105,165 @@ class TestToneOutline(unittest.TestCase):
 
         summaries = build_line_summary(data)
 
-        self.assertEqual(summaries[0]["segments"][0]["curve_text"], "0.40 / 0.90")
+        self.assertAlmostEqual(data["lines"][0]["segments"][0]["arc_height"], 30.0)
+        self.assertEqual(summaries[0]["segments"][0]["curve_text"], "拱度 +30")
+
+    def test_line_summary_uses_point_driven_character_status_labels(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "开场", "description": ""},
+                    {"uid": "axis-2", "title": "冲突", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "points": [
+                                    {
+                                        "uid": "plot-point",
+                                        "axis_uid": "axis-2",
+                                        "amplitude": 15,
+                                        "curvature": 0.5,
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "uid": "hero-line",
+                        "name": "主角线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "seg-1",
+                                "points": [
+                                    {
+                                        "uid": "hero-point",
+                                        "axis_uid": "axis-2",
+                                        "amplitude": 35,
+                                        "curvature": 0.6,
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                ],
+            }
+        )
+
+        summaries = build_line_summary(data)
+
+        self.assertEqual(summaries[1]["status_text"], "人物线")
+        self.assertEqual(summaries[1]["segments"][0]["state_text"], "第1段")
+
+    def test_display_segments_follow_real_point_span_instead_of_full_axis_range(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "开场", "description": ""},
+                    {"uid": "axis-2", "title": "空节点", "description": ""},
+                    {"uid": "axis-3", "title": "冲突", "description": ""},
+                    {"uid": "axis-4", "title": "终局", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "points": [
+                                    {"uid": "plot-point", "axis_uid": "axis-3", "amplitude": 30, "curvature": 0.5}
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "uid": "hero-line",
+                        "name": "主角线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "hero-seg",
+                                "start_axis_uid": "axis-1",
+                                "end_axis_uid": "",
+                                "points": [
+                                    {"uid": "hero-point", "axis_uid": "axis-3", "amplitude": 20, "curvature": 0.5}
+                                ],
+                            }
+                        ],
+                    },
+                ],
+            }
+        )
+
+        plot_segment = get_display_segments(data, data["lines"][0])[0]
+        hero_segment = get_display_segments(data, data["lines"][1])[0]
+
+        self.assertEqual(plot_segment["start_axis_uid"], "axis-3")
+        self.assertEqual(plot_segment["end_axis_uid"], "axis-3")
+        self.assertEqual(hero_segment["start_axis_uid"], "axis-3")
+        self.assertEqual(hero_segment["end_axis_uid"], "axis-3")
+
+    def test_defaults_sync_character_segment_bounds_from_points_and_prune_empty_segments(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "开场", "description": ""},
+                    {"uid": "axis-2", "title": "铺垫", "description": ""},
+                    {"uid": "axis-3", "title": "冲突", "description": ""},
+                    {"uid": "axis-4", "title": "爆发", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [{"uid": DEFAULT_PLOT_SEGMENT_UID, "points": []}],
+                    },
+                    {
+                        "uid": "hero-line",
+                        "name": "主角线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "hero-stale",
+                                "start_axis_uid": "axis-1",
+                                "end_axis_uid": "axis-2",
+                                "points": [
+                                    {
+                                        "uid": "hero-point",
+                                        "axis_uid": "axis-4",
+                                        "amplitude": 42,
+                                        "curvature": 0.6,
+                                    }
+                                ],
+                            },
+                            {
+                                "uid": "hero-empty",
+                                "start_axis_uid": "axis-2",
+                                "end_axis_uid": "axis-3",
+                                "points": [],
+                            },
+                        ],
+                    },
+                ],
+            }
+        )
+
+        hero_segments = data["lines"][1]["segments"]
+
+        self.assertEqual(len(hero_segments), 1)
+        self.assertEqual(hero_segments[0]["uid"], "hero-stale")
+        self.assertEqual(hero_segments[0]["start_axis_uid"], "axis-4")
+        self.assertEqual(hero_segments[0]["end_axis_uid"], "axis-4")
+        self.assertEqual(hero_segments[0]["points"][0]["axis_uid"], "axis-4")
 
     def test_duplicate_split_and_merge_segment_helpers(self):
         data = ensure_tone_outline_defaults(
@@ -132,7 +297,7 @@ class TestToneOutline(unittest.TestCase):
                                     },
                                     {
                                         "uid": "p-2",
-                                        "axis_uid": "axis-3",
+                                        "axis_uid": "axis-4",
                                         "amplitude": 50,
                                         "curvature": 0.8,
                                         "label": "爆发",
@@ -155,6 +320,8 @@ class TestToneOutline(unittest.TestCase):
         self.assertTrue(duplicated_uid)
         self.assertEqual(len(line["segments"]), 2)
         self.assertNotEqual(line["segments"][1]["points"][0]["uid"], "p-1")
+        self.assertEqual(line["segments"][0]["arc_height"], 25.0)
+        self.assertEqual(line["segments"][1]["arc_height"], 25.0)
 
         line["segments"] = [line["segments"][0]]
         left_uid, right_uid = split_segment(
@@ -166,8 +333,12 @@ class TestToneOutline(unittest.TestCase):
         self.assertTrue(left_uid)
         self.assertTrue(right_uid)
         self.assertEqual(len(line["segments"]), 2)
-        self.assertEqual(line["segments"][0]["end_axis_uid"], "axis-3")
-        self.assertEqual(line["segments"][1]["start_axis_uid"], "axis-3")
+        self.assertEqual(line["segments"][0]["start_axis_uid"], "axis-2")
+        self.assertEqual(line["segments"][0]["end_axis_uid"], "axis-2")
+        self.assertEqual(line["segments"][1]["start_axis_uid"], "axis-4")
+        self.assertEqual(line["segments"][1]["end_axis_uid"], "axis-4")
+        self.assertEqual(line["segments"][0]["arc_height"], 25.0)
+        self.assertEqual(line["segments"][1]["arc_height"], 25.0)
 
         merged_uid = merge_adjacent_segments(
             line,
@@ -177,8 +348,9 @@ class TestToneOutline(unittest.TestCase):
         )
         self.assertTrue(merged_uid)
         self.assertEqual(len(line["segments"]), 1)
-        self.assertEqual(line["segments"][0]["start_axis_uid"], "axis-1")
+        self.assertEqual(line["segments"][0]["start_axis_uid"], "axis-2")
         self.assertEqual(line["segments"][0]["end_axis_uid"], "axis-4")
+        self.assertEqual(line["segments"][0]["arc_height"], 25.0)
 
     def test_merge_conflicts_can_prefer_second_segment(self):
         data = ensure_tone_outline_defaults(
@@ -249,54 +421,6 @@ class TestToneOutline(unittest.TestCase):
         self.assertTrue(merged_uid)
         self.assertEqual(len(line["segments"]), 1)
         self.assertEqual(line["segments"][0]["points"][0]["label"], "后段")
-
-    def test_shift_segment_moves_boundaries_and_points_together(self):
-        data = ensure_tone_outline_defaults(
-            {
-                "axis_nodes": [
-                    {"uid": "axis-1", "title": "开场", "description": ""},
-                    {"uid": "axis-2", "title": "冲突", "description": ""},
-                    {"uid": "axis-3", "title": "转折", "description": ""},
-                    {"uid": "axis-4", "title": "终局", "description": ""},
-                ],
-                "lines": [
-                    {
-                        "uid": "hero-line",
-                        "name": "主角线",
-                        "line_type": "character",
-                        "segments": [
-                            {
-                                "uid": "seg-1",
-                                "start_axis_uid": "axis-1",
-                                "end_axis_uid": "axis-3",
-                                "points": [
-                                    {
-                                        "uid": "p-1",
-                                        "axis_uid": "axis-2",
-                                        "amplitude": 22,
-                                        "curvature": 0.6,
-                                        "label": "中段",
-                                        "description": "",
-                                    }
-                                ],
-                            }
-                        ],
-                    }
-                ],
-            }
-        )
-        line = data["lines"][1]
-        shifted = shift_segment(
-            line,
-            "seg-1",
-            ["axis-1", "axis-2", "axis-3", "axis-4"],
-            1,
-        )
-
-        self.assertTrue(shifted)
-        self.assertEqual(line["segments"][0]["start_axis_uid"], "axis-2")
-        self.assertEqual(line["segments"][0]["end_axis_uid"], "axis-4")
-        self.assertEqual(line["segments"][0]["points"][0]["axis_uid"], "axis-3")
 
     def test_interactions_are_normalized_and_included_in_summaries(self):
         data = ensure_tone_outline_defaults(
@@ -553,6 +677,50 @@ class TestToneOutline(unittest.TestCase):
         )
 
         self.assertEqual(selected, ["p-1"])
+
+    def test_find_virtual_point_axes_returns_missing_axes_inside_segment_span(self):
+        axis_nodes = [
+            {"uid": "axis-1", "title": "开场"},
+            {"uid": "axis-2", "title": "铺垫"},
+            {"uid": "axis-3", "title": "冲突"},
+            {"uid": "axis-4", "title": "收束"},
+        ]
+        axis_index_map = {
+            axis["uid"]: index
+            for index, axis in enumerate(axis_nodes)
+        }
+        segment = {
+            "start_axis_uid": "axis-1",
+            "end_axis_uid": "axis-4",
+            "points": [
+                {"uid": "p-1", "axis_uid": "axis-1"},
+                {"uid": "p-3", "axis_uid": "axis-3"},
+            ],
+        }
+
+        virtual_axes = find_virtual_point_axes(axis_nodes, segment, axis_index_map)
+
+        self.assertEqual(virtual_axes, ["axis-2", "axis-4"])
+
+    def test_find_virtual_point_axes_returns_empty_when_segment_missing_bounds(self):
+        axis_nodes = [
+            {"uid": "axis-1", "title": "开场"},
+            {"uid": "axis-2", "title": "冲突"},
+        ]
+        axis_index_map = {
+            axis["uid"]: index
+            for index, axis in enumerate(axis_nodes)
+        }
+
+        self.assertEqual(find_virtual_point_axes(axis_nodes, None, axis_index_map), [])
+        self.assertEqual(
+            find_virtual_point_axes(
+                axis_nodes,
+                {"start_axis_uid": "", "end_axis_uid": "", "points": []},
+                axis_index_map,
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

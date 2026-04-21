@@ -8,6 +8,7 @@ from writer_app.core.tone_outline import (
     DEFAULT_NODE_TYPE,
     DEFAULT_NOTE_TYPE,
     DEFAULT_PLOT_LINE_UID,
+    DEFAULT_SEGMENT_ARC,
     DEFAULT_SEGMENT_CURVE,
     INTERACTION_TYPE_LABELS,
     NODE_TYPE_LABELS,
@@ -25,13 +26,10 @@ from writer_app.core.tone_outline import (
     get_axis_index_map,
     get_display_segments,
     get_next_tone_line_color,
-    get_open_segment,
     get_interaction_label,
     get_node_type_label,
     get_note_type_label,
-    is_character_line_potential,
     merge_adjacent_segments,
-    shift_segment,
     split_segment,
 )
 
@@ -41,7 +39,7 @@ def _range_text(axis_map, segment):
     end_uid = segment.get("end_axis_uid")
     start_text = axis_map.get(start_uid, {}).get("title", "未设置")
     if not end_uid:
-        return f"{start_text} -> 进行中"
+        return start_text
     end_text = axis_map.get(end_uid, {}).get("title", "未设置")
     return f"{start_text} -> {end_text}"
 
@@ -80,6 +78,29 @@ def find_points_in_selection(point_positions, line_uid, segment_uid, start_x, st
     return [item.get("point_uid", "") for item in matches if item.get("point_uid")]
 
 
+def find_virtual_point_axes(axis_nodes, segment, axis_index_map):
+    if not segment:
+        return []
+    start_uid = segment.get("start_axis_uid")
+    end_uid = segment.get("end_axis_uid") or start_uid
+    if start_uid not in axis_index_map or end_uid not in axis_index_map:
+        return []
+    start_index = axis_index_map[start_uid]
+    end_index = axis_index_map[end_uid]
+    if end_index < start_index:
+        start_index, end_index = end_index, start_index
+    occupied_axis_uids = {
+        point.get("axis_uid")
+        for point in segment.get("points", [])
+        if point.get("axis_uid") in axis_index_map
+    }
+    return [
+        axis.get("uid", "")
+        for axis in axis_nodes[start_index:end_index + 1]
+        if axis.get("uid") and axis.get("uid") not in occupied_axis_uids
+    ]
+
+
 class ToneOutlineCanvas(tk.Canvas):
     def __init__(
         self,
@@ -90,9 +111,8 @@ class ToneOutlineCanvas(tk.Canvas):
         on_points_selected,
         on_context_requested,
         on_interaction_selected,
-        on_segment_boundary_drag,
+        on_segment_arc_drag,
         on_drag_preview,
-        on_segment_shift_drag,
         on_point_drag,
         on_point_drag_preview,
         on_interaction_created,
@@ -108,9 +128,8 @@ class ToneOutlineCanvas(tk.Canvas):
         self.on_points_selected = on_points_selected
         self.on_context_requested = on_context_requested
         self.on_interaction_selected = on_interaction_selected
-        self.on_segment_boundary_drag = on_segment_boundary_drag
+        self.on_segment_arc_drag = on_segment_arc_drag
         self.on_drag_preview = on_drag_preview
-        self.on_segment_shift_drag = on_segment_shift_drag
         self.on_point_drag = on_point_drag
         self.on_point_drag_preview = on_point_drag_preview
         self.on_interaction_created = on_interaction_created
@@ -127,11 +146,11 @@ class ToneOutlineCanvas(tk.Canvas):
         self._axis_positions = {}
         self._axis_slots = {}
         self._point_positions = []
+        self._virtual_point_positions = []
         self._chart_bounds = (0, 0, 0)
         self._chart_x_bounds = (0, 0)
         self._dragging_boundary = None
         self._dragging_point = None
-        self._drag_target_axis_uid = ""
         self._interaction_arm = None
         self._dragging_interaction = None
         self._selection_box = None
@@ -251,7 +270,7 @@ class ToneOutlineCanvas(tk.Canvas):
             self.create_text(
                 width / 2,
                 height / 2 + 12,
-                text="人物线会先进入潜在栏，在任意节点引入；收束后回到潜在栏，可再次跨节点引入。",
+                text="先创建主轴节点和人物线，再直接拖拽真实点或虚拟点生成波动关系。",
                 fill=colors["muted"],
                 font=("Microsoft YaHei", 9),
             )
@@ -278,6 +297,7 @@ class ToneOutlineCanvas(tk.Canvas):
         self._chart_bounds = (chart_top, chart_bottom, baseline_y)
         self._chart_x_bounds = (margin_left, total_width - margin_right)
         self._point_positions = []
+        self._virtual_point_positions = []
 
         self.create_line(
             margin_left,
@@ -386,40 +406,41 @@ class ToneOutlineCanvas(tk.Canvas):
                         tags=segment_tags,
                         smooth=True,
                     )
-                    if is_selected and line.get("line_type") == "character":
-                        start_x = self._axis_positions[start_uid]
-                        end_x = self._axis_positions[end_uid]
-                        handle_radius = 6
-                        for handle_x, handle_label, boundary in (
-                            (start_x, "S", "start"),
-                            (end_x, "E", "end"),
-                        ):
-                            handle_tags = segment_tags + (f"handle:{line['uid']}:{segment_uid}:{boundary}",)
+                    if is_selected:
+                        arc_handle = self._get_segment_arc_handle_position(
+                            segment,
+                            start_uid,
+                            end_uid,
+                            baseline_y,
+                            amplitude_scale,
+                        )
+                        if arc_handle:
+                            arc_x, arc_y, _arc_height = arc_handle
+                            curve_tags = segment_tags + (f"curvehandle:{line['uid']}:{segment_uid}",)
+                            self.create_line(
+                                arc_x,
+                                baseline_y,
+                                arc_x,
+                                arc_y,
+                                fill="#60A5FA",
+                                width=1,
+                                dash=(4, 3),
+                                tags=curve_tags,
+                            )
                             self.create_oval(
-                                handle_x - handle_radius,
-                                baseline_y - handle_radius,
-                                handle_x + handle_radius,
-                                baseline_y + handle_radius,
-                                fill="#DBEAFE",
+                                arc_x - 6,
+                                arc_y - 6,
+                                arc_x + 6,
+                                arc_y + 6,
+                                fill="#F0FDFA",
                                 outline=colors["selected"],
                                 width=2,
-                                tags=handle_tags,
+                                tags=curve_tags,
                             )
-                            self.create_text(
-                                handle_x,
-                                baseline_y,
-                                text=handle_label,
-                                fill=colors["selected"],
-                                font=("Arial", 7, "bold"),
-                                tags=handle_tags,
-                            )
-
                 label_offset += 1
                 status_suffix = ""
                 if line.get("line_type") == "plot":
                     status_suffix = " / 全程"
-                elif not segment.get("end_axis_uid"):
-                    status_suffix = " / 进行中"
                 self.create_text(
                     self._axis_positions[start_uid] + 16,
                     baseline_y + 16 + ((label_offset % 4) * 14),
@@ -493,6 +514,37 @@ class ToneOutlineCanvas(tk.Canvas):
                         font=("Arial", 8),
                         tags=tags,
                     )
+                if line.get("uid") == self.selected_line_uid:
+                    self._draw_virtual_points_for_segment(
+                        axis_nodes,
+                        axis_index_map,
+                        line,
+                        segment,
+                        sampled,
+                        baseline_y,
+                        amplitude_scale,
+                        colors,
+                    )
+
+        selected_line = next(
+            (
+                line for line in data.get("lines", [])
+                if line.get("uid") == self.selected_line_uid
+            ),
+            None,
+        )
+        if (
+            selected_line
+            and selected_line.get("visible", True)
+            and not get_display_segments(data, selected_line)
+        ):
+            self._draw_virtual_points_for_empty_line(
+                axis_nodes,
+                baseline_y,
+                amplitude_scale,
+                selected_line,
+                colors,
+            )
 
         self._rebuild_axis_slots(data, baseline_y, amplitude_scale)
         self._draw_interactions(data)
@@ -582,6 +634,16 @@ class ToneOutlineCanvas(tk.Canvas):
                             "segment": segment,
                             "point": point,
                         }
+        return None
+
+    def _find_virtual_point_context(self, line_uid, segment_uid, axis_uid):
+        for item in self._virtual_point_positions:
+            if (
+                item.get("line_uid") == line_uid
+                and item.get("segment_uid", "") == (segment_uid or "")
+                and item.get("axis_uid") == axis_uid
+            ):
+                return item
         return None
 
     def _get_slot_for_segment(self, axis_uid, line_uid, segment_uid):
@@ -734,12 +796,13 @@ class ToneOutlineCanvas(tk.Canvas):
         anchor_pad = 0 if line.get("line_type") == "plot" else 22
         start_anchor_x = max(min_x, start_x - anchor_pad) if start_x != end_x else start_x
         end_anchor_x = min(max_x, end_x + anchor_pad) if start_x != end_x else end_x
+        arc_height = max(-100.0, min(100.0, float(segment.get("arc_height", DEFAULT_SEGMENT_ARC))))
 
         points = [
             {
                 "x": start_anchor_x,
                 "y": baseline_y,
-                "curvature": float(segment.get("start_curve", DEFAULT_SEGMENT_CURVE)),
+                "curvature": DEFAULT_SEGMENT_CURVE,
             }
         ]
         for point in segment.get("points", []):
@@ -750,16 +813,150 @@ class ToneOutlineCanvas(tk.Canvas):
                     "curvature": float(point.get("curvature", 0.45)),
                 }
             )
+        if abs(arc_height) > 0.01 and end_anchor_x != start_anchor_x:
+            arc_x = (start_anchor_x + end_anchor_x) / 2.0
+            if any(abs(item["x"] - arc_x) < 1.0 for item in points):
+                arc_x += 0.5
+            points.append(
+                {
+                    "x": arc_x,
+                    "y": baseline_y - arc_height * amplitude_scale,
+                    "curvature": 0.55,
+                }
+            )
         if end_anchor_x != start_anchor_x or len(points) == 1:
             points.append(
                 {
                     "x": end_anchor_x,
                     "y": baseline_y,
-                    "curvature": float(segment.get("end_curve", DEFAULT_SEGMENT_CURVE)),
+                    "curvature": DEFAULT_SEGMENT_CURVE,
                 }
             )
         points.sort(key=lambda item: item["x"])
         return points
+
+    def _draw_virtual_points_for_segment(
+        self,
+        axis_nodes,
+        axis_index_map,
+        line,
+        segment,
+        sampled,
+        baseline_y,
+        amplitude_scale,
+        colors,
+    ):
+        for axis_uid in find_virtual_point_axes(axis_nodes, segment, axis_index_map):
+            if axis_uid not in self._axis_positions:
+                continue
+            x = self._axis_positions[axis_uid]
+            y = self._estimate_curve_y(sampled, x, baseline_y)
+            self._draw_virtual_point_handle(
+                line.get("uid", ""),
+                segment.get("uid", ""),
+                axis_uid,
+                x,
+                y,
+                line.get("color") or "#2563EB",
+                colors["selected"],
+                baseline_y,
+                amplitude_scale,
+            )
+
+    def _draw_virtual_points_for_empty_line(
+        self,
+        axis_nodes,
+        baseline_y,
+        amplitude_scale,
+        line,
+        colors,
+    ):
+        default_segment_uid = ""
+        segments = line.get("segments", [])
+        if segments:
+            default_segment_uid = segments[0].get("uid", "")
+        for axis in axis_nodes:
+            axis_uid = axis.get("uid")
+            if axis_uid not in self._axis_positions:
+                continue
+            self._draw_virtual_point_handle(
+                line.get("uid", ""),
+                default_segment_uid,
+                axis_uid,
+                self._axis_positions[axis_uid],
+                baseline_y,
+                line.get("color") or "#2563EB",
+                colors["selected"],
+                baseline_y,
+                amplitude_scale,
+            )
+
+    def _draw_virtual_point_handle(
+        self,
+        line_uid,
+        segment_uid,
+        axis_uid,
+        x,
+        y,
+        line_color,
+        selected_color,
+        baseline_y,
+        amplitude_scale,
+    ):
+        tags = (
+            "ghostpoint",
+            f"line:{line_uid}",
+            f"ghostpoint:{line_uid}:{segment_uid}:{axis_uid}",
+        )
+        self.create_oval(
+            x - 5,
+            y - 5,
+            x + 5,
+            y + 5,
+            fill="#FFFFFF",
+            outline=line_color,
+            width=2,
+            dash=(2, 2),
+            tags=tags,
+        )
+        self.create_oval(
+            x - 2,
+            y - 2,
+            x + 2,
+            y + 2,
+            fill=selected_color,
+            outline="",
+            tags=tags,
+        )
+        self._virtual_point_positions.append(
+            {
+                "line_uid": line_uid,
+                "segment_uid": segment_uid or "",
+                "axis_uid": axis_uid,
+                "x": x,
+                "y": y,
+                "amplitude": (baseline_y - y) / amplitude_scale if amplitude_scale else 0.0,
+            }
+        )
+
+    def _get_segment_arc_handle_position(
+        self,
+        segment,
+        start_uid,
+        end_uid,
+        baseline_y,
+        amplitude_scale,
+    ):
+        if start_uid not in self._axis_positions or end_uid not in self._axis_positions:
+            return None
+        start_x = self._axis_positions[start_uid]
+        end_x = self._axis_positions[end_uid]
+        arc_height = max(-100.0, min(100.0, float(segment.get("arc_height", DEFAULT_SEGMENT_ARC))))
+        return (
+            (start_x + end_x) / 2.0,
+            baseline_y - arc_height * amplitude_scale,
+            arc_height,
+        )
 
     def _sample_curve(self, points):
         if len(points) < 2:
@@ -871,128 +1068,83 @@ class ToneOutlineCanvas(tk.Canvas):
 
     def _draw_drag_preview(self):
         self.delete("drag-preview")
-        if (
-            not self._drag_target_axis_uid
-            or self._drag_target_axis_uid not in self._axis_positions
-            or not self._dragging_boundary
-        ):
+        if not self._dragging_boundary:
             return
         chart_top, chart_bottom, baseline_y = self._chart_bounds
         preview_color = self._theme_color("accent", "#2563EB")
         preview_glow = "#DBEAFE"
-        mode = self._dragging_boundary.get("mode", "boundary")
-        if mode == "shift":
-            preview = self._get_shift_preview_segment()
-            if preview:
-                line, segment, axis_index_map = preview
-                start_uid = segment.get("start_axis_uid")
-                end_uid = segment.get("end_axis_uid") or start_uid
-                min_x, max_x = self._chart_x_bounds
-                amplitude_scale = (chart_bottom - chart_top) / 220.0
-                sampled = self._sample_curve(
-                    self._build_segment_points(
-                        line,
-                        segment,
-                        start_uid,
-                        end_uid,
-                        baseline_y,
-                        amplitude_scale,
-                        min_x,
-                        max_x,
-                        axis_index_map,
-                    )
-                )
-                if len(sampled) >= 4:
-                    flattened = [value for point in sampled for value in point]
-                    self.create_line(
-                        *flattened,
-                        fill=preview_glow,
-                        width=7,
-                        tags=("drag-preview",),
-                        smooth=True,
-                    )
-                    self.create_line(
-                        *flattened,
-                        fill=preview_color,
-                        width=3,
-                        dash=(10, 6),
-                        tags=("drag-preview",),
-                        smooth=True,
-                    )
-                for point in segment.get("points", []):
-                    axis_uid = point.get("axis_uid")
-                    if axis_uid not in self._axis_positions:
-                        continue
-                    x = self._axis_positions[axis_uid]
-                    y = baseline_y - float(point.get("amplitude", 0)) * amplitude_scale
-                    self.create_oval(
-                        x - 5,
-                        y - 5,
-                        x + 5,
-                        y + 5,
-                        fill="#FFFFFF",
-                        outline=preview_color,
-                        width=2,
-                        tags=("drag-preview",),
-                    )
-            for axis_uid, label in self._get_shift_preview_axes():
-                if axis_uid not in self._axis_positions:
-                    continue
-                x = self._axis_positions[axis_uid]
-                self.create_line(
-                    x,
-                    chart_top,
-                    x,
-                    chart_bottom,
-                    fill="#60A5FA",
-                    width=2,
-                    dash=(6, 4),
-                    tags=("drag-preview",),
-                )
-                self.create_oval(
-                    x - 9,
-                    baseline_y - 9,
-                    x + 9,
-                    baseline_y + 9,
-                    fill=preview_glow,
-                    outline=preview_color,
-                    width=2,
-                    tags=("drag-preview",),
-                )
-                self.create_text(
-                    x,
-                    baseline_y,
-                    text=label,
-                    fill=preview_color,
-                    font=("Arial", 7, "bold"),
-                    tags=("drag-preview",),
-                )
+        preview = self._get_arc_preview_segment()
+        if not preview:
             return
-
-        x = self._axis_positions[self._drag_target_axis_uid]
-        self.create_line(
-            x,
-            chart_top,
-            x,
-            chart_bottom,
-            fill="#60A5FA",
-            width=2,
-            dash=(6, 4),
-            tags=("drag-preview",),
+        line, segment, axis_index_map, axis_nodes = preview
+        start_uid = segment.get("start_axis_uid")
+        end_uid = segment.get("end_axis_uid") or (axis_nodes[-1]["uid"] if axis_nodes else "")
+        if start_uid not in self._axis_positions or end_uid not in self._axis_positions:
+            return
+        min_x, max_x = self._chart_x_bounds
+        amplitude_scale = (chart_bottom - chart_top) / 220.0 if chart_bottom > chart_top else 1.0
+        sampled = self._sample_curve(
+            self._build_segment_points(
+                line,
+                segment,
+                start_uid,
+                end_uid,
+                baseline_y,
+                amplitude_scale,
+                min_x,
+                max_x,
+                axis_index_map,
+            )
         )
-        self.create_oval(
-            x - 9,
-            baseline_y - 9,
-            x + 9,
-            baseline_y + 9,
-            fill=preview_glow,
-            outline=preview_color,
-            width=2,
-            tags=("drag-preview",),
+        if len(sampled) >= 4:
+            flattened = [value for point in sampled for value in point]
+            self.create_line(
+                *flattened,
+                fill=preview_glow,
+                width=7,
+                tags=("drag-preview",),
+                smooth=True,
+            )
+            self.create_line(
+                *flattened,
+                fill=preview_color,
+                width=3,
+                dash=(10, 6),
+                tags=("drag-preview",),
+                smooth=True,
+            )
+        arc_handle = self._get_segment_arc_handle_position(
+            segment,
+            start_uid,
+            end_uid,
+            baseline_y,
+            amplitude_scale,
         )
+        if arc_handle:
+            arc_x, arc_y, _arc_height = arc_handle
+            self.create_line(
+                arc_x,
+                baseline_y,
+                arc_x,
+                arc_y,
+                fill="#60A5FA",
+                width=2,
+                dash=(6, 4),
+                tags=("drag-preview",),
+            )
+            self.create_oval(
+                arc_x - 8,
+                arc_y - 8,
+                arc_x + 8,
+                arc_y + 8,
+                fill=preview_glow,
+                outline=preview_color,
+                width=2,
+                tags=("drag-preview",),
+            )
 
-    def _get_shift_preview_segment(self):
-        if not self.data or not self._dragging_boundary:
+    def _get_arc_preview_segment(self):
+        if not self.data or not self._dragging_boundary or self._dragging_boundary.get("mode") != "arc":
             return None
         data = ensure_tone_outline_defaults(clone_tone_outline(self.data or {}))
         line_uid = self._dragging_boundary.get("line_uid")
@@ -1001,60 +1153,11 @@ class ToneOutlineCanvas(tk.Canvas):
         segment = next((item for item in (line or {}).get("segments", []) if item.get("uid") == segment_uid), None)
         if not line or not segment:
             return None
-        axis_uids = [axis.get("uid") for axis in data.get("axis_nodes", []) if axis.get("uid")]
-        axis_index_map = {axis_uid: index for index, axis_uid in enumerate(axis_uids)}
-        start_uid = segment.get("start_axis_uid")
-        end_uid = segment.get("end_axis_uid")
-        origin_axis_uid = self._dragging_boundary.get("origin_axis_uid")
-        if (
-            start_uid not in axis_index_map
-            or end_uid not in axis_index_map
-            or origin_axis_uid not in axis_index_map
-            or self._drag_target_axis_uid not in axis_index_map
-        ):
-            return None
-        delta = axis_index_map[self._drag_target_axis_uid] - axis_index_map[origin_axis_uid]
-        new_start_index = axis_index_map[start_uid] + delta
-        new_end_index = axis_index_map[end_uid] + delta
-        if (
-            new_start_index < 0
-            or new_end_index < 0
-            or new_start_index >= len(axis_uids)
-            or new_end_index >= len(axis_uids)
-        ):
-            return None
-        shifted_segment = {
-            "uid": segment.get("uid", ""),
-            "start_axis_uid": axis_uids[new_start_index],
-            "end_axis_uid": axis_uids[new_end_index],
-            "start_curve": segment.get("start_curve", DEFAULT_SEGMENT_CURVE),
-            "end_curve": segment.get("end_curve", DEFAULT_SEGMENT_CURVE),
-            "points": [],
-        }
-        for point in segment.get("points", []):
-            point_axis_uid = point.get("axis_uid")
-            if point_axis_uid not in axis_index_map:
-                continue
-            new_point_index = axis_index_map[point_axis_uid] + delta
-            if new_point_index < 0 or new_point_index >= len(axis_uids):
-                return None
-            shifted_point = dict(point)
-            shifted_point["axis_uid"] = axis_uids[new_point_index]
-            shifted_segment["points"].append(shifted_point)
-        shifted_segment["points"].sort(
-            key=lambda item: axis_index_map.get(item.get("axis_uid"), -1)
+        preview_segment = dict(segment)
+        preview_segment["arc_height"] = float(
+            self._dragging_boundary.get("target_arc_height", segment.get("arc_height", DEFAULT_SEGMENT_ARC))
         )
-        return line, shifted_segment, axis_index_map
-
-    def _get_shift_preview_axes(self):
-        preview = self._get_shift_preview_segment()
-        if not preview:
-            return []
-        _line, segment, _axis_index_map = preview
-        return [
-            (segment.get("start_axis_uid"), "S"),
-            (segment.get("end_axis_uid"), "E"),
-        ]
+        return line, preview_segment, get_axis_index_map(data), data.get("axis_nodes", [])
 
     def _emit_drag_preview(self):
         if not self.on_drag_preview:
@@ -1062,22 +1165,8 @@ class ToneOutlineCanvas(tk.Canvas):
         if not self._dragging_boundary:
             self.on_drag_preview("")
             return
-        data = ensure_tone_outline_defaults(clone_tone_outline(self.data or {}))
-        axis_map = {axis["uid"]: axis for axis in data.get("axis_nodes", [])}
-        mode = self._dragging_boundary.get("mode", "boundary")
-        if mode == "shift":
-            preview_axes = self._get_shift_preview_axes()
-            if len(preview_axes) == 2:
-                start_title = axis_map.get(preview_axes[0][0], {}).get("title", "未设置")
-                end_title = axis_map.get(preview_axes[1][0], {}).get("title", "未设置")
-                self.on_drag_preview(f"拖拽预览：整段平移到 {start_title} -> {end_title}")
-                return
-            self.on_drag_preview("拖拽预览：整段平移超出主轴范围")
-            return
-
-        target_title = axis_map.get(self._drag_target_axis_uid, {}).get("title", "未设置")
-        boundary_label = "起点" if self._dragging_boundary.get("boundary") == "start" else "终点"
-        self.on_drag_preview(f"拖拽预览：{boundary_label} -> {target_title}")
+        arc_height = float(self._dragging_boundary.get("target_arc_height", DEFAULT_SEGMENT_ARC))
+        self.on_drag_preview(f"拖拽预览：中段拱度 {arc_height:+.0f}")
 
     def _emit_point_preview(self, message):
         if self.on_point_drag_preview:
@@ -1108,23 +1197,42 @@ class ToneOutlineCanvas(tk.Canvas):
             None,
         )
         axis_nodes = data.get("axis_nodes", [])
-        if not line or not segment or not axis_nodes or not target_axis_uid:
+        if not line or not axis_nodes or not target_axis_uid:
             return [], ""
-        start_uid = segment.get("start_axis_uid")
-        end_uid = segment.get("end_axis_uid") or axis_nodes[-1]["uid"]
+        preview_segment = dict(segment or {})
+        preview_points = []
+        if segment:
+            for point in segment.get("points", []):
+                preview_point = dict(point)
+                if preview_point.get("uid") == point_uid:
+                    preview_point["axis_uid"] = target_axis_uid
+                    preview_point["amplitude"] = float(
+                        self._dragging_point.get("target_amplitude", preview_point.get("amplitude", 0))
+                    )
+                preview_points.append(preview_point)
+        if not point_uid:
+            preview_points.append(
+                {
+                    "uid": "",
+                    "axis_uid": target_axis_uid,
+                    "amplitude": float(self._dragging_point.get("target_amplitude", 0)),
+                    "curvature": 0.45,
+                }
+            )
+        preview_segment["points"] = preview_points
+        point_axis_uids = [
+            point.get("axis_uid")
+            for point in preview_points
+            if point.get("axis_uid") in self._axis_positions
+        ]
+        if not point_axis_uids:
+            return [], line.get("color") or "#2563EB"
+        axis_index_map = get_axis_index_map(data)
+        point_axis_uids.sort(key=lambda axis_uid: axis_index_map.get(axis_uid, 10**6))
+        start_uid = point_axis_uids[0]
+        end_uid = point_axis_uids[-1]
         if start_uid not in self._axis_positions or end_uid not in self._axis_positions:
             return [], ""
-
-        preview_segment = dict(segment)
-        preview_segment["points"] = []
-        for point in segment.get("points", []):
-            preview_point = dict(point)
-            if preview_point.get("uid") == point_uid:
-                preview_point["axis_uid"] = target_axis_uid
-                preview_point["amplitude"] = float(
-                    self._dragging_point.get("target_amplitude", preview_point.get("amplitude", 0))
-                )
-            preview_segment["points"].append(preview_point)
 
         chart_top, chart_bottom, baseline_y = self._chart_bounds
         amplitude_scale = (chart_bottom - chart_top) / 220.0 if chart_bottom > chart_top else 1.0
@@ -1138,7 +1246,7 @@ class ToneOutlineCanvas(tk.Canvas):
                 amplitude_scale,
                 self._chart_x_bounds[0],
                 self._chart_x_bounds[1],
-                get_axis_index_map(data),
+                axis_index_map,
             )
         )
         return sampled, line.get("color") or "#2563EB"
@@ -1287,18 +1395,38 @@ class ToneOutlineCanvas(tk.Canvas):
                 self.on_interaction_selected(interaction_uid)
                 return
         for tag in tags:
-            if tag.startswith("handle:"):
-                _, line_uid, segment_uid, boundary = tag.split(":", 3)
+            if tag.startswith("curvehandle:"):
+                _, line_uid, segment_uid = tag.split(":", 2)
+                current_arc = DEFAULT_SEGMENT_ARC
+                if self.data:
+                    line = next((item for item in (self.data or {}).get("lines", []) if item.get("uid") == line_uid), None)
+                    segment = next((item for item in (line or {}).get("segments", []) if item.get("uid") == segment_uid), None)
+                    if segment:
+                        current_arc = float(segment.get("arc_height", DEFAULT_SEGMENT_ARC))
                 self._dragging_boundary = {
-                    "mode": "boundary",
+                    "mode": "arc",
                     "line_uid": line_uid,
                     "segment_uid": segment_uid,
-                    "boundary": boundary,
+                    "target_arc_height": current_arc,
                 }
-                self._drag_target_axis_uid = self._nearest_axis_uid(x)
                 self.on_segment_selected(line_uid, segment_uid)
                 self._emit_drag_preview()
                 self._draw_drag_preview()
+                return
+        for tag in tags:
+            if tag.startswith("ghostpoint:"):
+                _, line_uid, segment_uid, axis_uid = tag.split(":", 3)
+                self.on_segment_selected(line_uid, segment_uid)
+                ghost_context = self._find_virtual_point_context(line_uid, segment_uid, axis_uid) or {}
+                self._dragging_point = {
+                    "line_uid": line_uid,
+                    "segment_uid": segment_uid,
+                    "point_uid": "",
+                    "target_axis_uid": axis_uid,
+                    "target_amplitude": float(ghost_context.get("amplitude", 0)),
+                }
+                self._draw_point_drag_preview()
+                self._emit_point_preview("拖拽预览：从虚拟节点拖出真实波动点，可上下调强度、左右延展关系。")
                 return
         for tag in tags:
             if tag.startswith("point:"):
@@ -1319,21 +1447,6 @@ class ToneOutlineCanvas(tk.Canvas):
         for tag in tags:
             if tag.startswith("segment:"):
                 _, line_uid, segment_uid = tag.split(":", 2)
-                if line_uid == self.selected_line_uid and segment_uid == self.selected_segment_uid:
-                    data = ensure_tone_outline_defaults(clone_tone_outline(self.data or {}))
-                    line = next((item for item in data.get("lines", []) if item.get("uid") == line_uid), None)
-                    segment = next((item for item in (line or {}).get("segments", []) if item.get("uid") == segment_uid), None)
-                    if line and segment and line.get("line_type") == "character" and segment.get("end_axis_uid"):
-                        self._dragging_boundary = {
-                            "mode": "shift",
-                            "line_uid": line_uid,
-                            "segment_uid": segment_uid,
-                            "origin_axis_uid": self._nearest_axis_uid(x),
-                        }
-                        self._drag_target_axis_uid = self._nearest_axis_uid(x)
-                        self._emit_drag_preview()
-                        self._draw_drag_preview()
-                        return
                 self.on_segment_selected(line_uid, segment_uid)
                 return
         for tag in tags:
@@ -1406,8 +1519,13 @@ class ToneOutlineCanvas(tk.Canvas):
             return
         if not self._dragging_boundary:
             return
-        canvas_x = self.canvasx(event.x)
-        self._drag_target_axis_uid = self._nearest_axis_uid(canvas_x)
+        canvas_y = self.canvasy(event.y)
+        chart_top, chart_bottom, baseline_y = self._chart_bounds
+        amplitude_scale = (chart_bottom - chart_top) / 220.0 if chart_bottom > chart_top else 1.0
+        self._dragging_boundary["target_arc_height"] = max(
+            -100.0,
+            min(100.0, (baseline_y - canvas_y) / amplitude_scale),
+        )
         self._emit_drag_preview()
         self._draw_drag_preview()
 
@@ -1469,28 +1587,16 @@ class ToneOutlineCanvas(tk.Canvas):
             return
         if not self._dragging_boundary:
             return
-        canvas_x = self.canvasx(event.x)
-        target_axis_uid = self._drag_target_axis_uid or self._nearest_axis_uid(canvas_x)
         dragging_info = dict(self._dragging_boundary)
         self._dragging_boundary = None
-        self._drag_target_axis_uid = ""
         self.delete("drag-preview")
         self._emit_drag_preview()
-        if target_axis_uid:
-            if dragging_info.get("mode") == "shift":
-                self.on_segment_shift_drag(
-                    dragging_info["line_uid"],
-                    dragging_info["segment_uid"],
-                    dragging_info.get("origin_axis_uid", ""),
-                    target_axis_uid,
-                )
-            else:
-                self.on_segment_boundary_drag(
-                    dragging_info["line_uid"],
-                    dragging_info["segment_uid"],
-                    dragging_info["boundary"],
-                    target_axis_uid,
-                )
+        if self.on_segment_arc_drag:
+            self.on_segment_arc_drag(
+                dragging_info.get("line_uid", ""),
+                dragging_info.get("segment_uid", ""),
+                float(dragging_info.get("target_arc_height", DEFAULT_SEGMENT_ARC)),
+            )
 
     def _handle_context_menu(self, event):
         x = self.canvasx(event.x)
@@ -1769,7 +1875,6 @@ class ToneOutlineEditor(ttk.Frame):
         self.selected_interaction_uid = ""
         self.axis_order = []
         self.active_line_order = []
-        self.potential_line_order = []
         self.segment_order = []
         self.point_order = []
         self.interaction_order = []
@@ -1787,10 +1892,7 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_end_var = tk.StringVar()
         self.segment_title_var = tk.StringVar()
         self.segment_note_type_var = tk.StringVar(value=NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
-        self.segment_start_curve_var = tk.DoubleVar(value=DEFAULT_SEGMENT_CURVE)
-        self.segment_end_curve_var = tk.DoubleVar(value=DEFAULT_SEGMENT_CURVE)
-        self.segment_start_curve_display_var = tk.StringVar()
-        self.segment_end_curve_display_var = tk.StringVar()
+        self.segment_arc_display_var = tk.StringVar()
         self.point_axis_var = tk.StringVar()
         self.point_label_var = tk.StringVar()
         self.point_node_type_var = tk.StringVar(value=NODE_TYPE_LABELS[DEFAULT_NODE_TYPE])
@@ -1806,16 +1908,6 @@ class ToneOutlineEditor(ttk.Frame):
         self.interaction_source_var = tk.StringVar()
         self.interaction_target_var = tk.StringVar()
 
-        self._bind_scale_display(
-            self.segment_start_curve_var,
-            self.segment_start_curve_display_var,
-            lambda value: f"{float(value):.2f}",
-        )
-        self._bind_scale_display(
-            self.segment_end_curve_var,
-            self.segment_end_curve_display_var,
-            lambda value: f"{float(value):.2f}",
-        )
         self._bind_scale_display(
             self.point_amplitude_var,
             self.point_amplitude_display_var,
@@ -1918,26 +2010,15 @@ class ToneOutlineEditor(ttk.Frame):
         if self.selected_axis_uid not in self.axis_order:
             self.selected_axis_uid = self.axis_order[0] if self.axis_order else ""
 
-        active_lines = []
-        potential_lines = []
-        for line in data.get("lines", []):
-            if line.get("line_type") == "plot" or not is_character_line_potential(line):
-                active_lines.append(line)
-            else:
-                potential_lines.append(line)
+        active_lines = list(data.get("lines", []))
         self.active_line_order = [line["uid"] for line in active_lines]
-        self.potential_line_order = [line["uid"] for line in potential_lines]
 
-        all_line_ids = set(self.active_line_order + self.potential_line_order)
+        all_line_ids = set(self.active_line_order)
         if self.selected_line_uid not in all_line_ids:
             self.selected_line_uid = (
                 DEFAULT_PLOT_LINE_UID
                 if DEFAULT_PLOT_LINE_UID in all_line_ids
-                else (
-                    self.active_line_order[0]
-                    if self.active_line_order
-                    else (self.potential_line_order[0] if self.potential_line_order else "")
-                )
+                else (self.active_line_order[0] if self.active_line_order else "")
             )
 
         selected_line = self._find_line(data, self.selected_line_uid)
@@ -1945,8 +2026,7 @@ class ToneOutlineEditor(ttk.Frame):
         if self.selected_segment_uid not in self.segment_order:
             default_segment = None
             if selected_line:
-                default_segment = get_open_segment(selected_line) if selected_line.get("line_type") == "character" else None
-                if not default_segment and selected_line.get("segments"):
+                if selected_line.get("segments"):
                     default_segment = selected_line["segments"][0]
             self.selected_segment_uid = default_segment.get("uid") if default_segment else ""
 
@@ -1967,7 +2047,7 @@ class ToneOutlineEditor(ttk.Frame):
         if self.selected_interaction_uid and not self._find_interaction(data, self.selected_interaction_uid):
             self.selected_interaction_uid = ""
 
-        return active_lines, potential_lines
+        return active_lines
 
     def _sync_axis_list_selection(self):
         self.axis_list.selection_clear(0, tk.END)
@@ -1976,11 +2056,8 @@ class ToneOutlineEditor(ttk.Frame):
 
     def _sync_line_list_selection(self):
         self.active_line_list.selection_clear(0, tk.END)
-        self.potential_line_list.selection_clear(0, tk.END)
         if self.selected_line_uid in self.active_line_order:
             self.active_line_list.selection_set(self.active_line_order.index(self.selected_line_uid))
-        elif self.selected_line_uid in self.potential_line_order:
-            self.potential_line_list.selection_set(self.potential_line_order.index(self.selected_line_uid))
 
     def _sync_selection_ui(self, data=None):
         data = data or self.project_manager.get_tone_outline()
@@ -2030,7 +2107,7 @@ class ToneOutlineEditor(ttk.Frame):
         toolbar.pack(fill=tk.X, padx=8, pady=8)
         ttk.Label(
             toolbar,
-            text="人物线先进入潜在栏，选中主轴节点后可引入；现在可按过程段单独设置起止节点与端点曲率。",
+            text="人物线直接由真实波动点决定范围，可在任意主轴节点拖拽实点或虚拟点生成关系。",
         ).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="从场景生成主轴", command=self.import_axis_from_scenes).pack(side=tk.RIGHT, padx=(6, 0))
         ttk.Button(toolbar, text="刷新", command=self.refresh).pack(side=tk.RIGHT)
@@ -2053,9 +2130,8 @@ class ToneOutlineEditor(ttk.Frame):
             on_points_selected=self.select_points,
             on_context_requested=self.show_canvas_context_menu,
             on_interaction_selected=self.select_interaction,
-            on_segment_boundary_drag=self.move_segment_boundary,
+            on_segment_arc_drag=self.move_segment_arc,
             on_drag_preview=self.preview_drag_status,
-            on_segment_shift_drag=self.shift_segment_drag,
             on_point_drag=self.move_point_by_drag,
             on_point_drag_preview=self.preview_point_drag_status,
             on_interaction_created=self.create_interaction_from_drag,
@@ -2104,21 +2180,14 @@ class ToneOutlineEditor(ttk.Frame):
         line_frame = ttk.LabelFrame(config_frame, text="线管理")
         line_frame.pack(fill=tk.X, pady=(0, 8))
 
-        ttk.Label(line_frame, text="活动线").pack(anchor="w", padx=6, pady=(6, 0))
+        ttk.Label(line_frame, text="线列表").pack(anchor="w", padx=6, pady=(6, 0))
         self.active_line_list = tk.Listbox(line_frame, height=4, exportselection=False)
         self.active_line_list.pack(fill=tk.X, padx=6, pady=(0, 4))
         self.active_line_list.bind("<<ListboxSelect>>", self._on_active_line_select)
 
-        ttk.Label(line_frame, text="潜在栏").pack(anchor="w", padx=6, pady=(4, 0))
-        self.potential_line_list = tk.Listbox(line_frame, height=4, exportselection=False)
-        self.potential_line_list.pack(fill=tk.X, padx=6, pady=(0, 4))
-        self.potential_line_list.bind("<<ListboxSelect>>", self._on_potential_line_select)
-
         line_btns = ttk.Frame(line_frame)
         line_btns.pack(fill=tk.X, padx=6, pady=(2, 0))
         ttk.Button(line_btns, text="新增人物线", command=self.add_character_line).pack(side=tk.LEFT)
-        ttk.Button(line_btns, text="在当前节点引入", command=self.introduce_line).pack(side=tk.LEFT, padx=(4, 0))
-        ttk.Button(line_btns, text="在当前节点收束", command=self.converge_line).pack(side=tk.LEFT, padx=(4, 0))
         ttk.Button(line_btns, text="删除线", command=self.delete_line).pack(side=tk.LEFT, padx=(12, 0))
 
         ttk.Label(line_frame, text="线名").pack(anchor="w", padx=6, pady=(6, 0))
@@ -2139,9 +2208,7 @@ class ToneOutlineEditor(ttk.Frame):
 
         segment_btns = ttk.Frame(segment_frame)
         segment_btns.pack(fill=tk.X, padx=6)
-        ttk.Button(segment_btns, text="起点设为当前节点", command=lambda: self.set_segment_boundary("start")).pack(side=tk.LEFT)
-        ttk.Button(segment_btns, text="终点设为当前节点", command=lambda: self.set_segment_boundary("end")).pack(side=tk.LEFT, padx=(4, 0))
-        ttk.Button(segment_btns, text="复制一段", command=self.copy_segment).pack(side=tk.LEFT, padx=(12, 0))
+        ttk.Button(segment_btns, text="复制一段", command=self.copy_segment).pack(side=tk.LEFT)
         ttk.Button(segment_btns, text="在当前节点拆分", command=self.split_selected_segment).pack(side=tk.LEFT, padx=(4, 0))
         ttk.Button(segment_btns, text="合并相邻段", command=self.merge_selected_segment).pack(side=tk.LEFT, padx=(4, 0))
         ttk.Button(segment_btns, text="删除过程段", command=self.delete_segment).pack(side=tk.LEFT, padx=(12, 0))
@@ -2161,30 +2228,17 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_note_type_combo.pack(fill=tk.X, padx=6)
         ttk.Label(segment_frame, text="起点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_start_var).pack(anchor="w", padx=6)
-        ttk.Label(segment_frame, text="起始曲率").pack(anchor="w", padx=6, pady=(6, 0))
-        self._create_labeled_scale(
-            segment_frame,
-            self.segment_start_curve_var,
-            self.segment_start_curve_display_var,
-            0.10,
-            1.50,
-            0.05,
-            digits=2,
-            length=180,
-        )
         ttk.Label(segment_frame, text="终点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_end_var).pack(anchor="w", padx=6)
-        ttk.Label(segment_frame, text="结束曲率").pack(anchor="w", padx=6, pady=(6, 0))
-        self._create_labeled_scale(
+        ttk.Label(segment_frame, text="中段拱度").pack(anchor="w", padx=6, pady=(6, 0))
+        ttk.Label(segment_frame, textvariable=self.segment_arc_display_var, foreground="#0F766E").pack(anchor="w", padx=6)
+        ttk.Label(
             segment_frame,
-            self.segment_end_curve_var,
-            self.segment_end_curve_display_var,
-            0.10,
-            1.50,
-            0.05,
-            digits=2,
-            length=180,
-        )
+            text="在画布中拖动当前过程段中间圆点，上下调整整体弧度。",
+            foreground="#666666",
+            wraplength=220,
+            justify=tk.LEFT,
+        ).pack(anchor="w", padx=6, pady=(2, 0))
         ttk.Label(segment_frame, text="阶段说明").pack(anchor="w", padx=6, pady=(6, 0))
         self.segment_desc_text = tk.Text(segment_frame, height=3, wrap="word")
         self.segment_desc_text.pack(fill=tk.X, padx=6, pady=(0, 6))
@@ -2284,9 +2338,9 @@ class ToneOutlineEditor(ttk.Frame):
 
     def refresh(self):
         data = self.project_manager.get_tone_outline()
-        active_lines, potential_lines = self._prepare_view_state(data)
+        active_lines = self._prepare_view_state(data)
         self._refresh_axis_list(data)
-        self._refresh_line_lists(active_lines, potential_lines)
+        self._refresh_line_lists(active_lines)
         self._refresh_segment_history(data)
         self._refresh_point_list(data)
         self._refresh_interaction_list(data)
@@ -2363,12 +2417,19 @@ class ToneOutlineEditor(ttk.Frame):
         self.selected_axis_uid = interaction.get("axis_uid", "") or self.selected_axis_uid
         self._sync_selection_ui(data)
 
-    def move_segment_boundary(self, line_uid, segment_uid, boundary, axis_uid):
+    def move_segment_arc(self, line_uid, segment_uid, arc_height):
         self.selected_line_uid = line_uid or ""
         self.selected_segment_uid = segment_uid or ""
-        self.selected_axis_uid = axis_uid or self.selected_axis_uid
         self._clear_point_selection()
-        self._set_segment_boundary_to_axis(boundary, axis_uid)
+        normalized_arc = max(-100.0, min(100.0, float(arc_height)))
+
+        def mutate(data):
+            target_line = self._find_line(data, self.selected_line_uid)
+            target_segment = self._find_segment(target_line, self.selected_segment_uid) if target_line else None
+            if target_segment:
+                target_segment["arc_height"] = normalized_arc
+
+        self._apply_update(mutate, "调整过程段拱度")
 
     def preview_drag_status(self, message):
         if not message:
@@ -2391,38 +2452,18 @@ class ToneOutlineEditor(ttk.Frame):
             return
         self.point_status_var.set(message)
 
-    def shift_segment_drag(self, line_uid, segment_uid, origin_axis_uid, target_axis_uid):
-        self.selected_line_uid = line_uid or ""
-        self.selected_segment_uid = segment_uid or ""
-        self._clear_point_selection()
-        self._shift_segment_to_axis(origin_axis_uid, target_axis_uid)
-
     def move_point_by_drag(self, line_uid, segment_uid, point_uid, axis_uid, amplitude):
-        if not line_uid or not segment_uid or not point_uid or not axis_uid:
+        if not line_uid or not axis_uid:
             return
         data = self.project_manager.get_tone_outline()
         line = self._find_line(data, line_uid)
-        segment = self._find_segment(line, segment_uid) if line else None
-        point = self._find_point(segment, point_uid) if segment else None
-        if not line or not segment or not point:
+        segment = self._find_segment(line, segment_uid) if line and segment_uid else None
+        point = self._find_point(segment, point_uid) if segment and point_uid else None
+        if not line:
             return
-        axis_index_map = get_axis_index_map(data)
-        last_axis_uid = data.get("axis_nodes", [])[-1]["uid"] if data.get("axis_nodes") else ""
-        display_segment = self._find_display_segment(data, line, segment_uid) or segment
-        if line.get("line_type") == "character" and not axis_in_segment(
-            axis_uid,
-            display_segment,
-            axis_index_map,
-            last_axis_uid=last_axis_uid,
-        ):
-            messagebox.showinfo(
-                "提示",
-                "人物线节点必须保留在当前过程段内。请先调整过程段边界后再拖拽。",
-                parent=self.winfo_toplevel(),
-            )
-            self._sync_selection_ui(data)
+        if point_uid and not point:
             return
-        if any(
+        if segment and any(
             other_point.get("uid") != point_uid and other_point.get("axis_uid") == axis_uid
             for other_point in segment.get("points", [])
         ):
@@ -2431,24 +2472,76 @@ class ToneOutlineEditor(ttk.Frame):
                 "当前过程段在该主轴节点上已经存在一个波动点，不能重复占用同一时间点。",
                 parent=self.winfo_toplevel(),
             )
+            existing = next(
+                (
+                    other_point
+                    for other_point in segment.get("points", [])
+                    if other_point.get("axis_uid") == axis_uid
+                ),
+                None,
+            )
+            if existing:
+                self.selected_line_uid = line_uid
+                self.selected_segment_uid = segment_uid
+                self._set_selected_points([existing.get("uid", "")])
+                self.selected_axis_uid = axis_uid
             self._sync_selection_ui(data)
             return
 
+        created_segment_uid = ""
+        created_point_uid = ""
         self.selected_line_uid = line_uid
-        self.selected_segment_uid = segment_uid
-        self._set_selected_points([point_uid])
+        self.selected_segment_uid = segment_uid or ""
+        self._set_selected_points([point_uid] if point_uid else [])
         self.selected_axis_uid = axis_uid
 
         def mutate(new_data):
+            nonlocal created_segment_uid, created_point_uid
             target_line = self._find_line(new_data, line_uid)
-            target_segment = self._find_segment(target_line, segment_uid) if target_line else None
-            target_point = self._find_point(target_segment, point_uid) if target_segment else None
-            if not target_point:
+            target_segment = self._find_segment(target_line, segment_uid) if target_line and segment_uid else None
+            if target_line and not target_segment:
+                created_segment_uid = self.project_manager._gen_uid()
+                target_segment = {
+                    "uid": created_segment_uid,
+                    "start_axis_uid": axis_uid,
+                    "end_axis_uid": axis_uid,
+                    "arc_height": DEFAULT_SEGMENT_ARC,
+                    "start_curve": DEFAULT_SEGMENT_CURVE,
+                    "end_curve": DEFAULT_SEGMENT_CURVE,
+                    "title": "",
+                    "description": "",
+                    "note_type": DEFAULT_NOTE_TYPE,
+                    "points": [],
+                }
+                target_line.setdefault("segments", []).append(target_segment)
+                self.selected_segment_uid = created_segment_uid
+            if not target_segment:
                 return
-            target_point["axis_uid"] = axis_uid
-            target_point["amplitude"] = float(amplitude)
+            target_point = self._find_point(target_segment, point_uid) if point_uid else None
+            if target_point:
+                target_point["axis_uid"] = axis_uid
+                target_point["amplitude"] = float(amplitude)
+                self.selected_segment_uid = target_segment.get("uid", "")
+                self._set_selected_points([target_point.get("uid", "")])
+                return
+            created_point_uid = self.project_manager._gen_uid()
+            target_segment.setdefault("points", []).append(
+                {
+                    "uid": created_point_uid,
+                    "axis_uid": axis_uid,
+                    "amplitude": float(amplitude),
+                    "curvature": 0.45,
+                    "label": "",
+                    "description": "",
+                    "node_type": DEFAULT_NODE_TYPE,
+                    "note_type": DEFAULT_NOTE_TYPE,
+                    "tags": [],
+                }
+            )
+            self.selected_segment_uid = target_segment.get("uid", "") or created_segment_uid
+            self._set_selected_points([created_point_uid])
 
-        self._apply_update(mutate, "拖拽调整波动点")
+        self._apply_update(mutate, "拖拽调整波动点" if point_uid else "拖拽生成波动点")
 
     def create_interaction_from_drag(
         self,
@@ -2502,31 +2595,19 @@ class ToneOutlineEditor(ttk.Frame):
             self.axis_list.selection_clear(0, tk.END)
             self.axis_list.selection_set(idx)
 
-    def _refresh_line_lists(self, active_lines, potential_lines):
+    def _refresh_line_lists(self, active_lines):
         self.active_line_list.delete(0, tk.END)
-        self.potential_line_list.delete(0, tk.END)
 
         for line in active_lines:
-            status = "主轴" if line.get("line_type") == "plot" else "活动"
+            status = "主轴" if line.get("line_type") == "plot" else "人物"
             if not line.get("visible", True):
                 status = f"{status}/隐藏"
             self.active_line_list.insert(tk.END, f"[{status}] {line.get('name', '未命名线')}")
-        for line in potential_lines:
-            history_count = len(line.get("segments", []))
-            hidden_suffix = " / 已隐藏" if not line.get("visible", True) else ""
-            label = f"{line.get('name', '未命名线')} / 历史段 {history_count}{hidden_suffix}"
-            self.potential_line_list.insert(tk.END, label)
 
         if self.selected_line_uid in self.active_line_order:
             idx = self.active_line_order.index(self.selected_line_uid)
             self.active_line_list.selection_clear(0, tk.END)
             self.active_line_list.selection_set(idx)
-            self.potential_line_list.selection_clear(0, tk.END)
-        elif self.selected_line_uid in self.potential_line_order:
-            idx = self.potential_line_order.index(self.selected_line_uid)
-            self.potential_line_list.selection_clear(0, tk.END)
-            self.potential_line_list.selection_set(idx)
-            self.active_line_list.selection_clear(0, tk.END)
 
     def _refresh_segment_history(self, data):
         self.segment_history.delete(0, tk.END)
@@ -2542,17 +2623,16 @@ class ToneOutlineEditor(ttk.Frame):
         }
 
         if not self.segment_order and line.get("line_type") == "character":
-            self.segment_history.insert(tk.END, "当前未引入，保存在潜在栏")
+            self.segment_history.insert(tk.END, "当前还没有波动点，可直接在主轴节点新增")
             self.selected_segment_uid = ""
             return
 
         for index, segment_uid in enumerate(self.segment_order):
             segment = display_by_uid.get(segment_uid) or self._find_segment(line, segment_uid) or {}
             if line.get("line_type") == "plot":
-                text = f"全程段: {_range_text(axis_map, segment)}"
+                text = f"情节段: {_range_text(axis_map, segment)}"
             else:
-                suffix = " / 进行中" if not segment.get("end_axis_uid") else ""
-                text = f"第{index + 1}段: {_range_text(axis_map, segment)}{suffix}"
+                text = f"第{index + 1}段: {_range_text(axis_map, segment)}"
             if segment.get("title"):
                 text = f"{text} / {segment.get('title')}"
             self.segment_history.insert(tk.END, text)
@@ -2646,14 +2726,9 @@ class ToneOutlineEditor(ttk.Frame):
         self.line_character_var.set(line.get("character_name", ""))
         self.line_visible_var.set(bool(line.get("visible", True)))
         if line.get("line_type") == "plot":
-            self.line_status_var.set("固定主线，始终围绕平铺主轴展开。")
+            self.line_status_var.set("情节线只在已有波动点范围内成形，新增空节点不会自动连线。")
         else:
-            open_segment = get_open_segment(line)
-            if open_segment:
-                axis_map = {axis["uid"]: axis for axis in data.get("axis_nodes", [])}
-                self.line_status_var.set(f"当前活动中：{_range_text(axis_map, open_segment)}")
-            else:
-                self.line_status_var.set("当前已收束，保存在潜在栏，可在任意节点再次引入。")
+            self.line_status_var.set("人物线可直接在任意主轴节点加点或拖点延展，不再区分引入/收束。")
         if not line.get("visible", True):
             self.line_status_var.set(f"{self.line_status_var.get()} 当前处于隐藏状态。")
 
@@ -2668,29 +2743,28 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_end_var.set("")
         self.segment_title_var.set("")
         self.segment_note_type_var.set(NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
-        self.segment_start_curve_var.set(DEFAULT_SEGMENT_CURVE)
-        self.segment_end_curve_var.set(DEFAULT_SEGMENT_CURVE)
+        self.segment_arc_display_var.set("拱度 +0")
         self.segment_desc_text.delete("1.0", tk.END)
         if not line or not segment:
             return
         display_segment = display_segment or segment
+        arc_height = float(display_segment.get("arc_height", segment.get("arc_height", DEFAULT_SEGMENT_ARC)))
         self.segment_range_var.set(_range_text(axis_map, display_segment))
         self.segment_title_var.set(segment.get("title", ""))
         self.segment_note_type_var.set(
             get_note_type_label(segment.get("note_type", DEFAULT_NOTE_TYPE))
         )
         self.segment_start_var.set(axis_map.get(display_segment.get("start_axis_uid"), {}).get("title", "未设置"))
-        end_title = "进行中" if not display_segment.get("end_axis_uid") else axis_map.get(display_segment.get("end_axis_uid"), {}).get("title", "未设置")
+        end_title = axis_map.get(display_segment.get("end_axis_uid"), {}).get("title", "未设置")
         self.segment_end_var.set(end_title)
-        self.segment_start_curve_var.set(float(segment.get("start_curve", DEFAULT_SEGMENT_CURVE)))
-        self.segment_end_curve_var.set(float(segment.get("end_curve", DEFAULT_SEGMENT_CURVE)))
+        self.segment_arc_display_var.set(f"拱度 {arc_height:+.0f}")
         self.segment_desc_text.insert("1.0", segment.get("description", ""))
         if line.get("line_type") == "plot":
-            self.segment_status_var.set("情节线固定覆盖全程，可调两端曲率与段内节点。")
-        elif not segment.get("end_axis_uid"):
-            self.segment_status_var.set("当前过程段进行中，可直接改起点并在后续节点收束。")
+            self.segment_status_var.set("情节线范围由已有波动点自动决定，拖动点到新节点就会延展，新增空节点不会自动连线。")
+        elif not segment.get("points"):
+            self.segment_status_var.set("当前过程段还没有波动点，可直接在任意主轴节点新增。")
         else:
-            self.segment_status_var.set("历史过程段，可重新安排起点与终点。")
+            self.segment_status_var.set("人物线范围会随波动点自动延展，左右拖点即可把关系续到下一个节点。")
 
     def _load_point_form(self, data):
         line = self._find_line(data, self.selected_line_uid)
@@ -2718,7 +2792,9 @@ class ToneOutlineEditor(ttk.Frame):
             self.point_amplitude_var.set(0.0)
             self.point_curvature_var.set(0.45)
             if segment:
-                self.point_status_var.set("可在画布空白处拖拽框选当前过程段的多个波动点，再用右侧表单批量应用强度和曲率。")
+                self.point_status_var.set("可直接拖拽画布上的实点或虚拟节点；虚拟节点落下后会生成真实波动点，框选仍可批量应用。")
+            elif line and line.get("line_type") == "character":
+                self.point_status_var.set("当前人物线还没有波动点，可直接拖动画布上的虚拟节点生成第一处波动。")
             return
         if len(selected_uids) > 1:
             axis_map = {item.get("uid"): item.get("title", "未命名节点") for item in data.get("axis_nodes", [])}
@@ -2805,15 +2881,6 @@ class ToneOutlineEditor(ttk.Frame):
         if not selection:
             return
         self.selected_line_uid = self.active_line_order[selection[0]]
-        self._clear_point_selection()
-        self.selected_interaction_uid = ""
-        self._sync_selection_ui()
-
-    def _on_potential_line_select(self, _event=None):
-        selection = self.potential_line_list.curselection()
-        if not selection:
-            return
-        self.selected_line_uid = self.potential_line_order[selection[0]]
         self._clear_point_selection()
         self.selected_interaction_uid = ""
         self._sync_selection_ui()
@@ -3032,28 +3099,8 @@ class ToneOutlineEditor(ttk.Frame):
                 return
             self._update_segment_fields(line_uid, segment_uid, "右键编辑过程段说明", description=value)
 
-        def edit_curve(field_name, label):
-            value = simpledialog.askfloat(
-                f"编辑{label}",
-                f"输入{label}（0.10 - 1.50）：",
-                initialvalue=float(segment.get(field_name, DEFAULT_SEGMENT_CURVE)),
-                minvalue=0.10,
-                maxvalue=1.50,
-                parent=self.winfo_toplevel(),
-            )
-            if value is None:
-                return
-            self._update_segment_fields(
-                line_uid,
-                segment_uid,
-                f"右键编辑{label}",
-                **{field_name: round(float(value), 2)},
-            )
-
         menu.add_command(label="编辑阶段标题...", command=edit_title)
         menu.add_command(label="编辑阶段说明...", command=edit_description)
-        menu.add_command(label="编辑起始曲率...", command=lambda: edit_curve("start_curve", "起始曲率"))
-        menu.add_command(label="编辑结束曲率...", command=lambda: edit_curve("end_curve", "结束曲率"))
 
         note_menu = tk.Menu(menu, tearoff=False)
         for note_key, note_label in NOTE_TYPE_OPTIONS:
@@ -3325,67 +3372,6 @@ class ToneOutlineEditor(ttk.Frame):
         self._clear_point_selection()
         self._apply_update(mutate, "新增人物基调线")
 
-    def introduce_line(self):
-        line = self._find_line(self.project_manager.get_tone_outline(), self.selected_line_uid)
-        if not line or line.get("line_type") == "plot":
-            messagebox.showinfo("提示", "请选择一条潜在人物线。", parent=self.winfo_toplevel())
-            return
-        if not self.selected_axis_uid:
-            messagebox.showinfo("提示", "请先选择一个主轴节点。", parent=self.winfo_toplevel())
-            return
-        if get_open_segment(line):
-            messagebox.showinfo("提示", "该人物线当前已经处于活动中，请先收束。", parent=self.winfo_toplevel())
-            return
-        new_segment_uid = self.project_manager._gen_uid()
-
-        def mutate(data):
-            target_line = self._find_line(data, self.selected_line_uid)
-            if target_line:
-                target_line.setdefault("segments", []).append(
-                    {
-                        "uid": new_segment_uid,
-                        "start_axis_uid": self.selected_axis_uid,
-                        "end_axis_uid": "",
-                        "start_curve": DEFAULT_SEGMENT_CURVE,
-                        "end_curve": DEFAULT_SEGMENT_CURVE,
-                        "title": "",
-                        "description": "",
-                        "note_type": DEFAULT_NOTE_TYPE,
-                        "points": [],
-                    }
-                )
-
-        self.selected_segment_uid = new_segment_uid
-        self._apply_update(mutate, "引入人物线")
-
-    def converge_line(self):
-        line = self._find_line(self.project_manager.get_tone_outline(), self.selected_line_uid)
-        if not line or line.get("line_type") == "plot":
-            messagebox.showinfo("提示", "请选择一条活动中的人物线。", parent=self.winfo_toplevel())
-            return
-        if not self.selected_axis_uid:
-            messagebox.showinfo("提示", "请先选择收束所在的主轴节点。", parent=self.winfo_toplevel())
-            return
-        open_segment = get_open_segment(line)
-        if not open_segment:
-            messagebox.showinfo("提示", "该人物线当前已经在潜在栏中。", parent=self.winfo_toplevel())
-            return
-        axis_index_map = get_axis_index_map(self.project_manager.get_tone_outline())
-        start_index = axis_index_map.get(open_segment.get("start_axis_uid"), 0)
-        end_index = axis_index_map.get(self.selected_axis_uid, 0)
-        if end_index < start_index:
-            messagebox.showinfo("提示", "收束节点不能早于引入节点。", parent=self.winfo_toplevel())
-            return
-
-        def mutate(data):
-            target_line = self._find_line(data, self.selected_line_uid)
-            target_open_segment = get_open_segment(target_line) if target_line else None
-            if target_open_segment:
-                target_open_segment["end_axis_uid"] = self.selected_axis_uid
-
-        self.selected_segment_uid = open_segment.get("uid")
-        self._apply_update(mutate, "收束人物线")
-
     def delete_line(self):
         line = self._find_line(self.project_manager.get_tone_outline(), self.selected_line_uid)
         if not line:
@@ -3427,9 +3413,6 @@ class ToneOutlineEditor(ttk.Frame):
             return
         if line.get("line_type") == "plot":
             messagebox.showinfo("提示", "情节线固定全程，不支持复制过程段。", parent=self.winfo_toplevel())
-            return
-        if not segment.get("end_axis_uid"):
-            messagebox.showinfo("提示", "进行中的过程段请先收束后再复制。", parent=self.winfo_toplevel())
             return
 
         new_segment_uid = ""
@@ -3617,93 +3600,6 @@ class ToneOutlineEditor(ttk.Frame):
         self.selected_segment_uid = ""
         self._apply_update(mutate, "删除过程段")
 
-    def set_segment_boundary(self, boundary):
-        self._set_segment_boundary_to_axis(boundary, self.selected_axis_uid)
-
-    def _set_segment_boundary_to_axis(self, boundary, axis_uid):
-        line = self._find_line(self.project_manager.get_tone_outline(), self.selected_line_uid)
-        segment = self._find_segment(line, self.selected_segment_uid) if line else None
-        if not line or not segment:
-            return
-        if line.get("line_type") == "plot":
-            messagebox.showinfo("提示", "情节线固定覆盖全程，不能修改起点或终点。", parent=self.winfo_toplevel())
-            return
-        if not axis_uid:
-            messagebox.showinfo("提示", "请先选择一个主轴节点。", parent=self.winfo_toplevel())
-            return
-        axis_index_map = get_axis_index_map(self.project_manager.get_tone_outline())
-        selected_index = axis_index_map.get(axis_uid, -1)
-        start_index = axis_index_map.get(segment.get("start_axis_uid"), -1)
-        end_uid = segment.get("end_axis_uid")
-        end_index = axis_index_map.get(end_uid, -1) if end_uid else -1
-
-        if boundary == "start" and end_uid and selected_index > end_index:
-            messagebox.showinfo("提示", "起点不能晚于终点。", parent=self.winfo_toplevel())
-            return
-        if boundary == "end" and selected_index < start_index:
-            messagebox.showinfo("提示", "终点不能早于起点。", parent=self.winfo_toplevel())
-            return
-
-        def mutate(data):
-            target_line = self._find_line(data, self.selected_line_uid)
-            target_segment = self._find_segment(target_line, self.selected_segment_uid) if target_line else None
-            if not target_segment:
-                return
-            if boundary == "start":
-                target_segment["start_axis_uid"] = axis_uid
-            else:
-                target_segment["end_axis_uid"] = axis_uid
-
-        self._apply_update(mutate, "调整过程段边界")
-
-    def _shift_segment_to_axis(self, origin_axis_uid, target_axis_uid):
-        data = self.project_manager.get_tone_outline()
-        line = self._find_line(data, self.selected_line_uid)
-        segment = self._find_segment(line, self.selected_segment_uid) if line else None
-        if not line or not segment:
-            return
-        if line.get("line_type") == "plot":
-            messagebox.showinfo("提示", "情节线固定全程，不支持整体平移。", parent=self.winfo_toplevel())
-            return
-        if not segment.get("end_axis_uid"):
-            messagebox.showinfo("提示", "进行中的过程段暂不支持整体平移，请先收束。", parent=self.winfo_toplevel())
-            return
-
-        axis_uids = [axis.get("uid") for axis in data.get("axis_nodes", []) if axis.get("uid")]
-        axis_index_map = {axis_uid: index for index, axis_uid in enumerate(axis_uids)}
-        if origin_axis_uid not in axis_index_map or target_axis_uid not in axis_index_map:
-            return
-        delta = axis_index_map[target_axis_uid] - axis_index_map[origin_axis_uid]
-        if not delta:
-            self._load_segment_form(data)
-            return
-
-        shifted = False
-
-        def mutate(new_data):
-            nonlocal shifted
-            target_line = self._find_line(new_data, self.selected_line_uid)
-            if target_line:
-                shifted = shift_segment(
-                    target_line,
-                    self.selected_segment_uid,
-                    [axis.get("uid") for axis in new_data.get("axis_nodes", []) if axis.get("uid")],
-                    delta,
-                    uid_generator=self.project_manager._gen_uid,
-                )
-                if shifted:
-                    updated_segment = self._find_segment(target_line, self.selected_segment_uid)
-                    if updated_segment:
-                        self.selected_axis_uid = updated_segment.get("start_axis_uid") or self.selected_axis_uid
-
-        self._apply_update(mutate, "平移过程段")
-        if not shifted:
-            messagebox.showinfo(
-                "提示",
-                "整体平移后会超出主轴范围，无法完成本次拖拽。",
-                parent=self.winfo_toplevel(),
-            )
-
     def save_segment(self):
         line = self._find_line(self.project_manager.get_tone_outline(), self.selected_line_uid)
         segment = self._find_segment(line, self.selected_segment_uid) if line else None
@@ -3715,8 +3611,6 @@ class ToneOutlineEditor(ttk.Frame):
             DEFAULT_NOTE_TYPE,
         )
         description = self.segment_desc_text.get("1.0", tk.END).strip()
-        start_curve = float(self.segment_start_curve_var.get())
-        end_curve = float(self.segment_end_curve_var.get())
 
         def mutate(data):
             target_line = self._find_line(data, self.selected_line_uid)
@@ -3725,39 +3619,40 @@ class ToneOutlineEditor(ttk.Frame):
                 target_segment["title"] = title
                 target_segment["note_type"] = note_type
                 target_segment["description"] = description
-                target_segment["start_curve"] = start_curve
-                target_segment["end_curve"] = end_curve
 
         self._apply_update(mutate, "编辑过程段")
 
     def add_point(self):
-        if not self.selected_line_uid or not self.selected_axis_uid or not self.selected_segment_uid:
-            messagebox.showinfo("提示", "请先选择一条线、一个过程段和一个主轴节点。", parent=self.winfo_toplevel())
+        if not self.selected_line_uid or not self.selected_axis_uid:
+            messagebox.showinfo("提示", "请先选择一条线和一个主轴节点。", parent=self.winfo_toplevel())
             return
         data = self.project_manager.get_tone_outline()
         line = self._find_line(data, self.selected_line_uid)
         segment = self._find_segment(line, self.selected_segment_uid) if line else None
-        if not line or not segment:
+        if not line:
             return
-        axis_index_map = get_axis_index_map(data)
-        last_axis_uid = data.get("axis_nodes", [])[-1]["uid"] if data.get("axis_nodes") else ""
-        display_segment = self._find_display_segment(data, line, self.selected_segment_uid) or segment
-        if line.get("line_type") == "character" and not axis_in_segment(
-            self.selected_axis_uid,
-            display_segment,
-            axis_index_map,
-            last_axis_uid=last_axis_uid,
-        ):
-            messagebox.showinfo(
-                "提示",
-                "当前节点不在这条人物线的当前过程段内。请先调整过程段边界，或选择段内已有节点。",
-                parent=self.winfo_toplevel(),
-            )
-            return
+        new_segment_uid = ""
 
         def mutate(new_data):
+            nonlocal new_segment_uid
             target_line = self._find_line(new_data, self.selected_line_uid)
             target_segment = self._find_segment(target_line, self.selected_segment_uid) if target_line else None
+            if target_line and not target_segment:
+                new_segment_uid = self.project_manager._gen_uid()
+                target_segment = {
+                    "uid": new_segment_uid,
+                    "start_axis_uid": self.selected_axis_uid,
+                    "end_axis_uid": self.selected_axis_uid,
+                    "arc_height": DEFAULT_SEGMENT_ARC,
+                    "start_curve": DEFAULT_SEGMENT_CURVE,
+                    "end_curve": DEFAULT_SEGMENT_CURVE,
+                    "title": "",
+                    "description": "",
+                    "note_type": DEFAULT_NOTE_TYPE,
+                    "points": [],
+                }
+                target_line.setdefault("segments", []).append(target_segment)
+                self.selected_segment_uid = new_segment_uid
             if not target_segment:
                 return
             existing = next(
@@ -3941,6 +3836,7 @@ class ToneOutlineEditor(ttk.Frame):
                 if line.get("line_type") == "plot":
                     for segment in line.get("segments", []):
                         segment["points"] = []
+                        segment["arc_height"] = DEFAULT_SEGMENT_ARC
                         segment["start_curve"] = DEFAULT_SEGMENT_CURVE
                         segment["end_curve"] = DEFAULT_SEGMENT_CURVE
                 else:
