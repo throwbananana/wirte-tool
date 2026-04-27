@@ -2,6 +2,7 @@ import difflib
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, Toplevel
 from writer_app.core.training import MODES
+from writer_app.core.analysis import TextMetrics
 from writer_app.core.icon_manager import IconManager
 from writer_app.ui.help_dialog import create_module_help_button
 
@@ -349,6 +350,14 @@ class TrainingPanel(ttk.Frame):
         if self.controller:
             self.controller.ai_polish()
 
+    def get_content_metrics(self, content=None):
+        if content is None:
+            content = self.get_content()
+        return {
+            "word_count": TextMetrics.count_words(content),
+            "char_count": len(content),
+        }
+
     def update_prompt_display(self, text):
         self.words_var.set(text)
 
@@ -461,7 +470,9 @@ class TrainingPanel(ttk.Frame):
 
     def on_text_change(self, event=None):
         content = self.text_area.get("1.0", tk.END).strip()
-        count = len(content)
+        metrics = self.get_content_metrics(content)
+        count = metrics["word_count"]
+        char_count = metrics["char_count"]
         target = 0
         try:
             target = int(self.target_word_var.get())
@@ -469,14 +480,14 @@ class TrainingPanel(ttk.Frame):
             pass
 
         if target > 0:
-            self.word_count_lbl.config(text=f"字数: {count} / {target}")
+            self.word_count_lbl.config(text=f"字数: {count} / {target} | 字符: {char_count}")
             if count >= target:
                 self.word_count_lbl.config(foreground="green")
             else:
                 # 使用空字符串重置为默认主题颜色，避免深色主题兼容问题
                 self.word_count_lbl.config(foreground="")
         else:
-            self.word_count_lbl.config(text=f"字数: {count}")
+            self.word_count_lbl.config(text=f"字数: {count} | 字符: {char_count}")
 
     def update_gamification_ui(self, level, title, xp, next_xp):
         self.level_label.config(text=f"等级{level} {title}")

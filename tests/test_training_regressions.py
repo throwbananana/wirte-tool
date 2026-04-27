@@ -29,6 +29,9 @@ class _TrainingViewStub:
         self.topic_var = _DummyVar("")
         self.tag_var = _DummyVar("")
         self.generate_btn = SimpleNamespace(config=lambda **_kwargs: None)
+        self.last_prompt = ""
+        self.feedback_text = ""
+        self.content = "他推开门，雨声落在身后。"
 
     def set_controller(self, _controller):
         return None
@@ -48,14 +51,17 @@ class _TrainingViewStub:
     def set_selected_mode_key(self, mode_key: str):
         self._mode_key = mode_key
 
-    def update_prompt_display(self, _text: str):
-        return None
+    def update_prompt_display(self, text: str):
+        self.last_prompt = text
 
-    def show_feedback(self, _text: str):
-        return None
+    def show_feedback(self, text: str):
+        self.feedback_text = text
 
     def set_analyzing(self, _state: bool):
         return None
+
+    def get_content(self):
+        return self.content
 
     def after(self, _ms: int, callback):
         callback()
@@ -138,6 +144,57 @@ class TestTrainingRegressions(unittest.TestCase):
         self.assertFalse(self.controller._loading_challenge)
         self.controller.generate_prompt.assert_called_once_with(is_challenge=True)
 
+    def test_challenge_required_style_not_overridden(self):
+        challenge = {
+            "id": "c_style_01",
+            "mode": "style",
+            "rubric_mode": "style",
+            "level": "级别2（动作/抽象）",
+            "topic": "等待火车",
+            "required_style": "海明威风格（极简主义、冰山理论）",
+            "allow_random_style": False,
+            "title": "固定风格",
+            "description": "测试固定风格",
+            "min_score": 20,
+            "unlocked": True,
+            "completed": False,
+        }
+        self.view.set_selected_mode_key("style")
+        self.view.level_var.set(challenge["level"])
+        self.view.topic_var.set(challenge["topic"])
+        self.controller.active_challenge_id = "c_style_01"
+        self.controller.challenge_prompt_text = "challenge"
+        self.controller.challenge_manager = MagicMock()
+        self.controller.challenge_manager.get_challenge.return_value = challenge
+        self.controller.manager.get_random_style = MagicMock(return_value="随机风格")
+
+        self.controller.generate_prompt(is_challenge=True)
+
+        self.assertIn("海明威风格", self.view.last_prompt)
+        self.assertNotIn("随机风格", self.view.last_prompt)
+        self.controller.manager.get_random_style.assert_not_called()
+
+    def test_ai_score_parse_failure_is_retryable_not_zero_score(self):
+        self.config_manager.is_ai_enabled.return_value = True
+        self.controller.active_challenge_id = "c_desc_01"
+        self.controller.current_mode = "show_dont_tell"
+        self.controller.current_exercise_data = {
+            "mode": "show_dont_tell",
+            "rubric_mode": "show_dont_tell",
+            "level": "级别1（具象词汇）",
+        }
+        self.controller.challenge_manager = MagicMock()
+        self.controller.history_manager.add_session = MagicMock()
+        self.controller.gamification_manager = MagicMock()
+        self.ai_client.extract_json_from_text.return_value = None
+
+        self.controller._on_analysis_done("这是一段非 JSON 文本")
+
+        self.assertIn("评分结果解析失败", self.view.feedback_text)
+        self.controller.challenge_manager.complete_challenge.assert_not_called()
+        self.controller.history_manager.add_session.assert_not_called()
+        self.controller.gamification_manager.record_words.assert_not_called()
+
 
 class TestChallengeMigration(unittest.TestCase):
     def test_challenge_file_migrates_to_defaults_while_preserving_progress(self):
@@ -194,7 +251,13 @@ class TestChallengeMigration(unittest.TestCase):
             # Custom entries are retained.
             self.assertIn("custom_01", migrated)
 
+    def test_dialogue_challenges_use_dialogue_rubrics(self):
+        by_id = {c["id"]: c for c in DEFAULT_CHALLENGES}
+
+        self.assertEqual(by_id["c_dial_02"]["mode"], "dialogue_subtext")
+        self.assertEqual(by_id["c_dial_02"]["rubric_mode"], "dialogue_subtext")
+        self.assertEqual(by_id["c_dial_01"]["mode"], "character_voice")
+
 
 if __name__ == "__main__":
     unittest.main()
-

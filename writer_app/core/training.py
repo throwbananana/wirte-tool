@@ -2,7 +2,8 @@ import json
 import random
 import logging
 import re
-from typing import List, Dict, Any, Tuple
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 from writer_app.core.analysis import TextMetrics
 from writer_app.core.paths import get_app_paths
@@ -89,6 +90,98 @@ DEFAULT_HISTORY_LIMIT = 50
 # 每日任务通过分数
 DAILY_QUEST_PASS_SCORE = 15
 
+DAILY_MODE_POOLS = {
+    "beginner": ["keywords", "sensory", "show_dont_tell"],
+    "intermediate": ["style", "editing", "dialogue_subtext", "brainstorm"],
+    "advanced": ["character_voice", "character_arc", "emotion_infusion", "character_persona"],
+}
+
+DAILY_QUEST_MODES = [
+    mode
+    for pool in DAILY_MODE_POOLS.values()
+    for mode in pool
+]
+
+
+@dataclass
+class TrainingSessionConfig:
+    """Normalized training session contract shared by prompts, scoring, and UI."""
+
+    mode: str
+    level: str
+    topic: str = ""
+    tag: str = ""
+    challenge_id: Optional[str] = None
+    rubric_mode: Optional[str] = None
+    required_topic: str = ""
+    required_style: str = ""
+    sensory_constraint: str = ""
+    required_keywords: List[str] = field(default_factory=list)
+    required_emotion: str = ""
+    required_archetype: str = ""
+    required_event: str = ""
+    prompt_note: str = ""
+    allow_random_style: bool = True
+    allow_random_sensory: bool = True
+
+    @property
+    def effective_topic(self) -> str:
+        return self.required_topic or self.topic
+
+    @property
+    def effective_rubric_mode(self) -> str:
+        return self.rubric_mode or self.mode
+
+    @classmethod
+    def from_mapping(cls, data: Dict[str, Any], *, challenge_id: Optional[str] = None) -> "TrainingSessionConfig":
+        source = data or {}
+        required_keywords = source.get("required_keywords") or []
+        if isinstance(required_keywords, str):
+            required_keywords = [required_keywords]
+        return cls(
+            mode=source.get("mode") or "keywords",
+            level=source.get("level") or "级别1（具象词汇）",
+            topic=source.get("topic") or "",
+            tag=source.get("tag") or "",
+            challenge_id=challenge_id if challenge_id is not None else source.get("challenge_id"),
+            rubric_mode=source.get("rubric_mode") or source.get("mode"),
+            required_topic=source.get("required_topic") or "",
+            required_style=source.get("required_style") or "",
+            sensory_constraint=source.get("sensory_constraint") or "",
+            required_keywords=list(required_keywords),
+            required_emotion=source.get("required_emotion") or "",
+            required_archetype=source.get("required_archetype") or "",
+            required_event=source.get("required_event") or "",
+            prompt_note=source.get("prompt_note") or "",
+            allow_random_style=source.get("allow_random_style", True),
+            allow_random_sensory=source.get("allow_random_sensory", True),
+        )
+
+    def to_exercise_data(self) -> Dict[str, Any]:
+        data = {
+            "mode": self.mode,
+            "rubric_mode": self.effective_rubric_mode,
+            "level": self.level,
+            "topic": self.effective_topic,
+            "tag": self.tag,
+            "challenge_id": self.challenge_id,
+        }
+        optional_fields = {
+            "required_style": self.required_style,
+            "sensory_constraint": self.sensory_constraint,
+            "required_keywords": self.required_keywords,
+            "required_emotion": self.required_emotion,
+            "required_archetype": self.required_archetype,
+            "required_event": self.required_event,
+            "prompt_note": self.prompt_note,
+            "allow_random_style": self.allow_random_style,
+            "allow_random_sensory": self.allow_random_sensory,
+        }
+        for key, value in optional_fields.items():
+            if value not in ("", [], None):
+                data[key] = value
+        return data
+
 
 class TrainingManager:
     def __init__(self, data_dir: Path = None):
@@ -160,7 +253,38 @@ class TrainingManager:
             return 2
         return 3
 
-    def get_words(self, level: str, count: int = 3, tags: List[str] = None) -> List[str]:
+    @staticmethod
+    def _normalize_keyword_list(keywords) -> List[str]:
+        if not keywords:
+            return []
+        if isinstance(keywords, str):
+            keywords = [keywords]
+        result = []
+        for item in keywords:
+            text = str(item).strip()
+            if text and text not in result:
+                result.append(text)
+        return result
+
+    @staticmethod
+    def _extract_topic_keywords(topic: str) -> List[str]:
+        topic = (topic or "").strip()
+        if not topic:
+            return []
+        topic = re.sub(r"^(主题|类型|标签)[：:]\s*", "", topic)
+        parts = [p.strip() for p in re.split(r"[，,、/|;；\s]+", topic) if p.strip()]
+        if not parts:
+            parts = [topic]
+        return TrainingManager._normalize_keyword_list(parts[:2])
+
+    def get_words(
+        self,
+        level: str,
+        count: int = 3,
+        tags: List[str] = None,
+        topic: str = "",
+        required_keywords: List[str] = None
+    ) -> List[str]:
         """根据级别和可选标签获取随机词汇。"""
         if not self.word_bank_data:
             logger.warning("词库数据未加载，请检查 word_bank.json 文件是否存在")
@@ -178,6 +302,7 @@ class TrainingManager:
             return None
 
         pool = []
+        has_fixed_keywords = bool(required_keywords or topic)
 
         # 根据级别收集候选词汇
         candidates = []
@@ -209,15 +334,35 @@ class TrainingManager:
                 # Signal "no tag match" to the caller instead of silently
                 # falling back to all candidates.
                 logger.info("标签筛选未命中: %s", tags)
-                return []
+                if has_fixed_keywords:
+                    pool = candidates
+                else:
+                    return []
         else:
             pool = candidates
 
         if not pool: return []
 
-        selected = random.sample(pool, min(count, len(pool)))
+        required = self._normalize_keyword_list(required_keywords)
+        required.extend([kw for kw in self._extract_topic_keywords(topic) if kw not in required])
+        required = required[:count]
+
+        if required:
+            used = {kw.split('（')[0].split('(')[0].strip().lower() for kw in required}
+            remaining = []
+            for item in pool:
+                formatted = format_item(item)
+                if not formatted:
+                    continue
+                clean = formatted.split('（')[0].split('(')[0].strip().lower()
+                if clean not in used:
+                    remaining.append(item)
+            pool = remaining
+
+        fill_count = max(0, count - len(required))
+        selected = random.sample(pool, min(fill_count, len(pool))) if fill_count else []
         formatted = [format_item(item) for item in selected]
-        return [item for item in formatted if item]
+        return required + [item for item in formatted if item]
 
     def get_template_prompt(self) -> str:
         templates = self.word_bank_data.get("templates", [])
@@ -339,23 +484,25 @@ class TrainingManager:
         )
 
     def get_daily_quest_prompt(self) -> str:
-        modes = ["keywords", "brainstorm", "style", "sensory", "show_dont_tell", "editing"]
+        modes = DAILY_QUEST_MODES
         levels = self.get_levels()
         mode_hint = " | ".join(modes)
         level_hint = " | ".join(levels)
         return (
             f"你是写作训练任务生成器。请输出一个严格 JSON 对象，字段包括：\n"
             f"{{\"mode\": \"{mode_hint}\", \"topic\": \"主题\", \"level\": \"{level_hint}\", "
-            f"\"title\": \"不超过12字\", \"description\": \"不超过40字\"}}\n"
+            f"\"title\": \"不超过12字\", \"description\": \"不超过40字\", \"rubric_mode\": \"评分模式\"}}\n"
             f"要求：\n"
             f"1. mode 必须从列表中选择。\n"
             f"2. topic 用简体中文短语（2-8字）。\n"
-            f"3. title 以「每日任务：」开头更好。\n"
-            f"4. description 描述该练习，不要包含 JSON 外文本。\n"
-            f"5. 只返回 JSON 对象，不要包含 Markdown。"
+            f"3. rubric_mode 通常等于 mode，除非你明确要用另一个列表内模式评估。\n"
+            f"4. title 以「每日任务：」开头更好。\n"
+            f"5. description 描述该练习，不要包含 JSON 外文本。\n"
+            f"6. 只返回 JSON 对象，不要包含 Markdown。"
         )
 
     def get_analysis_prompt(self, mode: str, exercise_data: Dict, content: str) -> str:
+        rubric_mode = exercise_data.get("rubric_mode") or mode
         level = exercise_data.get("level", "级别1")
         if "级别1" in level:
             persona = "鼓励型导师（侧重积极方面）"
@@ -369,45 +516,45 @@ class TrainingManager:
 
         base_criteria = (
             f"分析提交作品。\n角色：{persona}\n严格程度：{strictness}\n"
-            f"模式：{MODES.get(mode, mode)}\n背景：{exercise_data}\n"
+            f"训练模式：{MODES.get(mode, mode)}\n评分模式：{MODES.get(rubric_mode, rubric_mode)}\n背景：{exercise_data}\n"
             f"内容：\n'''\n{content}\n'''\n\n"
         )
 
         specific = ""
-        if mode == "keywords":
+        if rubric_mode == "keywords":
             words = exercise_data.get("words", [])
             specific = f"评估关键词使用：{words}"
-        elif mode == "style":
+        elif rubric_mode == "style":
             specific = f"评估风格匹配度：{exercise_data.get('style')}"
-        elif mode == "continuation":
+        elif rubric_mode == "continuation":
             specific = "评估与开头的衔接流畅度。"
-        elif mode == "sensory":
+        elif rubric_mode == "sensory":
             specific = f"评估感官限制的遵守：{exercise_data.get('constraint')}"
-        elif mode == "show_dont_tell":
+        elif rubric_mode == "show_dont_tell":
             specific = "评估画面感vs直白叙述。"
-        elif mode == "editing":
+        elif rubric_mode == "editing":
             bad_text = exercise_data.get("telling", "")
             specific = (
                 f"原始有问题文本：「{bad_text}」。\n"
                 f"识别原文的问题（被动语态？副词过多？）。\n"
                 f"评估学员是否在保持原意的前提下修复了问题。"
             )
-        elif mode == "brainstorm":
+        elif rubric_mode == "brainstorm":
             specific = "评估创意的创造性、多样性和独特性。"
-        elif mode == "emotion_infusion":
+        elif rubric_mode == "emotion_infusion":
             target_emotion = exercise_data.get("emotion", "指定情感")
             specific = f"评估文本传达情感的效果：{target_emotion}。"
-        elif mode == "dialogue_subtext":
+        elif rubric_mode == "dialogue_subtext":
             specific = "评估潜台词的运用。角色是否在不直接表述的情况下传达了隐藏目的？"
-        elif mode == "character_voice":
+        elif rubric_mode == "character_voice":
             specific = "评估角色声音的区分度。仅通过对话风格能否辨别说话者？"
-        elif mode == "character_persona":
+        elif rubric_mode == "character_persona":
             specific = (
                 "评估角色人设。是否多维立体？"
                 f"角色是否有清晰的目标、缺陷和一致的声音？"
                 f"背景故事是否合理解释了当前特质？"
             )
-        elif mode == "character_arc":
+        elif rubric_mode == "character_arc":
             specific = (
                 "评估人物弧光练习。用户是否提供了可信的反应？"
                 f"伏笔是否有效解释了反应并增加了深度？"
@@ -503,6 +650,8 @@ class LocalTrainingScorer:
 
     @staticmethod
     def evaluate(mode: str, exercise_data: Dict, content: str) -> Dict[str, Any]:
+        rubric_mode = exercise_data.get("rubric_mode") or mode
+
         def estimate_idea_count(text: str) -> int:
             if not text:
                 return 0
@@ -556,7 +705,7 @@ class LocalTrainingScorer:
         mode_feedback = []
         bonus_points = 0
 
-        if mode == "keywords":
+        if rubric_mode == "keywords":
             target_words = exercise_data.get("words", [])
             hit_count = 0
             content_lower = content.lower()
@@ -572,7 +721,48 @@ class LocalTrainingScorer:
             if hit_count == len(target_words):
                 mode_feedback.append("关键词整合完美！")
 
-        elif mode == "show_dont_tell":
+        elif rubric_mode == "style":
+            style = exercise_data.get("style") or exercise_data.get("required_style", "")
+            style_hints = {
+                "海明威": ["短", "简", "他", "她"],
+                "黑色": ["雨", "夜", "影", "冷", "烟"],
+                "洛夫克拉夫特": ["古老", "恐惧", "不可名状", "深渊", "疯狂"],
+                "赛博朋克": ["霓虹", "义体", "芯片", "数据", "街"],
+            }
+            matched_hints = []
+            for key, hints in style_hints.items():
+                if key in style:
+                    matched_hints = hints
+                    break
+            hits = sum(1 for token in matched_hints if token in content)
+            if matched_hints:
+                bonus_points += min(4, hits)
+                mode_feedback.append(f"风格线索命中：{hits}/{len(matched_hints)}")
+            if avg_len <= 18 and ("海明威" in style or "古龙" in style):
+                bonus_points += 1
+                mode_feedback.append("句式相对克制，符合短句风格。")
+
+        elif rubric_mode == "sensory":
+            constraint = exercise_data.get("constraint") or exercise_data.get("sensory_constraint", "")
+            sensory_words = {
+                "visual": ["光", "影", "色", "亮", "暗", "看", "红", "白", "黑"],
+                "sound": ["声", "响", "听", "鸣", "沉默", "寂静", "雷"],
+                "smell": ["味", "气味", "香", "腥", "潮", "霉"],
+                "touch": ["冷", "热", "凉", "粗糙", "柔软", "刺", "湿"],
+                "taste": ["甜", "苦", "酸", "咸", "涩"],
+            }
+            used = {
+                key: sum(1 for token in tokens if token in content)
+                for key, tokens in sensory_words.items()
+            }
+            non_visual = used["sound"] + used["smell"] + used["touch"] + used["taste"]
+            bonus_points += min(5, non_visual)
+            if "禁用视觉" in constraint and used["visual"]:
+                bonus_points -= min(3, used["visual"])
+                mode_feedback.append("注意：限制中禁用视觉，但文本仍有视觉词。")
+            mode_feedback.append(f"非视觉感官线索：{non_visual}")
+
+        elif rubric_mode == "show_dont_tell":
             telling = exercise_data.get("telling", "")
             if len(content) > len(telling) * 2:
                 bonus_points = 2
@@ -584,7 +774,7 @@ class LocalTrainingScorer:
                 bonus_points += 1
                 mode_feedback.append("感官描写较丰富。")
 
-        elif mode == "editing":
+        elif rubric_mode == "editing":
             original = exercise_data.get("telling", "")
             if len(content) < len(original):
                 bonus_points = 3
@@ -599,13 +789,18 @@ class LocalTrainingScorer:
                     bonus_points += 1
                     mode_feedback.append("冗余修饰语有所减少。")
 
-        elif mode == "emotion_infusion":
+        elif rubric_mode == "emotion_infusion":
             emotion = exercise_data.get("emotion", "")
             if emotion and any(token in content for token in emotion.split("/")):
                 bonus_points += 2
                 mode_feedback.append("目标情感有明显呈现。")
+            emotion_cues = ["心", "眼", "手", "呼吸", "喉", "笑", "哭", "颤"]
+            cue_hits = sum(1 for cue in emotion_cues if cue in content)
+            if cue_hits >= 2:
+                bonus_points += 2
+                mode_feedback.append("情绪通过身体反应或细节呈现。")
 
-        elif mode == "brainstorm":
+        elif rubric_mode == "brainstorm":
             idea_count = estimate_idea_count(content)
             volume_score = min(10, idea_count)
 
@@ -631,7 +826,7 @@ class LocalTrainingScorer:
             if vocab_ratio < 0.25 and words > 20:
                 mode_feedback.append("用词重复偏多，尝试扩大意象范围。")
 
-        elif mode in ("dialogue_subtext", "character_voice"):
+        elif rubric_mode in ("dialogue_subtext", "character_voice"):
             dialogue_lines = [line for line in content.splitlines() if "：" in line]
             if len(dialogue_lines) >= 2:
                 bonus_points += 2
@@ -640,23 +835,41 @@ class LocalTrainingScorer:
             if len(speakers) >= 2:
                 bonus_points += 1
                 mode_feedback.append("角色声音区分较明显。")
+            if rubric_mode == "dialogue_subtext":
+                direct_words = ["我想", "我需要", "分手", "借钱", "离开"]
+                direct_hits = sum(1 for token in direct_words if token in content)
+                if direct_hits == 0 and len(dialogue_lines) >= 4:
+                    bonus_points += 2
+                    mode_feedback.append("潜台词较克制，没有过早点破目的。")
+            else:
+                speech_marks = ["嘛", "哼", "您", "老子", "在下", "其实"]
+                if sum(1 for token in speech_marks if token in content) >= 2:
+                    bonus_points += 2
+                    mode_feedback.append("语气标记增强了角色区分。")
 
-        elif mode == "character_persona":
+        elif rubric_mode == "character_persona":
             needed = ["姓名", "年龄", "背景", "目标", "缺陷"]
             hit = sum(1 for item in needed if item in content)
             if hit >= 3:
                 bonus_points += 2
                 mode_feedback.append("角色档案结构完整度较高。")
+            if all(item in content for item in ["目标", "缺陷"]):
+                bonus_points += 2
+                mode_feedback.append("目标与缺陷同时出现，人物驱动力更清楚。")
 
-        elif mode == "character_arc":
+        elif rubric_mode == "character_arc":
             cues = ["伏笔", "过去", "前史", "曾经", "原因"]
             if any(cue in content for cue in cues):
                 bonus_points += 2
                 mode_feedback.append("伏笔/前史线索较明确。")
+            change_cues = ["起初", "后来", "终于", "转而", "改变"]
+            if any(cue in content for cue in change_cues):
+                bonus_points += 2
+                mode_feedback.append("角色反应有变化轨迹。")
 
         total_raw = (volume_score + complexity_score + structure_score + bonus_points)
         # 归一化到大约30分
-        final_score = min(30, int(total_raw))
+        final_score = max(0, min(30, int(total_raw)))
 
         labels_by_mode = {
             "keywords": ("关键词运用", "词汇丰富度", "结构与流畅"),
@@ -672,12 +885,13 @@ class LocalTrainingScorer:
             "character_persona": ("人物立体度", "设定完整度", "一致性"),
             "character_arc": ("反应可信度", "伏笔合理性", "层次")
         }
-        label_1, label_2, label_3 = labels_by_mode.get(mode, ("创意", "表达", "结构"))
+        label_1, label_2, label_3 = labels_by_mode.get(rubric_mode, ("创意", "表达", "结构"))
 
         # 生成报告
         feedback = [
             f"=== 离线分析报告 ===",
             f"模式：{MODES.get(mode, mode)}",
+            f"评分标准：{MODES.get(rubric_mode, rubric_mode)}",
             f"字数：{words}",
             f"平均句长：{avg_len:.1f}",
             "",
@@ -691,7 +905,7 @@ class LocalTrainingScorer:
             "--- 反馈 ---"
         ]
 
-        if mode != "brainstorm":
+        if rubric_mode != "brainstorm":
             if words < 50:
                 feedback.append("- 考虑多写一些以充分展开主题。")
             if avg_len > 30:

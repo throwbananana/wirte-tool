@@ -14,6 +14,17 @@ class TestTrainingManager(unittest.TestCase):
         for word in words[:3]:
             self.assertIsInstance(word, str)
 
+    def test_get_words_preserves_topic_and_required_keywords(self):
+        words = self.manager.get_words(
+            "级别2（动作/抽象）",
+            count=5,
+            topic="城市孤独",
+            required_keywords=["雨声"]
+        )
+
+        self.assertIn("雨声", words)
+        self.assertIn("城市孤独", words)
+
     def test_get_ai_prompt(self):
         level = "级别1（具象词汇）"
         words = ["猫", "门", "雨"]

@@ -1,7 +1,14 @@
 import logging
 import tkinter as tk
 from tkinter import messagebox, Toplevel, ttk, scrolledtext
-from writer_app.core.training import TrainingManager, MODES, DAILY_QUEST_PASS_SCORE
+from writer_app.core.training import (
+    TrainingManager,
+    MODES,
+    DAILY_QUEST_PASS_SCORE,
+    DAILY_QUEST_MODES,
+    TrainingSessionConfig,
+)
+from writer_app.core.analysis import TextMetrics
 
 # 上下文截断限制（用于AI对话）
 CONTEXT_TRUNCATE_LIMIT = 1000
@@ -13,7 +20,7 @@ from writer_app.ui.word_bank_editor import WordBankEditor
 from writer_app.ui.stats_visualizer import StatsVisualizer
 from writer_app.core.thread_pool import get_ai_thread_pool
 from writer_app.core.event_bus import get_event_bus, Events
-from typing import List, Tuple, Callable, Any
+from typing import List, Tuple, Callable, Any, Dict
 import re
 from datetime import datetime
 
@@ -186,6 +193,45 @@ class TrainingController:
     def get_challenges(self):
         return self.challenge_manager.get_all_challenges()
 
+    def _get_active_challenge_payload(self):
+        if self.active_challenge_id == "daily":
+            return self.challenge_manager.get_daily_quest()
+        if self.active_challenge_id:
+            return self.challenge_manager.get_challenge(self.active_challenge_id)
+        return None
+
+    def _build_session_config(
+        self,
+        mode_key: str,
+        level: str,
+        topic: str,
+        selected_tag: str = "",
+        *,
+        is_challenge: bool = False
+    ) -> TrainingSessionConfig:
+        payload = self._get_active_challenge_payload() if is_challenge else None
+        if payload:
+            data = dict(payload)
+            data.setdefault("mode", mode_key)
+            data.setdefault("level", level)
+            data.setdefault("topic", topic)
+            data["tag"] = selected_tag
+            return TrainingSessionConfig.from_mapping(data, challenge_id=self.active_challenge_id)
+        return TrainingSessionConfig(
+            mode=mode_key,
+            level=level,
+            topic=topic,
+            tag=selected_tag,
+            challenge_id=self.active_challenge_id if is_challenge else None,
+        )
+
+    def _apply_session_config(self, config: TrainingSessionConfig) -> Dict[str, Any]:
+        data = config.to_exercise_data()
+        self.current_mode = config.mode
+        self.current_level = config.level
+        self.current_exercise_data = data
+        return data
+
     def load_challenge(self, challenge_id):
         challenge = self.challenge_manager.get_challenge(challenge_id)
         if not challenge:
@@ -209,16 +255,12 @@ class TrainingController:
         finally:
             self._loading_challenge = False
 
-        self.current_mode = challenge["mode"]
-        self.current_level = challenge["level"]
-        self.current_exercise_data = {
-            "mode": challenge["mode"],
-            "level": challenge["level"],
-            "topic": challenge["topic"],
-            "challenge_id": challenge_id
-        }
+        config = TrainingSessionConfig.from_mapping(challenge, challenge_id=challenge_id)
+        self._apply_session_config(config)
 
         prompt_text = f"🔥 挑战：{challenge['title']}\n{challenge['description']}\n\n目标分数：{challenge['min_score']}"
+        if challenge.get("prompt_note"):
+            prompt_text += f"\n要求：{challenge['prompt_note']}"
         self.challenge_prompt_text = prompt_text
         self.view.update_prompt_display(prompt_text)
         self.generate_prompt(is_challenge=True)
@@ -255,14 +297,8 @@ class TrainingController:
         finally:
             self._loading_challenge = False
 
-        self.current_mode = quest["mode"]
-        self.current_level = quest["level"]
-        self.current_exercise_data = {
-            "mode": quest["mode"],
-            "level": quest["level"],
-            "topic": quest["topic"],
-            "challenge_id": "daily"
-        }
+        config = TrainingSessionConfig.from_mapping(quest, challenge_id="daily")
+        self._apply_session_config(config)
 
         prompt_text = f"🌟 每日任务：{quest['title']}\n{quest['description']}"
         self.challenge_prompt_text = prompt_text
@@ -311,10 +347,12 @@ class TrainingController:
         if not isinstance(data, dict):
             return None
 
-        allowed_modes = ["keywords", "brainstorm", "style", "sensory", "show_dont_tell", "editing"]
         mode = data.get("mode")
-        if mode not in allowed_modes:
+        if mode not in DAILY_QUEST_MODES:
             return None
+        rubric_mode = data.get("rubric_mode") or mode
+        if rubric_mode not in MODES:
+            rubric_mode = mode
 
         topic = (data.get("topic") or "").strip()
         if not topic:
@@ -332,6 +370,7 @@ class TrainingController:
             "title": title,
             "description": description,
             "mode": mode,
+            "rubric_mode": rubric_mode,
             "topic": topic,
             "level": level,
             "completed": False,
@@ -376,24 +415,27 @@ class TrainingController:
     def generate_prompt(self, is_challenge=False):
         self._active_prompt_request_id = self._next_request_id()
         request_id = self._active_prompt_request_id
-        mode_key = self.view.get_selected_mode_key()
-        level = self.view.level_var.get()
-        topic = self.view.topic_var.get().strip()
+        selected_mode_key = self.view.get_selected_mode_key()
+        selected_level = self.view.level_var.get()
+        selected_topic = self.view.topic_var.get().strip()
         selected_tag = self.view.tag_var.get().strip()
 
         if not is_challenge:
             self.active_challenge_id = None
             self.challenge_prompt_text = None
 
-        self.current_mode = mode_key
-        self.current_level = level
-        self.current_exercise_data = {
-            "mode": mode_key,
-            "level": level,
-            "topic": topic,
-            "tag": selected_tag,
-            "challenge_id": self.active_challenge_id
-        }
+        session_config = self._build_session_config(
+            selected_mode_key,
+            selected_level,
+            selected_topic,
+            selected_tag,
+            is_challenge=is_challenge,
+        )
+        exercise_data = self._apply_session_config(session_config)
+        mode_key = session_config.mode
+        level = session_config.level
+        topic = session_config.effective_topic
+        selected_tag = session_config.tag
 
         if not is_challenge:
             self.view.update_prompt_display("正在生成题目...")
@@ -404,10 +446,10 @@ class TrainingController:
             if self._is_ai_enabled():
                 self._handle_keywords_generation(topic, level, selected_tag, is_challenge, request_id)
             else:
-                self._fallback_to_local(level, selected_tag)
+                self._fallback_to_local(level, selected_tag, topic=topic)
                 self.view.after(0, lambda: self.view.generate_btn.config(state="normal"))
         elif mode_key == "style":
-            style = self.manager.get_random_style()
+            style = exercise_data.get("required_style") or self.manager.get_random_style()
             self.current_exercise_data["style"] = style
             display = f"目标风格：{style}\n主题：{topic or selected_tag or '自选'}"
             prefix = self._get_challenge_prefix() if is_challenge else None
@@ -416,7 +458,7 @@ class TrainingController:
             self.view.update_prompt_display(display)
             self.view.generate_btn.config(state="normal")
         elif mode_key == "sensory":
-            constraint = self.manager.get_random_sensory_constraint()
+            constraint = exercise_data.get("sensory_constraint") or self.manager.get_random_sensory_constraint()
             self.current_exercise_data["constraint"] = constraint
             display = f"感官限制：{constraint}\n主题：{topic or selected_tag or '自选'}"
             prefix = self._get_challenge_prefix() if is_challenge else None
@@ -425,7 +467,7 @@ class TrainingController:
             self.view.update_prompt_display(display)
             self.view.generate_btn.config(state="normal")
         elif mode_key == "emotion_infusion":
-            emotion = self.manager.get_random_emotion()
+            emotion = exercise_data.get("required_emotion") or self.manager.get_random_emotion()
             self.current_exercise_data["emotion"] = emotion
             display = f"目标情感：{emotion}\n主题：{topic or selected_tag or '自选'}"
             prefix = self._get_challenge_prefix() if is_challenge else None
@@ -434,7 +476,7 @@ class TrainingController:
             self.view.update_prompt_display(display)
             self.view.generate_btn.config(state="normal")
         elif mode_key == "character_persona":
-            archetype = self.manager.get_random_archetype()
+            archetype = exercise_data.get("required_archetype") or self.manager.get_random_archetype()
             self.current_exercise_data["archetype"] = archetype
             display = f"角色原型/特质：{archetype}\n主题：{topic or selected_tag or '自选'}\n\n任务：创建详细的角色档案（姓名、年龄、背景、目标、缺陷）。"
             prefix = self._get_challenge_prefix() if is_challenge else None
@@ -443,7 +485,7 @@ class TrainingController:
             self.view.update_prompt_display(display)
             self.view.generate_btn.config(state="normal")
         elif mode_key == "character_arc":
-            event = self.manager.get_random_event()
+            event = exercise_data.get("required_event") or self.manager.get_random_event()
             self.current_exercise_data["event"] = event
             display = f"突发事件：{event}\n主题：{topic or selected_tag or '自选'}\n\n任务：写出角色反应和解释反应的隐藏伏笔。"
             prefix = self._get_challenge_prefix() if is_challenge else None
@@ -530,12 +572,12 @@ class TrainingController:
                     display = f"{prefix}\n\n{display}"
                 self.view.update_prompt_display(display)
             else:
-                self._fallback_to_local(level, tag)
+                self._fallback_to_local(level, tag, topic=topic)
 
         def on_keywords_error(_err):
             if not self._is_request_active("prompt", request_id):
                 return
-            self._fallback_to_local(level, tag)
+            self._fallback_to_local(level, tag, topic=topic)
 
         self._submit_ai_task(
             "keyword_generation",
@@ -630,6 +672,34 @@ class TrainingController:
             scores[k.strip()] = int(v)
         return self._normalize_scores(scores)
 
+    def _has_score_fields(self, data):
+        if not isinstance(data, dict):
+            return False
+        scores = data.get("scores") if isinstance(data.get("scores"), dict) else data
+        score_keys = {
+            "score_1", "score_2", "score_3", "total",
+            "Score 1", "Score 2", "Score 3", "Total Score",
+            "评分1", "评分2", "评分3", "评分 1", "评分 2", "评分 3", "总分", "总分数"
+        }
+        return any(key in scores for key in score_keys)
+
+    def _response_has_score_text(self, response_text):
+        if not isinstance(response_text, str):
+            return False
+        return bool(re.search(r"(score[_\s-]?[123]?|total|评分|总分)[\s:：]*\d+", response_text, re.IGNORECASE))
+
+    def _show_score_parse_failure(self, raw_response):
+        preview = str(raw_response).strip()
+        if len(preview) > 600:
+            preview = preview[:600] + "..."
+        self.view.show_feedback(
+            "评分结果解析失败，请重试。\n"
+            "本次没有记录历史，也不会判定挑战失败。\n\n"
+            f"原始返回：\n{preview}"
+        )
+        self.view.set_analyzing(False)
+        self.view.generate_btn.config(state="normal")
+
     def _on_analysis_done(self, response, request_id=None):
         if request_id is not None and not self._is_request_active("analysis", request_id):
             return
@@ -637,22 +707,31 @@ class TrainingController:
         scores = {}
         feedback_text = ""
         display_text = ""
+        score_parse_failed = False
 
         if isinstance(response, dict):
             scores = self._normalize_scores(response)
             feedback_text = response.get("feedback") or response.get("text") or response.get("analysis") or ""
             display_text = feedback_text
+            score_parse_failed = not self._has_score_fields(response)
         elif isinstance(response, str):
             extracted = self.ai_client.extract_json_from_text(response)
             if isinstance(extracted, dict):
                 scores = self._normalize_scores(extracted)
                 feedback_text = extracted.get("feedback") or extracted.get("text") or ""
                 display_text = feedback_text or response
+                score_parse_failed = not self._has_score_fields(extracted)
             else:
                 scores = self._parse_scores_from_text(response)
                 display_text = response
+                score_parse_failed = not self._response_has_score_text(response)
         else:
             display_text = str(response)
+            score_parse_failed = True
+
+        if self._is_ai_enabled() and score_parse_failed:
+            self._show_score_parse_failure(response)
+            return
 
         if not display_text:
             display_text = "评分完成，但未返回详细点评。"
@@ -668,7 +747,7 @@ class TrainingController:
         # 记录字数
         content = self.view.get_content()
         if self.gamification_manager:
-            self.gamification_manager.record_words(len(content))
+            self.gamification_manager.record_words(TextMetrics.count_words(content))
 
         total = scores.get("total", 0)
         reward_msg = ""
@@ -760,13 +839,28 @@ class TrainingController:
 
         self._submit_ai_task("coach_chat", run_chat, success_callback=on_chat_done)
 
-    def _fallback_to_local(self, level, tag):
+    def _fallback_to_local(self, level, tag, topic=""):
         tags = [tag] if tag else []
-        words = self.manager.get_words(level, 5, tags=tags)
+        required_keywords = self.current_exercise_data.get("required_keywords", [])
+        words = self.manager.get_words(
+            level,
+            5,
+            tags=tags,
+            topic=topic or self.current_exercise_data.get("topic", ""),
+            required_keywords=required_keywords,
+        )
         note = ""
         if not words and tag:
-            words = self.manager.get_words(level, 5, tags=[])
+            words = self.manager.get_words(
+                level,
+                5,
+                tags=[],
+                topic=topic or self.current_exercise_data.get("topic", ""),
+                required_keywords=required_keywords,
+            )
             note = f"（标签「{tag}」没有匹配词汇，已使用全量词库）\n"
+        if topic and not self._is_ai_enabled():
+            note += "（离线模式已保留主题词；本地词库可能无法完整覆盖主题语义）\n"
         self.current_exercise_data["words"] = words
         display = f"{note}关键词（本地生成）：{', '.join(words)}"
         prefix = self._get_challenge_prefix()
