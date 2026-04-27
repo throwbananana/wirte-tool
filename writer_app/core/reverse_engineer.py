@@ -43,25 +43,101 @@ class AnalysisContext:
     # 保留的最近章节数
     max_chapters_in_summary: int = 5
 
+    # 单章摘要在上下文中的最大长度，避免推理模型输出过长污染后续提示词
+    max_single_summary_length: int = 500
+
+    @staticmethod
+    def clean_model_text(text: Any) -> str:
+        """清理模型输出中不应进入项目上下文的推理/包装文本。"""
+        if text is None:
+            return ""
+
+        cleaned = str(text).strip()
+        if not cleaned:
+            return ""
+
+        cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+        cleaned = re.sub(r"<think\b[^>]*>.*?</think>", "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+        cleaned = re.sub(r"^[\s\S]*?</think>", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"<think\b[^>]*>[\s\S]*$", "", cleaned, flags=re.IGNORECASE)
+
+        fence_match = re.fullmatch(r"\s*```(?:text|markdown)?\s*([\s\S]*?)\s*```\s*", cleaned, flags=re.IGNORECASE)
+        if fence_match:
+            cleaned = fence_match.group(1)
+
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
+
+    @classmethod
+    def compact_text(cls, text: Any, max_chars: int) -> str:
+        """清理并压缩文本，优先在句末截断。"""
+        cleaned = cls.clean_model_text(text)
+        if not cleaned or max_chars <= 0:
+            return ""
+        if len(cleaned) <= max_chars:
+            return cleaned
+
+        trimmed = cleaned[:max_chars].rstrip()
+        cut_positions = [trimmed.rfind(p) for p in ("。", "！", "？", ".", "!", "?", "；", ";", "\n")]
+        cut = max(cut_positions)
+        if cut >= max_chars // 2:
+            trimmed = trimmed[:cut + 1].rstrip()
+        return f"{trimmed}..."
+
+    @staticmethod
+    def _compact_name_list(names: List[str], max_count: int, max_chars: int) -> str:
+        """压缩名称列表，保留开头的基础名词和末尾的近期名词。"""
+        unique_names = []
+        seen = set()
+        for raw_name in names:
+            name = str(raw_name or "").strip()
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            unique_names.append(name)
+
+        if not unique_names:
+            return ""
+
+        if len(unique_names) > max_count:
+            head_count = max(1, max_count // 2)
+            tail_count = max_count - head_count
+            omitted = len(unique_names) - max_count
+            selected = unique_names[:head_count] + [f"...（省略{omitted}个）"] + unique_names[-tail_count:]
+        else:
+            selected = unique_names
+
+        while selected and len("、".join(selected)) > max_chars:
+            removable = [i for i, item in enumerate(selected) if not item.startswith("...（省略")]
+            if len(removable) <= 1:
+                break
+            selected.pop(removable[len(removable) // 2])
+
+        return "、".join(selected)
+
     def add_characters(self, names: List[str]):
         """添加新识别的角色名称。"""
         for name in names:
-            name = name.strip()
+            name = str(name or "").strip()
             if name and name not in self.known_characters:
                 self.known_characters.append(name)
 
     def add_entities(self, names: List[str]):
         """添加新识别的设定名词。"""
         for name in names:
-            name = name.strip()
+            name = str(name or "").strip()
             if name and name not in self.known_entities:
                 self.known_entities.append(name)
 
     def add_chapter_summary(self, chapter_title: str, summary: str):
         """添加章节摘要并更新滚动摘要。"""
+        compact_summary = self.compact_text(summary, self.max_single_summary_length)
+        if not compact_summary:
+            return
+
         self.chapter_summaries.append({
-            "title": chapter_title,
-            "summary": summary
+            "title": str(chapter_title or "").strip() or "未命名章节",
+            "summary": compact_summary
         })
 
         # 只保留最近N个章节
@@ -74,40 +150,55 @@ class AnalysisContext:
     def _update_rolling_summary(self):
         """根据章节摘要列表生成滚动摘要。"""
         parts = []
-        for cs in self.chapter_summaries:
-            parts.append(f"【{cs['title']}】{cs['summary']}")
+        current_len = 0
 
-        combined = "\n".join(parts)
+        for cs in reversed(self.chapter_summaries[-self.max_chapters_in_summary:]):
+            title = str(cs.get("title") or "未命名章节").strip()
+            prefix = f"【{title}】"
+            summary_budget = max(80, min(self.max_single_summary_length, self.max_summary_length - len(prefix)))
+            summary = self.compact_text(cs.get("summary", ""), summary_budget)
+            if not summary:
+                continue
 
-        # 如果超过最大长度，截取最近的部分
-        if len(combined) > self.max_summary_length:
-            combined = combined[-self.max_summary_length:]
-            # 从第一个完整句子开始
-            cut_candidates = [combined.find(p) for p in ("。", "！", "？", ".", "!", "?")]
-            cut_candidates = [c for c in cut_candidates if 0 < c < 200]
-            if cut_candidates:
-                first_period = min(cut_candidates)
-                combined = combined[first_period + 1:]
+            part = f"{prefix}{summary}"
+            projected_len = current_len + len(part) + (1 if parts else 0)
+            if projected_len > self.max_summary_length and parts:
+                continue
+            if projected_len > self.max_summary_length:
+                available = max(0, self.max_summary_length - len(prefix))
+                summary = self.compact_text(summary, available)
+                part = f"{prefix}{summary}" if summary else ""
+                if not part:
+                    continue
 
-        self.rolling_summary = combined
+            current_len += len(part) + (1 if parts else 0)
+            parts.append(part)
+
+        self.rolling_summary = "\n".join(reversed(parts))
 
     def get_context_prompt(self, analysis_type: str) -> str:
         """根据分析类型生成上下文提示词。"""
+        if analysis_type == "style":
+            return ""
+
         parts = []
 
         # 添加已识别角色（对角色和关系分析特别重要）
-        if self.known_characters and analysis_type in ("characters", "relationships", "outline", "timeline"):
-            chars_str = "、".join(self.known_characters[:30])  # 限制数量
-            parts.append(f"【已知角色】：{chars_str}")
+        if self.known_characters and analysis_type in ("characters", "relationships", "outline", "timeline", "summary"):
+            chars_str = self._compact_name_list(self.known_characters, max_count=30, max_chars=600)
+            if chars_str:
+                parts.append(f"【已知角色】：{chars_str}")
 
         # 添加已识别设定（对wiki分析重要）
-        if self.known_entities and analysis_type in ("wiki", "outline"):
-            entities_str = "、".join(self.known_entities[:20])
-            parts.append(f"【已知设定】：{entities_str}")
+        if self.known_entities and analysis_type in ("wiki", "outline", "relationships", "timeline", "summary"):
+            entities_str = self._compact_name_list(self.known_entities, max_count=24, max_chars=500)
+            if entities_str:
+                parts.append(f"【已知设定】：{entities_str}")
 
         # 添加滚动摘要（对所有分析都有帮助）
-        if self.rolling_summary:
-            parts.append(f"【前情提要】：\n{self.rolling_summary}")
+        rolling_summary = self.compact_text(self.rolling_summary, self.max_summary_length)
+        if rolling_summary:
+            parts.append(f"【前情提要】：\n{rolling_summary}")
 
         if parts:
             return "\n\n".join(parts) + "\n\n---\n\n"
@@ -126,10 +217,19 @@ class AnalysisContext:
     def from_dict(cls, data: Dict) -> "AnalysisContext":
         """从字典恢复（用于加载会话）。"""
         ctx = cls()
-        ctx.known_characters = data.get("known_characters", [])
-        ctx.known_entities = data.get("known_entities", [])
-        ctx.rolling_summary = data.get("rolling_summary", "")
-        ctx.chapter_summaries = data.get("chapter_summaries", [])
+        ctx.add_characters(data.get("known_characters", []))
+        ctx.add_entities(data.get("known_entities", []))
+
+        for chapter_summary in data.get("chapter_summaries", []):
+            if not isinstance(chapter_summary, dict):
+                continue
+            ctx.add_chapter_summary(
+                chapter_summary.get("title", "未命名章节"),
+                chapter_summary.get("summary", "")
+            )
+
+        if not ctx.chapter_summaries:
+            ctx.rolling_summary = ctx.compact_text(data.get("rolling_summary", ""), ctx.max_summary_length)
         return ctx
 
 class TextExtractor(HTMLParser):
@@ -327,6 +427,7 @@ class ReverseEngineeringManager:
         # 增量分析：记录已分析的章节哈希值
         self._analyzed_hashes: Dict[str, Set[str]] = {}  # {analysis_type: set of content hashes}
         self._summary_cache: Dict[str, str] = {}
+        self._analysis_result_cache: Dict[str, List[Dict[str, Any]]] = {}
 
         # 容错：解析常见的容器键，兼容 LLM 输出变体
         self._container_keys = {
@@ -515,7 +616,7 @@ class ReverseEngineeringManager:
         elif analysis_type == "summary":
             content = normalized.get("content") or self._first_present(item, ("summary", "text"))
             if content:
-                normalized["content"] = str(content).strip()
+                normalized["content"] = AnalysisContext.compact_text(content, 1000)
             name = normalized.get("name") or self._first_present(item, ("title",))
             if name:
                 normalized["name"] = str(name).strip()
@@ -523,7 +624,7 @@ class ReverseEngineeringManager:
         elif analysis_type == "style":
             content = normalized.get("content") or self._first_present(item, ("analysis", "text"))
             if content:
-                normalized["content"] = str(content).strip()
+                normalized["content"] = AnalysisContext.clean_model_text(content)
             if not normalized.get("name"):
                 normalized["name"] = "写作风格"
 
@@ -688,8 +789,13 @@ class ReverseEngineeringManager:
         """清除分析缓存，强制重新分析。"""
         if analysis_type:
             self._analyzed_hashes.pop(analysis_type, None)
+            prefix = f"{analysis_type}:"
+            for cache_key in list(self._analysis_result_cache.keys()):
+                if cache_key.startswith(prefix):
+                    self._analysis_result_cache.pop(cache_key, None)
         else:
             self._analyzed_hashes.clear()
+            self._analysis_result_cache.clear()
 
     def get_analysis_progress(self) -> Dict[str, int]:
         """获取各类型的已分析数量。"""
@@ -712,11 +818,40 @@ class ReverseEngineeringManager:
             self._summary_cache = state["summary_cache"]
 
     def set_cached_summary(self, content_hash: str, summary: str):
-        if content_hash and summary:
-            self._summary_cache[content_hash] = summary
+        compact_summary = AnalysisContext.compact_text(summary, AnalysisContext.max_single_summary_length)
+        if content_hash and compact_summary:
+            self._summary_cache[content_hash] = compact_summary
 
     def get_cached_summary(self, content_hash: str) -> str:
-        return self._summary_cache.get(content_hash, "")
+        cached = self._summary_cache.get(content_hash, "")
+        compact_summary = AnalysisContext.compact_text(cached, AnalysisContext.max_single_summary_length)
+        if cached and cached != compact_summary:
+            if compact_summary:
+                self._summary_cache[content_hash] = compact_summary
+            else:
+                self._summary_cache.pop(content_hash, None)
+        return compact_summary
+
+    def set_cached_analysis_result(self, content_hash: str, analysis_type: str, result: List[Dict[str, Any]]):
+        """缓存本次运行的分析结果，避免增量跳过后预览为空。"""
+        if not content_hash or not analysis_type or not isinstance(result, list):
+            return
+
+        cache_key = f"{analysis_type}:{content_hash}"
+        cached_items = []
+        for item in result:
+            if isinstance(item, dict):
+                cached_item = dict(item)
+                cached_item.pop("chapter_title", None)
+                cached_items.append(cached_item)
+        self._analysis_result_cache[cache_key] = cached_items
+
+    def get_cached_analysis_result(self, content_hash: str, analysis_type: str) -> Optional[List[Dict[str, Any]]]:
+        cache_key = f"{analysis_type}:{content_hash}"
+        cached = self._analysis_result_cache.get(cache_key)
+        if cached is None:
+            return None
+        return [dict(item) for item in cached if isinstance(item, dict)]
 
     def load_file(self, file_path: str) -> str:
         ext = os.path.splitext(file_path)[1].lower()
@@ -1055,8 +1190,9 @@ class ReverseEngineeringManager:
             context_prompt=context_prompt
         )
 
+        attempts = max(1, int(self.max_retries or 1))
         last_error = None
-        for attempt in range(self.max_retries):
+        for attempt in range(attempts):
             try:
                 response_text, was_cancelled = self._call_ai_with_cancel(
                     api_url=config.get("api_url"),
@@ -1079,7 +1215,7 @@ class ReverseEngineeringManager:
                     if response_text:
                         logger.warning(
                             "JSON schema invalid for %s (attempt %d/%d). Response preview: %s",
-                            analysis_type, attempt + 1, self.max_retries,
+                            analysis_type, attempt + 1, attempts,
                             response_text[:200].replace('\n', ' ')
                         )
                 else:
@@ -1089,22 +1225,22 @@ class ReverseEngineeringManager:
                         # Log first 200 chars for debugging
                         logger.warning(
                             "JSON extraction failed for %s (attempt %d/%d). Response preview: %s",
-                            analysis_type, attempt + 1, self.max_retries,
+                            analysis_type, attempt + 1, attempts,
                             response_text[:200].replace('\n', ' ')
                         )
             except Exception as e:
                 last_error = str(e)
                 logger.warning(
                     "API error for %s (attempt %d/%d): %s",
-                    analysis_type, attempt + 1, self.max_retries, last_error
+                    analysis_type, attempt + 1, attempts, last_error
                 )
 
             # 指数退避重试（适用于异常和JSON解析失败）
-            if attempt < self.max_retries - 1:
+            if attempt < attempts - 1:
                 wait_time = (2 ** attempt) * 0.5
                 time.sleep(wait_time)
 
-        logger.error("Analysis error (%s) after %d retries: %s", analysis_type, self.max_retries, last_error)
+        logger.error("Analysis error (%s) after %d attempts: %s", analysis_type, attempts, last_error)
         return None
 
     def merge_results(self, all_results: List[Any], analysis_type: str) -> List[Any]:
@@ -1336,8 +1472,8 @@ class ReverseEngineeringManager:
             if was_cancelled:
                 logger.info("Chapter summary generation cancelled for %s.", chapter_title)
                 return None
-            # 简短摘要不需要JSON解析，直接返回文本
-            summary = response_text.strip() if response_text else None
+            # 简短摘要不需要JSON解析，但要去掉推理模型的思考块并压缩长度
+            summary = AnalysisContext.compact_text(response_text, AnalysisContext.max_single_summary_length)
             if summary:
                 summary_key = self.get_summary_cache_key(chunk, chapter_title, config=config)
                 self.set_cached_summary(summary_key, summary)

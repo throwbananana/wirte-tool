@@ -733,11 +733,22 @@ class ReverseEngineeringView(ttk.Frame):
                         if analysis_type not in self.manager._analyzed_hashes:
                             self.manager._analyzed_hashes[analysis_type] = set()
                         if analysis_cache_key in self.manager._analyzed_hashes[analysis_type]:
-                            skipped_count += 1
-                            current_step += 1
-                            progress = (current_step / total_units) * 100
-                            self._set_progress(progress)
-                            continue
+                            cached_result = self.manager.get_cached_analysis_result(
+                                analysis_cache_key,
+                                analysis_type
+                            )
+                            if cached_result is not None:
+                                for r in cached_result:
+                                    r["chapter_title"] = unit_title
+                                global_results_buffer[analysis_type].append(cached_result)
+                                chapter_results[analysis_type] = cached_result
+                                any_analysis_done = True
+                                skipped_count += 1
+                                current_step += 1
+                                progress = (current_step / total_units) * 100
+                                self._set_progress(progress)
+                                continue
+                            self.log(f"  [{analysis_type}] Incremental mark found but result cache is missing; re-analyzing.")
 
                     self.log(f"  [{analysis_type}] Analyzing...")
 
@@ -752,6 +763,11 @@ class ReverseEngineeringView(ttk.Frame):
                         )
 
                         if result is not None:
+                            self.manager.set_cached_analysis_result(
+                                analysis_cache_key,
+                                analysis_type,
+                                result
+                            )
                             for r in result:
                                 r["chapter_title"] = unit_title
                             global_results_buffer[analysis_type].append(result)
