@@ -10,9 +10,15 @@ from writer_app.core.tone_outline import (
     DEFAULT_PLOT_LINE_UID,
     DEFAULT_SEGMENT_ARC,
     DEFAULT_SEGMENT_CURVE,
+    DEFAULT_MEDIATION_ROLE,
+    DEFAULT_TREND_PATTERN,
+    DEFAULT_TREND_SCOPE,
     INTERACTION_TYPE_LABELS,
+    MEDIATION_ROLE_LABELS,
     NODE_TYPE_LABELS,
     NOTE_TYPE_LABELS,
+    TREND_PATTERN_LABELS,
+    TREND_SCOPE_LABELS,
     analyze_merge_conflicts,
     axis_in_segment,
     build_axis_nodes_from_scenes,
@@ -20,6 +26,7 @@ from writer_app.core.tone_outline import (
     build_plot_summary,
     build_relation_summary,
     build_timeline_summary,
+    build_tone_reverse_reasoning_prompt,
     clone_tone_outline,
     duplicate_segment,
     ensure_tone_outline_defaults,
@@ -27,8 +34,11 @@ from writer_app.core.tone_outline import (
     get_display_segments,
     get_next_tone_line_color,
     get_interaction_label,
+    get_mediation_role_label,
     get_node_type_label,
     get_note_type_label,
+    get_trend_pattern_label,
+    get_trend_scope_label,
     merge_adjacent_segments,
     split_segment,
 )
@@ -55,10 +65,16 @@ def _preview_text(value, limit=24, empty="无"):
 
 INTERACTION_TYPE_OPTIONS = list(INTERACTION_TYPE_LABELS.items())
 INTERACTION_LABEL_TO_TYPE = {label: key for key, label in INTERACTION_TYPE_OPTIONS}
+MEDIATION_ROLE_OPTIONS = list(MEDIATION_ROLE_LABELS.items())
+MEDIATION_LABEL_TO_ROLE = {label: key for key, label in MEDIATION_ROLE_OPTIONS}
 NODE_TYPE_OPTIONS = list(NODE_TYPE_LABELS.items())
 NODE_LABEL_TO_TYPE = {label: key for key, label in NODE_TYPE_OPTIONS}
 NOTE_TYPE_OPTIONS = list(NOTE_TYPE_LABELS.items())
 NOTE_LABEL_TO_TYPE = {label: key for key, label in NOTE_TYPE_OPTIONS}
+TREND_PATTERN_OPTIONS = list(TREND_PATTERN_LABELS.items())
+TREND_LABEL_TO_PATTERN = {label: key for key, label in TREND_PATTERN_OPTIONS}
+TREND_SCOPE_OPTIONS = list(TREND_SCOPE_LABELS.items())
+TREND_LABEL_TO_SCOPE = {label: key for key, label in TREND_SCOPE_OPTIONS}
 
 
 def find_points_in_selection(point_positions, line_uid, segment_uid, start_x, start_y, end_x, end_y):
@@ -670,18 +686,23 @@ class ToneOutlineCanvas(tk.Canvas):
     def _interaction_offsets(self, interactions):
         grouped = {}
         for interaction in interactions:
-            grouped.setdefault(interaction.get("axis_uid", ""), []).append(interaction)
+            key = (
+                interaction.get("axis_uid", ""),
+                interaction.get("target_axis_uid") or interaction.get("axis_uid", ""),
+            )
+            grouped.setdefault(key, []).append(interaction)
         offsets = {}
-        for axis_uid, items in grouped.items():
+        for _key, items in grouped.items():
             total = len(items)
             for index, interaction in enumerate(items):
                 offsets[interaction.get("uid", "")] = (index - (total - 1) / 2.0) * 10
         return offsets
 
-    def _draw_connector_bundle(self, x, y1, y2, interaction_type, color, tags, selected=False):
+    def _draw_connector_bundle(self, x, y1, y2, interaction_type, color, tags, selected=False, x2=None):
+        x2 = x if x2 is None else x2
         top_y = min(y1, y2)
         bottom_y = max(y1, y2)
-        if abs(bottom_y - top_y) < 10:
+        if abs(bottom_y - top_y) < 10 and abs(x2 - x) < 10:
             return
         is_dashed = interaction_type.startswith("dashed")
         line_dash = (6, 4) if is_dashed else None
@@ -689,6 +710,60 @@ class ToneOutlineCanvas(tk.Canvas):
         highlight_color = "#BFDBFE"
         width = 2 if not selected else 3
         bundle = []
+
+        if abs(x2 - x) >= 10:
+            if interaction_type in ("solid_single", "dashed_single"):
+                bundle.append({"x1": x, "y1": y1, "x2": x2, "y2": y2, "arrow": tk.LAST})
+            elif interaction_type == "solid_opposed_double":
+                bundle.extend(
+                    [
+                        {"x1": x, "y1": y1 - 4, "x2": x2, "y2": y2 - 4, "arrow": tk.FIRST},
+                        {"x1": x, "y1": y1 + 4, "x2": x2, "y2": y2 + 4, "arrow": tk.LAST},
+                    ]
+                )
+            elif interaction_type == "dashed_facing_double":
+                mid_x = (x + x2) / 2
+                mid_y = (y1 + y2) / 2
+                bundle.extend(
+                    [
+                        {"x1": x, "y1": y1 - 4, "x2": mid_x, "y2": mid_y - 4, "arrow": tk.LAST},
+                        {"x1": x2, "y1": y2 + 4, "x2": mid_x, "y2": mid_y + 4, "arrow": tk.LAST},
+                    ]
+                )
+            else:
+                bundle.extend(
+                    [
+                        {"x1": x, "y1": y1 - 4, "x2": x2, "y2": y2 - 4, "arrow": tk.LAST},
+                        {"x1": x, "y1": y1 + 4, "x2": x2, "y2": y2 + 4, "arrow": tk.LAST},
+                    ]
+                )
+            for item in bundle:
+                if selected:
+                    self.create_line(
+                        item["x1"],
+                        item["y1"],
+                        item["x2"],
+                        item["y2"],
+                        fill=highlight_color,
+                        width=width + 3,
+                        arrow=item["arrow"],
+                        arrowshape=arrowshape,
+                        tags=tags,
+                        dash=line_dash,
+                    )
+                self.create_line(
+                    item["x1"],
+                    item["y1"],
+                    item["x2"],
+                    item["y2"],
+                    fill=color,
+                    width=width,
+                    arrow=item["arrow"],
+                    arrowshape=arrowshape,
+                    tags=tags,
+                    dash=line_dash,
+                )
+            return
 
         if interaction_type in ("solid_single", "dashed_single"):
             bundle.append({"x": x, "y1": y1, "y2": y2, "arrow": tk.LAST})
@@ -750,7 +825,10 @@ class ToneOutlineCanvas(tk.Canvas):
         offsets = self._interaction_offsets(interactions)
         for interaction in interactions:
             axis_uid = interaction.get("axis_uid", "")
+            target_axis_uid = interaction.get("target_axis_uid") or axis_uid
             if axis_uid not in self._axis_positions:
+                continue
+            if target_axis_uid not in self._axis_positions:
                 continue
             source_context = self._find_point_context(interaction.get("source_point_uid", ""))
             if not source_context:
@@ -761,13 +839,14 @@ class ToneOutlineCanvas(tk.Canvas):
                 source_context.get("segment_uid", ""),
             )
             target_y = self._get_slot_for_segment(
-                axis_uid,
+                target_axis_uid,
                 interaction.get("target_line_uid", ""),
                 interaction.get("target_segment_uid", ""),
             )
             if not source_y or not target_y:
                 continue
             x = self._axis_positions[axis_uid] + offsets.get(interaction.get("uid", ""), 0)
+            x2 = self._axis_positions[target_axis_uid] + offsets.get(interaction.get("uid", ""), 0)
             tags = ("interaction", f"interaction:{interaction.get('uid', '')}")
             self._draw_connector_bundle(
                 x,
@@ -777,6 +856,7 @@ class ToneOutlineCanvas(tk.Canvas):
                 source_y.get("color", "#2563EB"),
                 tags,
                 selected=interaction.get("uid") == self.selected_interaction_uid,
+                x2=x2,
             )
 
     def _build_segment_points(
@@ -1655,8 +1735,9 @@ class ToneOutlineCanvas(tk.Canvas):
                 return
 
 class ToneOutlineSummaryPanel(ttk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, reverse_prompt_callback=None):
         super().__init__(parent)
+        self.reverse_prompt_callback = reverse_prompt_callback
         self._setup_ui()
 
     @staticmethod
@@ -1672,10 +1753,19 @@ class ToneOutlineSummaryPanel(ttk.Frame):
         return tree
 
     def _setup_ui(self):
+        header = ttk.Frame(self)
+        header.pack(fill=tk.X, padx=8, pady=(8, 4))
         ttk.Label(
-            self,
+            header,
             text="汇总按“线、情节、时间、关系”四个视角展开，节点类型、说明分类、隐藏状态都会同步显示。",
-        ).pack(anchor="w", padx=8, pady=(8, 4))
+        ).pack(side=tk.LEFT, anchor="w")
+        state = tk.NORMAL if self.reverse_prompt_callback else tk.DISABLED
+        ttk.Button(
+            header,
+            text="复制 LLM 反推提示词",
+            command=self.reverse_prompt_callback,
+            state=state,
+        ).pack(side=tk.RIGHT)
 
         notebook = ttk.Notebook(self)
         notebook.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 8))
@@ -1741,7 +1831,15 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                     values=(
                         segment["state_text"],
                         "",
-                        segment.get("curve_text", ""),
+                        " / ".join(
+                            part
+                            for part in (
+                                segment.get("trend_scope_text", ""),
+                                segment.get("trend_text", ""),
+                                segment.get("curve_text", ""),
+                            )
+                            if part
+                        ),
                         " / ".join(segment_note_parts),
                     ),
                     open=True,
@@ -1764,7 +1862,12 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                         ),
                     )
                 for interaction in segment.get("interactions", []):
-                    note = interaction.get("note") or f"指向 {interaction.get('target_line_name', '未命名线')}"
+                    note_parts = [
+                        interaction.get("note") or f"指向 {interaction.get('target_line_name', '未命名线')}",
+                        interaction.get("temporal_text", ""),
+                        interaction.get("mediation_text", ""),
+                        interaction.get("relation_balance", ""),
+                    ]
                     self.line_tree.insert(
                         segment_parent,
                         "end",
@@ -1773,7 +1876,7 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                             interaction.get("state_text", "作用"),
                             "",
                             interaction.get("type_text", ""),
-                            note,
+                            " / ".join([part for part in note_parts if part]),
                         ),
                     )
 
@@ -1796,6 +1899,8 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                 note = match.get("description") or match.get("label") or ""
                 if match.get("note_type"):
                     note = " / ".join(filter(None, [note, match.get("note_type")]))
+                if match.get("force_text"):
+                    note = " / ".join(filter(None, [note, match.get("force_text")]))
                 self.plot_tree.insert(
                     plot_parent,
                     "end",
@@ -1834,6 +1939,8 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                     note_parts.append(match["note_type"])
                 if match.get("tags"):
                     note_parts.append(", ".join(match["tags"]))
+                if match.get("force_text"):
+                    note_parts.append(match["force_text"])
                 self.axis_tree.insert(
                     parent,
                     "end",
@@ -1847,15 +1954,25 @@ class ToneOutlineSummaryPanel(ttk.Frame):
                 )
 
         for relation in build_relation_summary(tone_outline_data):
+            note_parts = [
+                relation.get("note", ""),
+                relation.get("temporal_text", ""),
+                relation.get("mediation_text", ""),
+                relation.get("mediator", ""),
+                relation.get("relation_balance", ""),
+                relation.get("source_force_text", ""),
+                relation.get("target_force_text", ""),
+                relation.get("transformation", ""),
+            ]
             self.relation_tree.insert(
                 "",
                 "end",
                 text=relation["source_line_name"],
                 values=(
-                    relation["axis_title"],
+                    relation["axis_title"] if relation["axis_title"] == relation.get("target_axis_title") else f"{relation['axis_title']} -> {relation.get('target_axis_title', '')}",
                     relation["relation_label"],
                     relation["target_line_name"],
-                    relation["note"],
+                    " / ".join([part for part in note_parts if part]),
                 ),
             )
 
@@ -1892,6 +2009,8 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_end_var = tk.StringVar()
         self.segment_title_var = tk.StringVar()
         self.segment_note_type_var = tk.StringVar(value=NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
+        self.segment_trend_pattern_var = tk.StringVar(value=TREND_PATTERN_LABELS[DEFAULT_TREND_PATTERN])
+        self.segment_trend_scope_var = tk.StringVar(value=TREND_SCOPE_LABELS[DEFAULT_TREND_SCOPE])
         self.segment_arc_display_var = tk.StringVar()
         self.point_axis_var = tk.StringVar()
         self.point_label_var = tk.StringVar()
@@ -1907,6 +2026,10 @@ class ToneOutlineEditor(ttk.Frame):
         self.interaction_status_var = tk.StringVar()
         self.interaction_source_var = tk.StringVar()
         self.interaction_target_var = tk.StringVar()
+        self.interaction_target_axis_var = tk.StringVar()
+        self.interaction_mediation_role_var = tk.StringVar(value=MEDIATION_ROLE_LABELS[DEFAULT_MEDIATION_ROLE])
+        self.interaction_mediator_var = tk.StringVar()
+        self._interaction_axis_label_to_uid = {}
 
         self._bind_scale_display(
             self.point_amplitude_var,
@@ -2226,6 +2349,22 @@ class ToneOutlineEditor(ttk.Frame):
             state="readonly",
         )
         self.segment_note_type_combo.pack(fill=tk.X, padx=6)
+        ttk.Label(segment_frame, text="趋势类型").pack(anchor="w", padx=6, pady=(6, 0))
+        self.segment_trend_pattern_combo = ttk.Combobox(
+            segment_frame,
+            values=[label for _key, label in TREND_PATTERN_OPTIONS],
+            textvariable=self.segment_trend_pattern_var,
+            state="readonly",
+        )
+        self.segment_trend_pattern_combo.pack(fill=tk.X, padx=6)
+        ttk.Label(segment_frame, text="趋势层级").pack(anchor="w", padx=6, pady=(6, 0))
+        self.segment_trend_scope_combo = ttk.Combobox(
+            segment_frame,
+            values=[label for _key, label in TREND_SCOPE_OPTIONS],
+            textvariable=self.segment_trend_scope_var,
+            state="readonly",
+        )
+        self.segment_trend_scope_combo.pack(fill=tk.X, padx=6)
         ttk.Label(segment_frame, text="起点").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(segment_frame, textvariable=self.segment_start_var).pack(anchor="w", padx=6)
         ttk.Label(segment_frame, text="终点").pack(anchor="w", padx=6, pady=(6, 0))
@@ -2326,10 +2465,30 @@ class ToneOutlineEditor(ttk.Frame):
             state="readonly",
         )
         self.interaction_type_combo.pack(fill=tk.X, padx=6)
+        ttk.Label(point_frame, text="中介方式").pack(anchor="w", padx=6, pady=(6, 0))
+        self.interaction_mediation_role_combo = ttk.Combobox(
+            point_frame,
+            values=[label for _key, label in MEDIATION_ROLE_OPTIONS],
+            textvariable=self.interaction_mediation_role_var,
+            state="readonly",
+        )
+        self.interaction_mediation_role_combo.pack(fill=tk.X, padx=6)
         ttk.Label(point_frame, text="来源").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(point_frame, textvariable=self.interaction_source_var).pack(anchor="w", padx=6)
         ttk.Label(point_frame, text="目标").pack(anchor="w", padx=6, pady=(6, 0))
         ttk.Label(point_frame, textvariable=self.interaction_target_var).pack(anchor="w", padx=6)
+        ttk.Label(point_frame, text="目标节点").pack(anchor="w", padx=6, pady=(6, 0))
+        self.interaction_target_axis_combo = ttk.Combobox(
+            point_frame,
+            textvariable=self.interaction_target_axis_var,
+            state="readonly",
+        )
+        self.interaction_target_axis_combo.pack(fill=tk.X, padx=6)
+        ttk.Label(point_frame, text="中介").pack(anchor="w", padx=6, pady=(6, 0))
+        ttk.Entry(point_frame, textvariable=self.interaction_mediator_var).pack(fill=tk.X, padx=6)
+        ttk.Label(point_frame, text="转化结果").pack(anchor="w", padx=6, pady=(6, 0))
+        self.interaction_transform_text = tk.Text(point_frame, height=2, wrap="word")
+        self.interaction_transform_text.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 4))
         ttk.Label(point_frame, text="箭头备注").pack(anchor="w", padx=6, pady=(6, 0))
         self.interaction_note_text = tk.Text(point_frame, height=3, wrap="word")
         self.interaction_note_text.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 4))
@@ -2508,6 +2667,8 @@ class ToneOutlineEditor(ttk.Frame):
                     "arc_height": DEFAULT_SEGMENT_ARC,
                     "start_curve": DEFAULT_SEGMENT_CURVE,
                     "end_curve": DEFAULT_SEGMENT_CURVE,
+                    "trend_pattern": DEFAULT_TREND_PATTERN,
+                    "trend_scope": "macro" if target_line.get("line_type") == "plot" else DEFAULT_TREND_SCOPE,
                     "title": "",
                     "description": "",
                     "note_type": DEFAULT_NOTE_TYPE,
@@ -2554,6 +2715,12 @@ class ToneOutlineEditor(ttk.Frame):
         interaction_type,
     ):
         new_uid = self.project_manager._gen_uid()
+        mediation_role = MEDIATION_LABEL_TO_ROLE.get(
+            self.interaction_mediation_role_var.get(),
+            DEFAULT_MEDIATION_ROLE,
+        )
+        mediator = self.interaction_mediator_var.get().strip()
+        transformation = self.interaction_transform_text.get("1.0", tk.END).strip()
 
         def mutate(data):
             data.setdefault("interactions", []).append(
@@ -2565,7 +2732,11 @@ class ToneOutlineEditor(ttk.Frame):
                     "source_point_uid": source_point_uid,
                     "target_line_uid": target_line_uid,
                     "target_segment_uid": target_segment_uid,
+                    "target_axis_uid": axis_uid,
                     "interaction_type": interaction_type or DEFAULT_INTERACTION_TYPE,
+                    "mediation_role": mediation_role,
+                    "mediator": mediator,
+                    "transformation": transformation,
                     "note": "",
                 }
             )
@@ -2582,6 +2753,7 @@ class ToneOutlineEditor(ttk.Frame):
             if target:
                 target["target_line_uid"] = target_line_uid
                 target["target_segment_uid"] = target_segment_uid
+                target["target_axis_uid"] = target.get("axis_uid", "")
 
         self.selected_interaction_uid = interaction_uid
         self._apply_update(mutate, "调整作用箭头目标")
@@ -2692,7 +2864,11 @@ class ToneOutlineEditor(ttk.Frame):
         for interaction in interactions:
             target_line = line_map.get(interaction.get("target_line_uid"), {})
             label = get_interaction_label(interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE))
-            note = _preview_text(interaction.get("note"), limit=12, empty="")
+            note = _preview_text(
+                interaction.get("mediator") or interaction.get("note"),
+                limit=12,
+                empty="",
+            )
             note_suffix = f" / {note}" if note else ""
             self.interaction_list.insert(
                 tk.END,
@@ -2743,6 +2919,8 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_end_var.set("")
         self.segment_title_var.set("")
         self.segment_note_type_var.set(NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
+        self.segment_trend_pattern_var.set(TREND_PATTERN_LABELS[DEFAULT_TREND_PATTERN])
+        self.segment_trend_scope_var.set(TREND_SCOPE_LABELS[DEFAULT_TREND_SCOPE])
         self.segment_arc_display_var.set("拱度 +0")
         self.segment_desc_text.delete("1.0", tk.END)
         if not line or not segment:
@@ -2753,6 +2931,17 @@ class ToneOutlineEditor(ttk.Frame):
         self.segment_title_var.set(segment.get("title", ""))
         self.segment_note_type_var.set(
             get_note_type_label(segment.get("note_type", DEFAULT_NOTE_TYPE))
+        )
+        self.segment_trend_pattern_var.set(
+            get_trend_pattern_label(segment.get("trend_pattern", DEFAULT_TREND_PATTERN))
+        )
+        self.segment_trend_scope_var.set(
+            get_trend_scope_label(
+                segment.get(
+                    "trend_scope",
+                    "macro" if line.get("line_type") == "plot" else DEFAULT_TREND_SCOPE,
+                )
+            )
         )
         self.segment_start_var.set(axis_map.get(display_segment.get("start_axis_uid"), {}).get("title", "未设置"))
         end_title = axis_map.get(display_segment.get("end_axis_uid"), {}).get("title", "未设置")
@@ -2831,9 +3020,13 @@ class ToneOutlineEditor(ttk.Frame):
         interaction = self._find_interaction(data, self.selected_interaction_uid)
         line_map = {line.get("uid"): line for line in data.get("lines", [])}
         axis_map = {axis.get("uid"): axis for axis in data.get("axis_nodes", [])}
+        self._refresh_interaction_axis_options(data, self.selected_axis_uid)
         self.interaction_type_var.set(INTERACTION_TYPE_LABELS[DEFAULT_INTERACTION_TYPE])
+        self.interaction_mediation_role_var.set(MEDIATION_ROLE_LABELS[DEFAULT_MEDIATION_ROLE])
+        self.interaction_mediator_var.set("")
         self.interaction_source_var.set("未选择波动点")
         self.interaction_target_var.set("未选择目标线段")
+        self.interaction_transform_text.delete("1.0", tk.END)
         self.interaction_note_text.delete("1.0", tk.END)
         if not interaction:
             if len(self.selected_point_uids) > 1:
@@ -2855,13 +3048,26 @@ class ToneOutlineEditor(ttk.Frame):
             self.interaction_target_var.set("")
             return
         self.interaction_type_var.set(get_interaction_label(interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE)))
+        self.interaction_mediation_role_var.set(
+            get_mediation_role_label(interaction.get("mediation_role", DEFAULT_MEDIATION_ROLE))
+        )
+        self.interaction_mediator_var.set(interaction.get("mediator", ""))
         source_line = line_map.get(interaction.get("source_line_uid"), {})
         target_line = line_map.get(interaction.get("target_line_uid"), {})
         axis_title = axis_map.get(interaction.get("axis_uid"), {}).get("title", "未命名节点")
+        target_axis_title = axis_map.get(
+            interaction.get("target_axis_uid") or interaction.get("axis_uid"),
+            {},
+        ).get("title", "未命名节点")
+        self._refresh_interaction_axis_options(
+            data,
+            interaction.get("target_axis_uid") or interaction.get("axis_uid"),
+        )
         self.interaction_source_var.set(
             f"{source_line.get('name') or '未命名线'} / {axis_title}"
         )
-        self.interaction_target_var.set(target_line.get("name") or "未命名线")
+        self.interaction_target_var.set(f"{target_line.get('name') or '未命名线'} / {target_axis_title}")
+        self.interaction_transform_text.insert("1.0", interaction.get("transformation") or "")
         self.interaction_note_text.insert("1.0", interaction.get("note") or "")
         self.interaction_status_var.set(
             "选中箭头后可修改类型、备注，也可以直接在画布上拖拽到新的目标线段。"
@@ -2923,6 +3129,28 @@ class ToneOutlineEditor(ttk.Frame):
         if self.selected_point_uid and self.selected_point_uid not in point_uids:
             point_uids.insert(0, self.selected_point_uid)
         return [point_uid for point_uid in point_uids if point_uid]
+
+    def _refresh_interaction_axis_options(self, data, selected_axis_uid=""):
+        options = []
+        self._interaction_axis_label_to_uid = {}
+        for index, axis in enumerate(data.get("axis_nodes", []), start=1):
+            axis_uid = axis.get("uid", "")
+            if not axis_uid:
+                continue
+            label = f"{index}. {axis.get('title') or '未命名节点'}"
+            options.append(label)
+            self._interaction_axis_label_to_uid[label] = axis_uid
+        if hasattr(self, "interaction_target_axis_combo"):
+            self.interaction_target_axis_combo.configure(values=options)
+        selected_label = next(
+            (
+                label
+                for label, axis_uid in self._interaction_axis_label_to_uid.items()
+                if axis_uid == selected_axis_uid
+            ),
+            "",
+        )
+        self.interaction_target_axis_var.set(selected_label)
 
     def _ask_text_block(self, title, initial_value="", prompt=""):
         dialog = tk.Toplevel(self.winfo_toplevel())
@@ -3114,6 +3342,30 @@ class ToneOutlineEditor(ttk.Frame):
                 ),
             )
         menu.add_cascade(label="说明分类", menu=note_menu)
+        trend_menu = tk.Menu(menu, tearoff=False)
+        for trend_key, trend_label in TREND_PATTERN_OPTIONS:
+            trend_menu.add_command(
+                label=trend_label,
+                command=lambda value=trend_key: self._update_segment_fields(
+                    line_uid,
+                    segment_uid,
+                    "右键切换趋势类型",
+                    trend_pattern=value,
+                ),
+            )
+        menu.add_cascade(label="趋势类型", menu=trend_menu)
+        scope_menu = tk.Menu(menu, tearoff=False)
+        for scope_key, scope_label in TREND_SCOPE_OPTIONS:
+            scope_menu.add_command(
+                label=scope_label,
+                command=lambda value=scope_key: self._update_segment_fields(
+                    line_uid,
+                    segment_uid,
+                    "右键切换趋势层级",
+                    trend_scope=value,
+                ),
+            )
+        menu.add_cascade(label="趋势层级", menu=scope_menu)
         menu.add_separator()
         menu.add_command(label="复制一段", command=lambda: (self.select_segment(line_uid, segment_uid), self.copy_segment()))
         menu.add_command(
@@ -3229,7 +3481,30 @@ class ToneOutlineEditor(ttk.Frame):
                 return
             self._update_interaction_fields(interaction_uid, "右键编辑作用箭头备注", note=value)
 
+        def edit_mediator():
+            value = simpledialog.askstring(
+                "编辑中介",
+                "输入中介对象或事件：",
+                initialvalue=interaction.get("mediator", ""),
+                parent=self.winfo_toplevel(),
+            )
+            if value is None:
+                return
+            self._update_interaction_fields(interaction_uid, "右键编辑中介", mediator=value.strip())
+
+        def edit_transformation():
+            value = self._ask_text_block(
+                "编辑转化结果",
+                interaction.get("transformation", ""),
+                "输入这条关系造成的认识、行动或情节转化：",
+            )
+            if value is None:
+                return
+            self._update_interaction_fields(interaction_uid, "右键编辑转化结果", transformation=value)
+
         menu.add_command(label="编辑箭头备注...", command=edit_note)
+        menu.add_command(label="编辑中介...", command=edit_mediator)
+        menu.add_command(label="编辑转化结果...", command=edit_transformation)
         type_menu = tk.Menu(menu, tearoff=False)
         for interaction_key, interaction_label in INTERACTION_TYPE_OPTIONS:
             type_menu.add_command(
@@ -3241,6 +3516,17 @@ class ToneOutlineEditor(ttk.Frame):
                 ),
             )
         menu.add_cascade(label="箭头类型", menu=type_menu)
+        mediation_menu = tk.Menu(menu, tearoff=False)
+        for role_key, role_label in MEDIATION_ROLE_OPTIONS:
+            mediation_menu.add_command(
+                label=role_label,
+                command=lambda value=role_key: self._update_interaction_fields(
+                    interaction_uid,
+                    "右键切换中介方式",
+                    mediation_role=value,
+                ),
+            )
+        menu.add_cascade(label="中介方式", menu=mediation_menu)
         menu.add_separator()
         menu.add_command(label="删除作用箭头", command=lambda: (self.select_interaction(interaction_uid), self.delete_interaction()))
 
@@ -3610,6 +3896,14 @@ class ToneOutlineEditor(ttk.Frame):
             self.segment_note_type_var.get(),
             DEFAULT_NOTE_TYPE,
         )
+        trend_pattern = TREND_LABEL_TO_PATTERN.get(
+            self.segment_trend_pattern_var.get(),
+            DEFAULT_TREND_PATTERN,
+        )
+        trend_scope = TREND_LABEL_TO_SCOPE.get(
+            self.segment_trend_scope_var.get(),
+            "macro" if line.get("line_type") == "plot" else DEFAULT_TREND_SCOPE,
+        )
         description = self.segment_desc_text.get("1.0", tk.END).strip()
 
         def mutate(data):
@@ -3618,6 +3912,8 @@ class ToneOutlineEditor(ttk.Frame):
             if target_segment:
                 target_segment["title"] = title
                 target_segment["note_type"] = note_type
+                target_segment["trend_pattern"] = trend_pattern
+                target_segment["trend_scope"] = trend_scope
                 target_segment["description"] = description
 
         self._apply_update(mutate, "编辑过程段")
@@ -3646,6 +3942,8 @@ class ToneOutlineEditor(ttk.Frame):
                     "arc_height": DEFAULT_SEGMENT_ARC,
                     "start_curve": DEFAULT_SEGMENT_CURVE,
                     "end_curve": DEFAULT_SEGMENT_CURVE,
+                    "trend_pattern": DEFAULT_TREND_PATTERN,
+                    "trend_scope": "macro" if target_line.get("line_type") == "plot" else DEFAULT_TREND_SCOPE,
                     "title": "",
                     "description": "",
                     "note_type": DEFAULT_NOTE_TYPE,
@@ -3781,8 +4079,9 @@ class ToneOutlineEditor(ttk.Frame):
         self.interaction_status_var.set("已进入拖拽模式：从当前点拖到同轴的其他线段。")
 
     def save_interaction(self):
+        current_data = self.project_manager.get_tone_outline()
         interaction = self._find_interaction(
-            self.project_manager.get_tone_outline(),
+            current_data,
             self.selected_interaction_uid,
         )
         if not interaction:
@@ -3791,12 +4090,45 @@ class ToneOutlineEditor(ttk.Frame):
             self.interaction_type_var.get(),
             DEFAULT_INTERACTION_TYPE,
         )
+        mediation_role = MEDIATION_LABEL_TO_ROLE.get(
+            self.interaction_mediation_role_var.get(),
+            DEFAULT_MEDIATION_ROLE,
+        )
+        mediator = self.interaction_mediator_var.get().strip()
+        transformation = self.interaction_transform_text.get("1.0", tk.END).strip()
+        target_axis_uid = self._interaction_axis_label_to_uid.get(
+            self.interaction_target_axis_var.get(),
+            interaction.get("target_axis_uid") or interaction.get("axis_uid", ""),
+        )
+        target_line = self._find_line(current_data, interaction.get("target_line_uid", ""))
+        target_segment = self._find_display_segment(
+            current_data,
+            target_line,
+            interaction.get("target_segment_uid", ""),
+        )
+        axis_nodes = current_data.get("axis_nodes", [])
+        if target_segment and not axis_in_segment(
+            target_axis_uid,
+            target_segment,
+            get_axis_index_map(current_data),
+            last_axis_uid=axis_nodes[-1]["uid"] if axis_nodes else "",
+        ):
+            messagebox.showinfo(
+                "提示",
+                "目标节点不在当前目标线段范围内，请选择目标线段已经覆盖的节点。",
+                parent=self.winfo_toplevel(),
+            )
+            return
         note = self.interaction_note_text.get("1.0", tk.END).strip()
 
         def mutate(data):
             target = self._find_interaction(data, self.selected_interaction_uid)
             if target:
                 target["interaction_type"] = interaction_type
+                target["mediation_role"] = mediation_role
+                target["mediator"] = mediator
+                target["transformation"] = transformation
+                target["target_axis_uid"] = target_axis_uid
                 target["note"] = note
 
         self._apply_update(mutate, "编辑作用箭头")
@@ -3948,9 +4280,30 @@ class ToneOutlineController(BaseController):
         )
         self.editor.pack(fill=tk.BOTH, expand=True)
 
-        self.summary = ToneOutlineSummaryPanel(summary_frame)
+        self.summary = ToneOutlineSummaryPanel(
+            summary_frame,
+            reverse_prompt_callback=self.copy_reverse_reasoning_prompt,
+        )
         self.summary.pack(fill=tk.BOTH, expand=True)
         self.refresh()
+
+    def copy_reverse_reasoning_prompt(self):
+        prompt = build_tone_reverse_reasoning_prompt(
+            self.project_manager.get_tone_outline(),
+            focus="all",
+        )
+        prompt_text = (
+            f"System:\n{prompt['system_prompt']}\n\n"
+            f"User:\n{prompt['user_prompt']}"
+        )
+        root = self.parent.winfo_toplevel()
+        root.clipboard_clear()
+        root.clipboard_append(prompt_text)
+        messagebox.showinfo(
+            "提示",
+            "已复制基调大纲 LLM 反推提示词，可直接发送给模型。",
+            parent=root,
+        )
 
     def on_project_data_changed(self, event_type="all"):
         if event_type in ("all", "script", "tone_outline", "meta"):

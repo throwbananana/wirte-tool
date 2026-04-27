@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from writer_app.core.tone_outline import build_tone_reverse_reasoning_prompt
 from writer_app.core.thread_pool import get_ai_thread_pool
 
 
@@ -145,6 +146,15 @@ class ChatPanel(ttk.Frame):
         if names and not self.roleplay_char_var.get():
             self.char_combo.current(0)
 
+    @staticmethod
+    def _wants_tone_reverse_reasoning(query):
+        text = str(query or "").lower()
+        tone_keywords = ("基调", "趋势线", "情节线", "人物线", "势差", "tone")
+        reverse_keywords = ("反推", "推理", "反推理", "诊断", "缺口", "中介")
+        return any(keyword in text for keyword in tone_keywords) and any(
+            keyword in text for keyword in reverse_keywords
+        )
+
     def send_message(self):
         if not self._is_ai_enabled():
             self.send_option_message()
@@ -212,11 +222,21 @@ class ChatPanel(ttk.Frame):
     params: {}
 17. 跳转界面 (navigate_to):
     params: { "target": "大纲/剧本/线索/统计/看板/日历" }
+18. 获取基调大纲 LLM 反推上下文 (get_tone_reverse_reasoning_context):
+    params: { "focus": "all/trend/force/mediation/scene_beats", "include_prompt": true }
+    用于根据趋势线、势差、中介关系反推剧情动因、缺口和场景钩子。
 
 如果用户要求创建或修改内容，请务必输出对应的JSON工具调用。仅输出JSON即可执行操作。
 """
             sys_prompt = f"{agent_instructions}\n请根据提供的项目上下文回答用户的问题。如果问题与项目无关，请礼貌拒绝。"
             user_prompt = f"项目上下文:\n{context}\n\n用户问题: {query}"
+            if self._wants_tone_reverse_reasoning(query):
+                reverse_prompt = build_tone_reverse_reasoning_prompt(
+                    self.project_manager.get_tone_outline(),
+                    focus="all",
+                )
+                sys_prompt = reverse_prompt["system_prompt"]
+                user_prompt = f"{reverse_prompt['user_prompt']}\n\n用户问题: {query}"
         else: # Roleplay
             char_name = self.roleplay_char_var.get()
             if not char_name:

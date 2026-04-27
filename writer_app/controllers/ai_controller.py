@@ -163,6 +163,8 @@ class AIController:
             final_text = response_text
             if result.success:
                 final_text += f"\n\n[系统] {result.message}"
+                if result.data and result.data.get("display_text"):
+                    final_text += f"\n\n{result.data['display_text']}"
             else:
                 final_text += f"\n\n[系统] 操作失败或部分忽略: {result.message}"
 

@@ -1,4 +1,5 @@
 import copy
+import json
 from typing import Any, Callable, Dict, List
 
 
@@ -10,6 +11,9 @@ DEFAULT_SEGMENT_ARC = 0.0
 DEFAULT_INTERACTION_TYPE = "solid_single"
 DEFAULT_NODE_TYPE = "normal"
 DEFAULT_NOTE_TYPE = "plot"
+DEFAULT_TREND_PATTERN = "auto"
+DEFAULT_TREND_SCOPE = "micro"
+DEFAULT_MEDIATION_ROLE = "direct"
 INTERACTION_TYPE_LABELS = {
     "solid_single": "实线单箭头",
     "dashed_single": "虚线单箭头",
@@ -50,6 +54,32 @@ NOTE_TYPE_LABELS = {
     "relationship": "关系说明",
     "foreshadow": "伏笔说明",
     "conclusion": "结论说明",
+}
+TREND_PATTERN_LABELS = {
+    "auto": "自动识别",
+    "rise": "上升趋势",
+    "fall": "下降趋势",
+    "flat": "平稳趋势",
+    "convex": "凸趋势线",
+    "concave": "凹趋势线",
+    "up_down_up": "上下上",
+    "up_up_down": "上上下",
+    "down_up_up": "下上上",
+    "down_up_down": "下上下",
+    "down_down_up": "下下上",
+}
+TREND_SCOPE_LABELS = {
+    "macro": "总趋势",
+    "micro": "小趋势",
+    "counter": "反趋势",
+    "turn": "转折趋势",
+}
+MEDIATION_ROLE_LABELS = {
+    "direct": "直接关系",
+    "mediated": "中介关系",
+    "mirror": "映照关系",
+    "avoidance": "回避关系",
+    "transformation": "转化关系",
 }
 
 
@@ -95,7 +125,7 @@ def _normalize_tags(value: Any) -> List[str]:
 
 def create_default_tone_outline() -> Dict[str, Any]:
     return {
-        "version": 4,
+        "version": 5,
         "axis_nodes": [],
         "interactions": [],
         "lines": [
@@ -117,6 +147,8 @@ def create_default_tone_outline() -> Dict[str, Any]:
                         "title": "",
                         "description": "",
                         "note_type": DEFAULT_NOTE_TYPE,
+                        "trend_pattern": DEFAULT_TREND_PATTERN,
+                        "trend_scope": "macro",
                         "points": [],
                     }
                 ],
@@ -208,6 +240,82 @@ def _get_segment_arc_height(segment: Dict[str, Any]) -> float:
         segment.get("start_curve"),
         segment.get("end_curve"),
     )
+
+
+def _normalize_trend_pattern(value: Any) -> str:
+    return _normalize_choice(value, TREND_PATTERN_LABELS, DEFAULT_TREND_PATTERN)
+
+
+def _normalize_trend_scope(value: Any, default: str = DEFAULT_TREND_SCOPE) -> str:
+    return _normalize_choice(value, TREND_SCOPE_LABELS, default)
+
+
+def _normalize_mediation_role(value: Any) -> str:
+    return _normalize_choice(value, MEDIATION_ROLE_LABELS, DEFAULT_MEDIATION_ROLE)
+
+
+def _segment_amplitudes(segment: Dict[str, Any], axis_index_map: Dict[str, int]) -> List[float]:
+    points = [
+        point
+        for point in segment.get("points", [])
+        if point.get("axis_uid") in axis_index_map
+    ]
+    _sort_points(points, axis_index_map)
+    return [float(point.get("amplitude", 0)) for point in points]
+
+
+def _delta_mark(delta: float, threshold: float = 5.0) -> str:
+    if delta > threshold:
+        return "up"
+    if delta < -threshold:
+        return "down"
+    return "flat"
+
+
+def infer_trend_pattern(segment: Dict[str, Any], axis_index_map: Dict[str, int]) -> str:
+    explicit = _normalize_trend_pattern(segment.get("trend_pattern"))
+    if explicit != DEFAULT_TREND_PATTERN:
+        return explicit
+
+    amplitudes = _segment_amplitudes(segment, axis_index_map)
+    if len(amplitudes) >= 3:
+        first = amplitudes[0]
+        middle = amplitudes[len(amplitudes) // 2]
+        last = amplitudes[-1]
+        if middle > first + 8 and middle > last + 8:
+            return "convex"
+        if middle < first - 8 and middle < last - 8:
+            return "concave"
+
+        marks = []
+        for left, right in zip(amplitudes, amplitudes[1:]):
+            mark = _delta_mark(right - left)
+            if mark == "flat":
+                continue
+            if not marks or marks[-1] != mark:
+                marks.append(mark)
+        pattern_key = "_".join(marks[:3])
+        if pattern_key in TREND_PATTERN_LABELS:
+            return pattern_key
+
+    if len(amplitudes) >= 2:
+        mark = _delta_mark(amplitudes[-1] - amplitudes[0])
+        if mark == "up":
+            return "rise"
+        if mark == "down":
+            return "fall"
+        return "flat"
+
+    arc_height = _get_segment_arc_height(segment)
+    if arc_height > 8:
+        return "convex"
+    if arc_height < -8:
+        return "concave"
+    return "flat"
+
+
+def get_segment_trend_label(segment: Dict[str, Any], axis_index_map: Dict[str, int]) -> str:
+    return get_trend_pattern_label(infer_trend_pattern(segment, axis_index_map))
 
 
 def _normalize_point(
@@ -397,6 +505,8 @@ def sync_line_segments_with_points(
                     "title": "",
                     "description": "",
                     "note_type": DEFAULT_NOTE_TYPE,
+                    "trend_pattern": DEFAULT_TREND_PATTERN,
+                    "trend_scope": "macro",
                     "points": [],
                 }
             ]
@@ -489,6 +599,8 @@ def _normalize_plot_segments(
                 NOTE_TYPE_LABELS,
                 DEFAULT_NOTE_TYPE,
             ),
+            "trend_pattern": _normalize_trend_pattern(first_segment.get("trend_pattern")),
+            "trend_scope": _normalize_trend_scope(first_segment.get("trend_scope"), "macro"),
             "points": points,
         }
     ]
@@ -522,6 +634,8 @@ def _normalize_character_segments(
                 "arc_height": DEFAULT_SEGMENT_ARC,
                 "start_curve": DEFAULT_SEGMENT_CURVE,
                 "end_curve": DEFAULT_SEGMENT_CURVE,
+                "trend_pattern": DEFAULT_TREND_PATTERN,
+                "trend_scope": DEFAULT_TREND_SCOPE,
                 "points": [],
             }
         ]
@@ -534,6 +648,8 @@ def _normalize_character_segments(
                 "arc_height": DEFAULT_SEGMENT_ARC,
                 "start_curve": DEFAULT_SEGMENT_CURVE,
                 "end_curve": DEFAULT_SEGMENT_CURVE,
+                "trend_pattern": DEFAULT_TREND_PATTERN,
+                "trend_scope": DEFAULT_TREND_SCOPE,
                 "points": [],
             }
         ]
@@ -573,6 +689,8 @@ def _normalize_character_segments(
                     NOTE_TYPE_LABELS,
                     DEFAULT_NOTE_TYPE,
                 ),
+                "trend_pattern": _normalize_trend_pattern(segment.get("trend_pattern")),
+                "trend_scope": _normalize_trend_scope(segment.get("trend_scope")),
                 "points": points,
             }
         )
@@ -624,6 +742,8 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
                     NOTE_TYPE_LABELS,
                     DEFAULT_NOTE_TYPE,
                 ),
+                "trend_pattern": _normalize_trend_pattern(raw_segment.get("trend_pattern")),
+                "trend_scope": _normalize_trend_scope(raw_segment.get("trend_scope"), "macro"),
                 "points": points,
             }
         ]
@@ -653,6 +773,8 @@ def get_display_segments(data: Dict[str, Any], line: Dict[str, Any]) -> List[Dic
                     NOTE_TYPE_LABELS,
                     DEFAULT_NOTE_TYPE,
                 ),
+                "trend_pattern": _normalize_trend_pattern(segment.get("trend_pattern")),
+                "trend_scope": _normalize_trend_scope(segment.get("trend_scope")),
                 "points": points,
             }
         )
@@ -693,6 +815,18 @@ def get_node_type_label(node_type: str) -> str:
 
 def get_note_type_label(note_type: str) -> str:
     return NOTE_TYPE_LABELS.get(note_type, NOTE_TYPE_LABELS[DEFAULT_NOTE_TYPE])
+
+
+def get_trend_pattern_label(pattern: str) -> str:
+    return TREND_PATTERN_LABELS.get(pattern, TREND_PATTERN_LABELS[DEFAULT_TREND_PATTERN])
+
+
+def get_trend_scope_label(scope: str) -> str:
+    return TREND_SCOPE_LABELS.get(scope, TREND_SCOPE_LABELS[DEFAULT_TREND_SCOPE])
+
+
+def get_mediation_role_label(role: str) -> str:
+    return MEDIATION_ROLE_LABELS.get(role, MEDIATION_ROLE_LABELS[DEFAULT_MEDIATION_ROLE])
 
 
 def iter_tone_interactions(data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -759,11 +893,14 @@ def _normalize_interactions(
             continue
         target_line_uid = interaction.get("target_line_uid") or interaction.get("to_line_uid") or ""
         target_segment_uid = interaction.get("target_segment_uid") or interaction.get("to_segment_uid") or ""
+        target_axis_uid = interaction.get("target_axis_uid") or interaction.get("to_axis_uid") or axis_uid
+        if target_axis_uid not in axis_index_map:
+            continue
         target_segment = segment_lookup.get((target_line_uid, target_segment_uid))
         if not target_segment:
             continue
         if not axis_in_segment(
-            axis_uid,
+            target_axis_uid,
             target_segment,
             axis_index_map,
             last_axis_uid=last_axis_uid,
@@ -795,7 +932,11 @@ def _normalize_interactions(
                 "source_point_uid": source_point_uid,
                 "target_line_uid": target_line_uid,
                 "target_segment_uid": target_segment_uid,
+                "target_axis_uid": target_axis_uid,
                 "interaction_type": interaction_type,
+                "mediation_role": _normalize_mediation_role(interaction.get("mediation_role")),
+                "mediator": str(interaction.get("mediator") or "").strip(),
+                "transformation": str(interaction.get("transformation") or "").strip(),
                 "note": interaction.get("note") or "",
             }
         )
@@ -847,6 +988,8 @@ def duplicate_segment(
                 NOTE_TYPE_LABELS,
                 DEFAULT_NOTE_TYPE,
             ),
+            "trend_pattern": _normalize_trend_pattern(segment.get("trend_pattern")),
+            "trend_scope": _normalize_trend_scope(segment.get("trend_scope")),
             "points": copied_points,
         }
         if axis_index_map:
@@ -978,6 +1121,8 @@ def split_segment(
                 NOTE_TYPE_LABELS,
                 DEFAULT_NOTE_TYPE,
             ),
+            "trend_pattern": _normalize_trend_pattern(segment.get("trend_pattern")),
+            "trend_scope": _normalize_trend_scope(segment.get("trend_scope")),
             "points": left_points,
         }
         right_segment = {
@@ -994,6 +1139,8 @@ def split_segment(
                 NOTE_TYPE_LABELS,
                 DEFAULT_NOTE_TYPE,
             ),
+            "trend_pattern": _normalize_trend_pattern(segment.get("trend_pattern")),
+            "trend_scope": _normalize_trend_scope(segment.get("trend_scope")),
             "points": right_points,
         }
         _sort_points(left_segment["points"], axis_index_map)
@@ -1088,6 +1235,10 @@ def merge_adjacent_segments(
             NOTE_TYPE_LABELS,
             DEFAULT_NOTE_TYPE,
         ),
+        "trend_pattern": _normalize_trend_pattern(
+            first_segment.get("trend_pattern") if first_segment.get("trend_pattern") != DEFAULT_TREND_PATTERN else second_segment.get("trend_pattern")
+        ),
+        "trend_scope": _normalize_trend_scope(first_segment.get("trend_scope") or second_segment.get("trend_scope")),
         "points": merged_points,
     }
     _sync_segment_bounds_with_points(merged_segment, axis_index_map)
@@ -1102,7 +1253,7 @@ def ensure_tone_outline_defaults(
     if not isinstance(data, dict):
         data = create_default_tone_outline()
 
-    data["version"] = max(4, int(data.get("version", 0) or 0))
+    data["version"] = max(5, int(data.get("version", 0) or 0))
     axis_nodes = data.setdefault("axis_nodes", [])
     interactions = data.setdefault("interactions", [])
     lines = data.setdefault("lines", [])
@@ -1204,12 +1355,213 @@ def ensure_tone_outline_defaults(
     return data
 
 
+def _point_at_axis(segment: Dict[str, Any], axis_uid: str) -> Dict[str, Any] | None:
+    for point in segment.get("points", []):
+        if point.get("axis_uid") == axis_uid:
+            return point
+    return None
+
+
+def _point_context_at_axis(
+    data: Dict[str, Any],
+    line: Dict[str, Any],
+    axis_uid: str,
+) -> Dict[str, Any] | None:
+    for segment in get_display_segments(data, line):
+        point = _point_at_axis(segment, axis_uid)
+        if point:
+            return {
+                "line_uid": line.get("uid", ""),
+                "line_name": line.get("name") or "未命名线",
+                "line_type": line.get("line_type") or "character",
+                "segment_uid": segment.get("uid", ""),
+                "point_uid": point.get("uid", ""),
+                "axis_uid": axis_uid,
+                "amplitude": float(point.get("amplitude", 0)),
+                "point": point,
+            }
+    return None
+
+
+def _point_context_by_uid(data: Dict[str, Any], point_uid: str) -> Dict[str, Any] | None:
+    if not point_uid:
+        return None
+    for line in data.get("lines", []):
+        for segment in line.get("segments", []):
+            for point in segment.get("points", []):
+                if point.get("uid") == point_uid:
+                    return {
+                        "line_uid": line.get("uid", ""),
+                        "line_name": line.get("name") or "未命名线",
+                        "line_type": line.get("line_type") or "character",
+                        "segment_uid": segment.get("uid", ""),
+                        "point_uid": point_uid,
+                        "axis_uid": point.get("axis_uid", ""),
+                        "amplitude": float(point.get("amplitude", 0)),
+                        "point": point,
+                    }
+    return None
+
+
+def _plot_line(data: Dict[str, Any]) -> Dict[str, Any] | None:
+    return next((line for line in data.get("lines", []) if line.get("line_type") == "plot"), None)
+
+
+def _plot_amplitude_at_axis(data: Dict[str, Any], axis_uid: str) -> float | None:
+    plot_line = _plot_line(data)
+    if not plot_line:
+        return None
+    context = _point_context_at_axis(data, plot_line, axis_uid)
+    return context.get("amplitude") if context else None
+
+
+def _force_gap_text(gap: float | None) -> str:
+    if gap is None:
+        return "未形成势差"
+    magnitude = abs(gap)
+    direction = "高于情节线" if gap > 0 else "低于情节线" if gap < 0 else "贴合情节线"
+    if magnitude < 12:
+        return f"{direction} / 贴合"
+    if magnitude < 35:
+        return f"{direction} / 偏移"
+    if magnitude < 60:
+        return f"{direction} / 强偏移"
+    return f"{direction} / 压倒性偏移"
+
+
+def _imbalance_text(gap: float | None) -> str:
+    if gap is None:
+        return "未知"
+    magnitude = abs(gap)
+    if magnitude < 12:
+        return "均衡"
+    if magnitude < 35:
+        return "轻度势差"
+    if magnitude < 60:
+        return "强势差"
+    return "失衡"
+
+
+def _temporal_relation_text(axis_index_map: Dict[str, int], source_axis_uid: str, target_axis_uid: str) -> str:
+    if source_axis_uid == target_axis_uid:
+        return "同轴发生"
+    if source_axis_uid not in axis_index_map or target_axis_uid not in axis_index_map:
+        return "跨节点"
+    delta = axis_index_map[target_axis_uid] - axis_index_map[source_axis_uid]
+    if delta > 0:
+        return f"延后 {delta} 节点"
+    return f"回溯 {abs(delta)} 节点"
+
+
+def analyze_tone_dynamics(data: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    data = ensure_tone_outline_defaults(clone_tone_outline(data))
+    axis_index_map = get_axis_index_map(data)
+    line_map = {line.get("uid"): line for line in data.get("lines", [])}
+    axis_dynamics: List[Dict[str, Any]] = []
+
+    for axis in data.get("axis_nodes", []):
+        axis_uid = axis.get("uid", "")
+        plot_amplitude = _plot_amplitude_at_axis(data, axis_uid)
+        items = []
+        for line in data.get("lines", []):
+            if line.get("line_type") != "character":
+                continue
+            context = _point_context_at_axis(data, line, axis_uid)
+            if not context:
+                continue
+            gap = (
+                context["amplitude"] - plot_amplitude
+                if plot_amplitude is not None
+                else None
+            )
+            items.append(
+                {
+                    "line_uid": context["line_uid"],
+                    "line_name": context["line_name"],
+                    "segment_uid": context["segment_uid"],
+                    "point_uid": context["point_uid"],
+                    "amplitude": round(context["amplitude"], 1),
+                    "plot_amplitude": round(plot_amplitude, 1) if plot_amplitude is not None else "",
+                    "force_gap": round(gap, 1) if gap is not None else "",
+                    "force_text": _force_gap_text(gap),
+                    "imbalance_text": _imbalance_text(gap),
+                }
+            )
+        axis_dynamics.append(
+            {
+                "axis_uid": axis_uid,
+                "axis_title": axis.get("title") or "未命名节点",
+                "plot_amplitude": round(plot_amplitude, 1) if plot_amplitude is not None else "",
+                "items": items,
+            }
+        )
+
+    relation_dynamics: List[Dict[str, Any]] = []
+    for interaction in data.get("interactions", []):
+        source_context = _point_context_by_uid(data, interaction.get("source_point_uid", ""))
+        target_line = line_map.get(interaction.get("target_line_uid"), {})
+        target_axis_uid = interaction.get("target_axis_uid") or interaction.get("axis_uid", "")
+        target_context = _point_context_at_axis(data, target_line, target_axis_uid) if target_line else None
+        source_amplitude = source_context.get("amplitude") if source_context else None
+        target_amplitude = target_context.get("amplitude") if target_context else None
+        relation_gap = (
+            source_amplitude - target_amplitude
+            if source_amplitude is not None and target_amplitude is not None
+            else None
+        )
+        source_plot = _plot_amplitude_at_axis(data, interaction.get("axis_uid", ""))
+        target_plot = _plot_amplitude_at_axis(data, target_axis_uid)
+        source_plot_gap = (
+            source_amplitude - source_plot
+            if source_amplitude is not None and source_plot is not None
+            else None
+        )
+        target_plot_gap = (
+            target_amplitude - target_plot
+            if target_amplitude is not None and target_plot is not None
+            else None
+        )
+        relation_dynamics.append(
+            {
+                "uid": interaction.get("uid", ""),
+                "axis_uid": interaction.get("axis_uid", ""),
+                "target_axis_uid": target_axis_uid,
+                "source_line_name": (source_context or {}).get("line_name", "未命名线"),
+                "target_line_name": target_line.get("name") or "未命名线",
+                "source_amplitude": round(source_amplitude, 1) if source_amplitude is not None else "",
+                "target_amplitude": round(target_amplitude, 1) if target_amplitude is not None else "",
+                "relation_gap": round(relation_gap, 1) if relation_gap is not None else "",
+                "relation_balance": _imbalance_text(relation_gap),
+                "source_plot_gap": round(source_plot_gap, 1) if source_plot_gap is not None else "",
+                "target_plot_gap": round(target_plot_gap, 1) if target_plot_gap is not None else "",
+                "source_force_text": _force_gap_text(source_plot_gap),
+                "target_force_text": _force_gap_text(target_plot_gap),
+                "temporal_text": _temporal_relation_text(
+                    axis_index_map,
+                    interaction.get("axis_uid", ""),
+                    target_axis_uid,
+                ),
+                "mediation_role": interaction.get("mediation_role", DEFAULT_MEDIATION_ROLE),
+                "mediation_text": get_mediation_role_label(
+                    interaction.get("mediation_role", DEFAULT_MEDIATION_ROLE)
+                ),
+                "mediator": interaction.get("mediator", ""),
+                "transformation": interaction.get("transformation", ""),
+            }
+        )
+    return {"axes": axis_dynamics, "relations": relation_dynamics}
+
+
 def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     data = ensure_tone_outline_defaults(clone_tone_outline(data))
     axis_map = {axis["uid"]: axis for axis in data.get("axis_nodes", [])}
     line_map = {line.get("uid"): line for line in data.get("lines", [])}
     axis_index_map = get_axis_index_map(data)
     last_axis_uid = data.get("axis_nodes", [])[-1]["uid"] if data.get("axis_nodes") else ""
+    relation_dynamics_by_uid = {
+        item.get("uid"): item
+        for item in analyze_tone_dynamics(data).get("relations", [])
+    }
     interactions_by_source: Dict[tuple[str, str], List[Dict[str, Any]]] = {}
     for interaction in data.get("interactions", []):
         source_key = (
@@ -1217,14 +1569,23 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             interaction.get("source_segment_uid", ""),
         )
         target_line = line_map.get(interaction.get("target_line_uid"), {})
+        dynamic = relation_dynamics_by_uid.get(interaction.get("uid", ""), {})
         interactions_by_source.setdefault(source_key, []).append(
             {
                 "uid": interaction.get("uid", ""),
                 "axis_uid": interaction.get("axis_uid", ""),
+                "target_axis_uid": interaction.get("target_axis_uid") or interaction.get("axis_uid", ""),
                 "axis_title": axis_map.get(interaction.get("axis_uid"), {}).get("title", "未命名节点"),
+                "target_axis_title": axis_map.get(
+                    interaction.get("target_axis_uid") or interaction.get("axis_uid"),
+                    {},
+                ).get("title", "未命名节点"),
                 "state_text": get_interaction_tone(interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE)),
                 "type_text": get_interaction_label(interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE)),
                 "target_line_name": target_line.get("name") or "未命名线",
+                "mediation_text": dynamic.get("mediation_text", get_mediation_role_label(interaction.get("mediation_role", DEFAULT_MEDIATION_ROLE))),
+                "relation_balance": dynamic.get("relation_balance", ""),
+                "temporal_text": dynamic.get("temporal_text", ""),
                 "note": interaction.get("note") or "",
             }
         )
@@ -1291,6 +1652,14 @@ def build_line_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "range_text": range_text,
                     "state_text": state_text,
                     "curve_text": f"拱度 {_get_segment_arc_height(segment):+.0f}",
+                    "trend_text": get_segment_trend_label(segment, axis_index_map),
+                    "trend_scope_text": get_trend_scope_label(
+                        _normalize_trend_scope(
+                            segment.get("trend_scope"),
+                            "macro" if line.get("line_type") == "plot" else DEFAULT_TREND_SCOPE,
+                        )
+                    ),
+                    "trend_pattern": infer_trend_pattern(segment, axis_index_map),
                     "segment_note": segment.get("description") or "",
                     "segment_title": segment.get("title") or "",
                     "segment_note_type": get_note_type_label(
@@ -1323,6 +1692,13 @@ def build_timeline_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     line_map = {line.get("uid"): line for line in data.get("lines", [])}
     axis_index_map = get_axis_index_map(data)
     last_axis_uid = axis_nodes[-1]["uid"] if axis_nodes else ""
+    dynamics_by_axis = {
+        axis_item.get("axis_uid"): {
+            item.get("line_uid"): item
+            for item in axis_item.get("items", [])
+        }
+        for axis_item in analyze_tone_dynamics(data).get("axes", [])
+    }
     summaries = []
 
     for axis in axis_nodes:
@@ -1337,6 +1713,7 @@ def build_timeline_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 ]
                 if explicit_points:
                     for point in explicit_points:
+                        dynamic = dynamics_by_axis.get(axis.get("uid"), {}).get(line.get("uid"), {})
                         matches.append(
                             {
                                 "line_uid": line.get("uid"),
@@ -1356,6 +1733,8 @@ def build_timeline_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                                 ),
                                 "tags": list(point.get("tags", [])),
                                 "segment_title": segment.get("title") or "",
+                                "force_text": dynamic.get("force_text", ""),
+                                "force_gap": dynamic.get("force_gap", ""),
                             }
                         )
                 elif axis_in_segment(
@@ -1449,16 +1828,24 @@ def build_relation_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     data = ensure_tone_outline_defaults(clone_tone_outline(data))
     axis_map = {axis.get("uid"): axis for axis in data.get("axis_nodes", [])}
     line_map = {line.get("uid"): line for line in data.get("lines", [])}
+    dynamics_by_uid = {
+        item.get("uid"): item
+        for item in analyze_tone_dynamics(data).get("relations", [])
+    }
 
     summaries: List[Dict[str, Any]] = []
     for interaction in data.get("interactions", []):
         source_line = line_map.get(interaction.get("source_line_uid"), {})
         target_line = line_map.get(interaction.get("target_line_uid"), {})
+        dynamic = dynamics_by_uid.get(interaction.get("uid", ""), {})
+        target_axis_uid = interaction.get("target_axis_uid") or interaction.get("axis_uid", "")
         summaries.append(
             {
                 "uid": interaction.get("uid", ""),
                 "axis_uid": interaction.get("axis_uid", ""),
+                "target_axis_uid": target_axis_uid,
                 "axis_title": axis_map.get(interaction.get("axis_uid"), {}).get("title", "未命名节点"),
+                "target_axis_title": axis_map.get(target_axis_uid, {}).get("title", "未命名节点"),
                 "source_line_name": source_line.get("name") or "未命名线",
                 "target_line_name": target_line.get("name") or "未命名线",
                 "relation_type": get_interaction_tone(
@@ -1467,8 +1854,137 @@ def build_relation_summary(data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "relation_label": get_interaction_label(
                     interaction.get("interaction_type", DEFAULT_INTERACTION_TYPE)
                 ),
+                "temporal_text": dynamic.get("temporal_text", ""),
+                "relation_balance": dynamic.get("relation_balance", ""),
+                "source_force_text": dynamic.get("source_force_text", ""),
+                "target_force_text": dynamic.get("target_force_text", ""),
+                "mediation_text": dynamic.get("mediation_text", ""),
+                "mediator": interaction.get("mediator", ""),
+                "transformation": interaction.get("transformation", ""),
                 "note": interaction.get("note") or "",
             }
         )
     summaries.sort(key=lambda item: (item.get("axis_title", ""), item.get("source_line_name", ""), item.get("target_line_name", "")))
     return summaries
+
+
+def _build_tone_reverse_reasoning_schema() -> Dict[str, Any]:
+    return {
+        "macro_trend_reading": {
+            "description": "总趋势的凸/凹/升降判断，以及它表达的叙事态度。",
+            "items": ["trend", "evidence", "dramatic_attitude", "risk"],
+        },
+        "micro_trend_hooks": {
+            "description": "小趋势如何作为钩子推动总趋势，而不是只做形式起伏。",
+            "items": ["axis_or_segment", "hook", "supports_macro", "counter_force"],
+        },
+        "force_gap_diagnosis": {
+            "description": "人物线与情节线、人物线之间的势差是否过大或过弱。",
+            "items": ["source", "target", "gap", "effect", "fix"],
+        },
+        "mediation_hypotheses": {
+            "description": "当两个主体差异过大时，需要什么中介让交互成立。",
+            "items": ["relationship", "mediator", "why_it_works", "scene_use"],
+        },
+        "missing_links": {
+            "description": "缺失的动机、信息、事件因果或承接关系。",
+            "items": ["location", "missing_cause", "symptom", "suggested_insert"],
+        },
+        "scene_beats": {
+            "description": "可直接转化为场景设计的反推结果。",
+            "items": ["axis", "beat", "characters", "action", "reversal"],
+        },
+        "revision_targets": {
+            "description": "应优先修改的节点、线段、关系或说明。",
+            "items": ["target", "operation", "reason"],
+        },
+    }
+
+
+def build_tone_reverse_reasoning_context(
+    data: Dict[str, Any],
+    focus: str = "all",
+) -> Dict[str, Any]:
+    """Build a compact, LLM-readable context for tone-outline reverse reasoning."""
+    normalized = ensure_tone_outline_defaults(clone_tone_outline(data))
+    axis_nodes = [
+        {
+            "uid": axis.get("uid", ""),
+            "title": axis.get("title") or "未命名节点",
+            "description": axis.get("description") or "",
+        }
+        for axis in normalized.get("axis_nodes", [])
+    ]
+    line_count = len(normalized.get("lines", []))
+    segment_count = sum(
+        len(get_display_segments(normalized, line))
+        for line in normalized.get("lines", [])
+    )
+    point_count = sum(
+        len(segment.get("points", []))
+        for line in normalized.get("lines", [])
+        for segment in get_display_segments(normalized, line)
+    )
+
+    return {
+        "module": "tone_outline",
+        "focus": str(focus or "all"),
+        "meta": {
+            "axis_count": len(axis_nodes),
+            "line_count": line_count,
+            "segment_count": segment_count,
+            "point_count": point_count,
+            "interaction_count": len(normalized.get("interactions", [])),
+        },
+        "methodology": {
+            "trend_line": "总趋势表达叙事态度；小趋势以对比、钩子、偏移推动总趋势展开。",
+            "force_gap": "人物线相对情节线或其他人物线的强弱势差，会制造偏移、压制、逃避或和解。",
+            "mediation": "当主体差异过大导致互动失效时，用中介物、第三者、误解、共同目标或过去经验建立可交互通道。",
+            "curve": "线段拱度/曲线只描述过程压力，不替代节点动机、行动和场景因果。",
+        },
+        "diagnostic_questions": [
+            "哪些上升或下降没有被人物动机支撑？",
+            "哪些强弱势差过大，导致互动可能失效？",
+            "哪些跨节点关系需要中介，才能让两条线发生必然联系？",
+            "哪些小趋势只是形式起伏，没有服务总趋势？",
+            "哪些节点需要补足事件、选择、代价或反转，才能生成具体场景？",
+        ],
+        "axis_nodes": axis_nodes,
+        "line_summary": build_line_summary(normalized),
+        "plot_summary": build_plot_summary(normalized),
+        "timeline_summary": build_timeline_summary(normalized),
+        "relation_summary": build_relation_summary(normalized),
+        "tone_dynamics": analyze_tone_dynamics(normalized),
+        "reverse_reasoning_schema": _build_tone_reverse_reasoning_schema(),
+    }
+
+
+def build_tone_reverse_reasoning_prompt(
+    data: Dict[str, Any],
+    focus: str = "all",
+) -> Dict[str, str]:
+    context = build_tone_reverse_reasoning_context(data, focus=focus)
+    schema = _build_tone_reverse_reasoning_schema()
+    schema_text = json.dumps(schema, ensure_ascii=False, indent=2)
+    context_text = json.dumps(context, ensure_ascii=False, indent=2)
+    system_prompt = (
+        "你是专业编剧结构反推理助手。你的任务不是续写正文，而是根据基调大纲中的总趋势、"
+        "小趋势、人物线势差、中介关系、跨节点箭头，反推“为什么会这样、缺了什么、"
+        "下一步应如何补”。你必须区分事实依据、合理假设和不确定点；不要凭空替用户决定最终剧情。"
+        "输出必须是严格 JSON 对象。"
+    )
+    user_prompt = (
+        f"请根据以下基调大纲上下文进行 LLM 反推理，重点范围：{context['focus']}。\n\n"
+        "反推目标：\n"
+        "1. 解释总趋势和小趋势之间的服务、对立或脱节关系。\n"
+        "2. 找出人物线与情节线之间的势差、偏移、压制、逃避或和解可能。\n"
+        "3. 对差异过大的主体提出中介假设，说明中介如何让交互成立。\n"
+        "4. 反推缺失的动机、代价、事件因果、场景钩子和修订目标。\n\n"
+        f"必须返回符合以下字段的 JSON 对象：\n{schema_text}\n\n"
+        f"基调大纲上下文：\n{context_text}"
+    )
+    return {
+        "system_prompt": system_prompt,
+        "user_prompt": user_prompt,
+        "expected_output_schema": schema_text,
+    }

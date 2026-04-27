@@ -4,6 +4,8 @@ AI工具注册表单元测试
 
 import unittest
 from writer_app.core.ai_tools import AITool, AIToolRegistry, ToolResult
+from writer_app.core.ai_tools.tone_outline_tools import GetToneReverseReasoningContextTool
+from writer_app.core.tone_outline import DEFAULT_PLOT_SEGMENT_UID, ensure_tone_outline_defaults
 
 
 class MockTool(AITool):
@@ -29,6 +31,37 @@ class FailingTool(AITool):
             success=False,
             message="Tool intentionally failed"
         )
+
+
+class MockProjectManager:
+    def __init__(self, tone_outline=None):
+        self._tone_outline = tone_outline or ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "低点", "description": ""},
+                    {"uid": "axis-2", "title": "高点", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "points": [
+                                    {"uid": "plot-1", "axis_uid": "axis-1", "amplitude": -20},
+                                    {"uid": "plot-2", "axis_uid": "axis-2", "amplitude": 60},
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+    def get_tone_outline(self):
+        return self._tone_outline
 
 
 class TestAIToolRegistry(unittest.TestCase):
@@ -156,6 +189,23 @@ class TestBuiltinTools(unittest.TestCase):
         self.assertTrue(hasattr(CreateNodeTool, 'name'))
         self.assertTrue(hasattr(AddCharacterTool, 'name'))
         self.assertTrue(hasattr(AddSceneTool, 'name'))
+
+
+class TestToneOutlineAITools(unittest.TestCase):
+    def test_get_tone_reverse_reasoning_context_tool_returns_prompt(self):
+        tool = GetToneReverseReasoningContextTool()
+
+        result = tool.execute(
+            MockProjectManager(),
+            command_executor=None,
+            params={"focus": "trend", "include_prompt": True},
+        )
+
+        self.assertTrue(result.success)
+        self.assertIn("context", result.data)
+        self.assertIn("prompt", result.data)
+        self.assertEqual(result.data["context"]["focus"], "trend")
+        self.assertIn("macro_trend_reading", result.data["prompt"]["user_prompt"])
 
 
 if __name__ == "__main__":

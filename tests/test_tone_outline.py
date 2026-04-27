@@ -2,11 +2,14 @@ import unittest
 
 from writer_app.core.tone_outline import (
     DEFAULT_PLOT_SEGMENT_UID,
+    analyze_tone_dynamics,
     analyze_merge_conflicts,
     build_line_summary,
     build_plot_summary,
     build_relation_summary,
     build_timeline_summary,
+    build_tone_reverse_reasoning_context,
+    build_tone_reverse_reasoning_prompt,
     duplicate_segment,
     ensure_tone_outline_defaults,
     get_display_segments,
@@ -107,6 +110,182 @@ class TestToneOutline(unittest.TestCase):
 
         self.assertAlmostEqual(data["lines"][0]["segments"][0]["arc_height"], 30.0)
         self.assertEqual(summaries[0]["segments"][0]["curve_text"], "拱度 +30")
+
+    def test_line_summary_infers_trend_grammar_from_segment_points(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "低点", "description": ""},
+                    {"uid": "axis-2", "title": "顶点", "description": ""},
+                    {"uid": "axis-3", "title": "回落", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "points": [
+                                    {"uid": "p-1", "axis_uid": "axis-1", "amplitude": -40},
+                                    {"uid": "p-2", "axis_uid": "axis-2", "amplitude": 80},
+                                    {"uid": "p-3", "axis_uid": "axis-3", "amplitude": -20},
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
+
+        segment_summary = build_line_summary(data)[0]["segments"][0]
+
+        self.assertEqual(segment_summary["trend_pattern"], "convex")
+        self.assertEqual(segment_summary["trend_text"], "凸趋势线")
+        self.assertEqual(segment_summary["trend_scope_text"], "总趋势")
+
+    def test_relation_summary_exposes_force_gap_and_mediation(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "误会", "description": ""},
+                    {"uid": "axis-2", "title": "逃避", "description": ""},
+                    {"uid": "axis-3", "title": "转化", "description": ""},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "points": [
+                                    {"uid": "plot-1", "axis_uid": "axis-1", "amplitude": 0},
+                                    {"uid": "plot-3", "axis_uid": "axis-3", "amplitude": 0},
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "uid": "hero-line",
+                        "name": "男友线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "hero-seg",
+                                "points": [
+                                    {"uid": "hero-point", "axis_uid": "axis-1", "amplitude": 70}
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "uid": "lover-line",
+                        "name": "女友线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "lover-seg",
+                                "points": [
+                                    {"uid": "lover-point", "axis_uid": "axis-3", "amplitude": -20}
+                                ],
+                            }
+                        ],
+                    },
+                ],
+                "interactions": [
+                    {
+                        "uid": "rel-1",
+                        "axis_uid": "axis-1",
+                        "source_point_uid": "hero-point",
+                        "target_line_uid": "lover-line",
+                        "target_segment_uid": "lover-seg",
+                        "target_axis_uid": "axis-3",
+                        "interaction_type": "solid_single",
+                        "mediation_role": "mediated",
+                        "mediator": "蛋糕被误认为赃物",
+                        "transformation": "善意变成压力，关系推动情节偏移",
+                    }
+                ],
+            }
+        )
+
+        dynamics = analyze_tone_dynamics(data)
+        relation = build_relation_summary(data)[0]
+
+        self.assertEqual(dynamics["relations"][0]["temporal_text"], "延后 2 节点")
+        self.assertEqual(dynamics["relations"][0]["relation_balance"], "失衡")
+        self.assertEqual(relation["mediation_text"], "中介关系")
+        self.assertEqual(relation["mediator"], "蛋糕被误认为赃物")
+        self.assertEqual(relation["transformation"], "善意变成压力，关系推动情节偏移")
+
+    def test_reverse_reasoning_context_and_prompt_are_llm_ready(self):
+        data = ensure_tone_outline_defaults(
+            {
+                "axis_nodes": [
+                    {"uid": "axis-1", "title": "混乱", "description": "魔王出现"},
+                    {"uid": "axis-2", "title": "勇者", "description": "主角承担使命"},
+                    {"uid": "axis-3", "title": "背叛", "description": "伙伴暴露为间谍"},
+                ],
+                "lines": [
+                    {
+                        "uid": "plot-main",
+                        "name": "情节线",
+                        "line_type": "plot",
+                        "segments": [
+                            {
+                                "uid": DEFAULT_PLOT_SEGMENT_UID,
+                                "trend_scope": "macro",
+                                "points": [
+                                    {"uid": "plot-1", "axis_uid": "axis-1", "amplitude": -40},
+                                    {"uid": "plot-2", "axis_uid": "axis-2", "amplitude": 60},
+                                    {"uid": "plot-3", "axis_uid": "axis-3", "amplitude": -30},
+                                ],
+                            }
+                        ],
+                    },
+                    {
+                        "uid": "hero-line",
+                        "name": "勇者线",
+                        "line_type": "character",
+                        "segments": [
+                            {
+                                "uid": "hero-seg",
+                                "points": [
+                                    {"uid": "hero-2", "axis_uid": "axis-2", "amplitude": 85}
+                                ],
+                            }
+                        ],
+                    },
+                ],
+                "interactions": [
+                    {
+                        "uid": "rel-1",
+                        "axis_uid": "axis-2",
+                        "source_point_uid": "hero-2",
+                        "target_line_uid": "plot-main",
+                        "target_segment_uid": DEFAULT_PLOT_SEGMENT_UID,
+                        "target_axis_uid": "axis-3",
+                        "interaction_type": "solid_single",
+                        "mediation_role": "transformation",
+                        "mediator": "背叛让使命变成复仇",
+                    }
+                ],
+            }
+        )
+
+        context = build_tone_reverse_reasoning_context(data, focus="mediation")
+        prompt = build_tone_reverse_reasoning_prompt(data, focus="mediation")
+
+        self.assertEqual(context["focus"], "mediation")
+        self.assertEqual(context["meta"]["axis_count"], 3)
+        self.assertIn("tone_dynamics", context)
+        self.assertIn("macro_trend_reading", context["reverse_reasoning_schema"])
+        self.assertIn("反推", prompt["system_prompt"])
+        self.assertIn("mediation_hypotheses", prompt["user_prompt"])
+        self.assertIn("勇者线", prompt["user_prompt"])
 
     def test_line_summary_uses_point_driven_character_status_labels(self):
         data = ensure_tone_outline_defaults(

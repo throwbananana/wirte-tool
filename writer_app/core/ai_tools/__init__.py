@@ -285,6 +285,7 @@ class AIToolRegistry:
             from . import batch_tools
             from . import validation_tools
             from . import query_tools
+            from . import tone_outline_tools
             # 题材专属工具
             from . import suspense_tools
             from . import romance_tools
@@ -294,7 +295,7 @@ class AIToolRegistry:
             for module in [creation_tools, editing_tools, navigation_tools,
                           timeline_tools, evidence_tools, asset_tools,
                           analysis_tools, batch_tools, validation_tools, query_tools,
-                          suspense_tools, romance_tools, galgame_tools]:
+                          tone_outline_tools, suspense_tools, romance_tools, galgame_tools]:
                 if hasattr(module, 'register_tools'):
                     module.register_tools(cls)
 
