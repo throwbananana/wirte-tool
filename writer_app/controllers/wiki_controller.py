@@ -143,8 +143,13 @@ class WikiController(BaseController):
         related_frame = ttk.LabelFrame(detail_frame, text="关联引用 (双击跳转)")
         related_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        self.related_scenes_listbox = tk.Listbox(related_frame, height=4)
-        self.related_scenes_listbox.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        related_list_frame = ttk.Frame(related_frame)
+        related_list_frame.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        self.related_scenes_listbox = tk.Listbox(related_list_frame, height=4)
+        related_scroll = ttk.Scrollbar(related_list_frame, orient=tk.VERTICAL, command=self.related_scenes_listbox.yview)
+        self.related_scenes_listbox.configure(yscrollcommand=related_scroll.set)
+        self.related_scenes_listbox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        related_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.related_scenes_listbox.bind("<Double-1>", self._jump_to_related_scene)
 
         # -- Content Area --

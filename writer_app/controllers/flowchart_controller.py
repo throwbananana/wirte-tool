@@ -39,13 +39,23 @@ class FlowchartController(BaseController):
         help_btn = create_module_help_button(toolbar, "flowchart", self._show_full_help)
         help_btn.pack(side=tk.RIGHT, padx=4)
 
+        canvas_frame = ttk.Frame(self.parent)
+        canvas_frame.pack(fill=tk.BOTH, expand=True)
+        canvas_frame.rowconfigure(0, weight=1)
+        canvas_frame.columnconfigure(0, weight=1)
+
         self.view = StoryFlowCanvas(
-            self.parent,
+            canvas_frame,
             self.project_manager,
             on_jump_to_scene=self.on_jump_to_scene,
             on_add_connection=self.add_connection
         )
-        self.view.pack(fill=tk.BOTH, expand=True)
+        x_scroll = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.view.xview)
+        y_scroll = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.view.yview)
+        self.view.configure(xscrollcommand=x_scroll.set, yscrollcommand=y_scroll.set)
+        self.view.grid(row=0, column=0, sticky="nsew")
+        y_scroll.grid(row=0, column=1, sticky="ns")
+        x_scroll.grid(row=1, column=0, sticky="ew")
 
     def add_connection(self, src_name, tgt_name):
         scenes = self.project_manager.get_scenes()

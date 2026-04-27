@@ -146,6 +146,7 @@ class ScriptController(BaseController):
         tag_row.grid(row=2, column=1, sticky="ew", padx=5, pady=2)
         ttk.Label(tag_row, textvariable=self.char_tags_display_var, foreground="#555").pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(tag_row, text="选择标签", command=self.open_character_tag_selector).pack(side=tk.LEFT, padx=3)
+        detail_frame.columnconfigure(1, weight=1)
 
         personality_frame = ttk.LabelFrame(parent, text="性格五维")
         personality_frame.pack(fill=tk.X, padx=5, pady=5)
@@ -161,8 +162,13 @@ class ScriptController(BaseController):
 
         scenes_frame = ttk.LabelFrame(parent, text="出现的场景")
         scenes_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.char_scene_listbox = tk.Listbox(scenes_frame, selectmode=tk.SINGLE)
-        self.char_scene_listbox.pack(fill=tk.BOTH, expand=True)
+        char_scene_frame = ttk.Frame(scenes_frame)
+        char_scene_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.char_scene_listbox = tk.Listbox(char_scene_frame, selectmode=tk.SINGLE)
+        char_scene_scroll = ttk.Scrollbar(char_scene_frame, orient=tk.VERTICAL, command=self.char_scene_listbox.yview)
+        self.char_scene_listbox.configure(yscrollcommand=char_scene_scroll.set)
+        self.char_scene_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        char_scene_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.char_scene_listbox.bind("<Double-1>", lambda e: self.jump_to_scene_from_char())
 
         self.char_listbox.bind("<<ListboxSelect>>", self.on_character_select)
@@ -197,6 +203,7 @@ class ScriptController(BaseController):
         
         ttk.Label(detail_frame, text="时间:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
         ttk.Entry(detail_frame, textvariable=self.scene_time_var).grid(row=2, column=1, sticky="ew", padx=5, pady=2)
+        detail_frame.columnconfigure(1, weight=1)
 
         ttk.Label(detail_frame, text="场景图片:").grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
         img_box = ttk.Frame(detail_frame)
@@ -216,7 +223,10 @@ class ScriptController(BaseController):
             choice_frame = ttk.Frame(detail_frame)
             choice_frame.grid(row=6, column=1, sticky="ew", padx=5, pady=2)
             self.choices_listbox = tk.Listbox(choice_frame, height=3)
+            choices_scroll = ttk.Scrollbar(choice_frame, orient=tk.VERTICAL, command=self.choices_listbox.yview)
+            self.choices_listbox.configure(yscrollcommand=choices_scroll.set)
             self.choices_listbox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            choices_scroll.pack(side=tk.LEFT, fill=tk.Y)
             self.choices_listbox.bind("<Double-1>", lambda e: self.edit_choice())
             c_btn_frame = ttk.Frame(choice_frame)
             c_btn_frame.pack(side=tk.RIGHT, fill=tk.Y)
@@ -226,8 +236,13 @@ class ScriptController(BaseController):
             ttk.Button(detail_frame, text="查看剧情流向图", command=self.open_flowchart).grid(row=8, column=0, columnspan=2, pady=5)
         
         ttk.Label(detail_frame, text="关联角色:").grid(row=5, column=0, sticky=tk.NW, padx=5, pady=2)
-        self.scene_characters_listbox = tk.Listbox(detail_frame, selectmode=tk.MULTIPLE, height=5, exportselection=False)
-        self.scene_characters_listbox.grid(row=5, column=1, sticky="ew", padx=5, pady=2)
+        scene_char_frame = ttk.Frame(detail_frame)
+        scene_char_frame.grid(row=5, column=1, sticky="ew", padx=5, pady=2)
+        self.scene_characters_listbox = tk.Listbox(scene_char_frame, selectmode=tk.MULTIPLE, height=5, exportselection=False)
+        scene_char_scroll = ttk.Scrollbar(scene_char_frame, orient=tk.VERTICAL, command=self.scene_characters_listbox.yview)
+        self.scene_characters_listbox.configure(yscrollcommand=scene_char_scroll.set)
+        self.scene_characters_listbox.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        scene_char_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         ttk.Button(detail_frame, text="保存场景信息", command=self.save_scene_info).grid(row=7, column=0, columnspan=2, pady=5)
 

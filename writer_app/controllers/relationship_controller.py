@@ -51,8 +51,13 @@ class RelationshipController(BaseController):
         self.rel_tag_legend.pack(side=tk.RIGHT, padx=4)
         
         # Canvas
+        canvas_frame = ttk.Frame(content_frame)
+        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        canvas_frame.rowconfigure(0, weight=1)
+        canvas_frame.columnconfigure(0, weight=1)
+
         self.view = RelationshipMapCanvas(
-            content_frame,
+            canvas_frame,
             project_manager=self.project_manager,
             command_executor=self.command_executor,
             theme_manager=self.theme_manager,
@@ -60,7 +65,12 @@ class RelationshipController(BaseController):
             on_jump_to_scene=self.on_jump_to_scene,
             on_jump_to_outline=self.on_jump_to_outline
         )
-        self.view.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        x_scroll = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.view.xview)
+        y_scroll = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.view.yview)
+        self.view.configure(xscrollcommand=x_scroll.set, yscrollcommand=y_scroll.set)
+        self.view.grid(row=0, column=0, sticky="nsew")
+        y_scroll.grid(row=0, column=1, sticky="ns")
+        x_scroll.grid(row=1, column=0, sticky="ew")
 
         # Bottom Timeline
         self.timeline_panel = RelationshipTimelinePanel(content_frame, self)

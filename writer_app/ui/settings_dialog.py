@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from writer_app.core.font_manager import get_font_manager
 from writer_app.core.thread_pool import get_ai_thread_pool
+from writer_app.utils.tk_utils import ScrollableFrame
 
 
 class SettingsDialog(tk.Toplevel):
@@ -244,9 +245,15 @@ class SettingsDialog(tk.Toplevel):
         messagebox.showinfo("提示", "设置已重置为默认值", parent=self)
 
     # --- Tabs ---
-    def _build_general_tab(self, notebook):
+    def _create_scrollable_tab(self, notebook, title):
         tab = ttk.Frame(notebook)
-        notebook.add(tab, text="通用")
+        notebook.add(tab, text=title)
+        scrollable = ScrollableFrame(tab)
+        scrollable.pack(fill=tk.BOTH, expand=True)
+        return scrollable.content
+
+    def _build_general_tab(self, notebook):
+        tab = self._create_scrollable_tab(notebook, "通用")
 
         ai_frame = ttk.LabelFrame(tab, text="AI 接口")
         ai_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -499,8 +506,7 @@ class SettingsDialog(tk.Toplevel):
             self.template_listbox.selection_set(new_idx)
 
     def _build_prompts_tab(self, notebook):
-        tab = ttk.Frame(notebook)
-        notebook.add(tab, text="AI 指令")
+        tab = self._create_scrollable_tab(notebook, "AI 指令")
 
         container = ttk.Frame(tab, padding=5)
         container.pack(fill=tk.BOTH, expand=True)
@@ -521,8 +527,7 @@ class SettingsDialog(tk.Toplevel):
             setattr(self, f"txt_prompt_{i}", txt)
 
     def _build_export_tab(self, notebook):
-        tab = ttk.Frame(notebook)
-        notebook.add(tab, text="导出设置")
+        tab = self._create_scrollable_tab(notebook, "导出设置")
 
         pdf_frame = ttk.LabelFrame(tab, text="PDF / 文档导出样式")
         pdf_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -550,8 +555,7 @@ class SettingsDialog(tk.Toplevel):
         ttk.Combobox(pdf_frame, textvariable=self.v_export_font, values=available_fonts, width=25, state="readonly").grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
 
     def _build_appearance_tab(self, notebook):
-        tab = ttk.Frame(notebook)
-        notebook.add(tab, text="外观")
+        tab = self._create_scrollable_tab(notebook, "外观")
 
         # Fonts
         font_frame = ttk.LabelFrame(tab, text="字体设置")
@@ -669,8 +673,7 @@ class SettingsDialog(tk.Toplevel):
             self.v_editor_font_size.set(12)
 
     def _build_assistant_tab(self, notebook):
-        tab = ttk.Frame(notebook)
-        notebook.add(tab, text="悬浮助手")
+        tab = self._create_scrollable_tab(notebook, "悬浮助手")
 
         mode_frame = ttk.LabelFrame(tab, text="模式")
         mode_frame.pack(fill=tk.X, padx=5, pady=5)

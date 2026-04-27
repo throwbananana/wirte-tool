@@ -11,12 +11,14 @@ from writer_app.core.wiki_templates import (
     get_template_categories,
     merge_categories
 )
+from writer_app.utils.tk_utils import ScrollableFrame
 
 class ProjectSettingsDialog:
     def __init__(self, parent, current_type, current_length, current_tags, current_tools, current_wiki_categories, on_confirm):
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("项目设置")
         self.dialog.geometry("680x620")
+        self.dialog.minsize(520, 420)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         
@@ -65,7 +67,13 @@ class ProjectSettingsDialog:
         self.dialog.geometry(f"{width}x{height}+{x}+{y}")
 
     def _setup_ui(self):
-        main_frame = ttk.Frame(self.dialog, padding=20)
+        shell = ttk.Frame(self.dialog)
+        shell.pack(fill=tk.BOTH, expand=True)
+
+        scrollable = ScrollableFrame(shell)
+        scrollable.pack(fill=tk.BOTH, expand=True)
+
+        main_frame = ttk.Frame(scrollable.content, padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         preset_frame = ttk.LabelFrame(main_frame, text="预设与标签")
@@ -299,8 +307,8 @@ class ProjectSettingsDialog:
         ).pack(fill=tk.X, pady=(10, 20))
 
         # Buttons
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        btn_frame = ttk.Frame(shell, padding=(20, 0, 20, 20))
+        btn_frame.pack(fill=tk.X)
 
         ttk.Button(btn_frame, text="取消", command=self.dialog.destroy).pack(side=tk.RIGHT, padx=5)
         ttk.Button(btn_frame, text="确定", command=self._confirm).pack(side=tk.RIGHT, padx=5)

@@ -67,7 +67,9 @@ class StoryFlowCanvas(ZoomableCanvas):
         self.node_items.clear()
         
         scenes = self.project_manager.get_scenes()
-        if not scenes: return
+        if not scenes:
+            self.configure(scrollregion=(0, 0, self.winfo_width(), self.winfo_height()))
+            return
 
         # 1. Build Graph
         # nodes: scene names
@@ -112,7 +114,7 @@ class StoryFlowCanvas(ZoomableCanvas):
 
         if self.scale_factor != 1.0:
             self.scale("all", 0, 0, self.scale_factor, self.scale_factor)
-            self.configure(scrollregion=self.bbox("all"))
+        self.configure(scrollregion=self.bbox("all"))
         
         if not self.force_layout_active:
              self.start_force_layout()

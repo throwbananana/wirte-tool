@@ -17,6 +17,7 @@ from writer_app.core.typed_data import (
     DataModule
 )
 from writer_app.core.project_types import ProjectTypeManager
+from writer_app.utils.tk_utils import ScrollableFrame
 
 
 class TypeMigrationDialog(tk.Toplevel):
@@ -75,10 +76,18 @@ class TypeMigrationDialog(tk.Toplevel):
     def _setup_ui(self):
         """Build the dialog UI."""
         self.title("切换项目类型")
-        self.resizable(False, False)
+        self.geometry("520x480")
+        self.minsize(420, 320)
+        self.resizable(True, True)
+
+        shell = ttk.Frame(self)
+        shell.pack(fill=tk.BOTH, expand=True)
+
+        scrollable = ScrollableFrame(shell)
+        scrollable.pack(fill=tk.BOTH, expand=True)
 
         # Main container with padding
-        main_frame = ttk.Frame(self, padding="20")
+        main_frame = ttk.Frame(scrollable.content, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Header
@@ -111,7 +120,7 @@ class TypeMigrationDialog(tk.Toplevel):
             self._build_action_selection(main_frame)
 
         # Buttons
-        self._build_buttons(main_frame)
+        self._build_buttons(shell)
 
     def _build_affected_section(self, parent):
         """Build the section showing affected data modules."""
@@ -216,8 +225,8 @@ class TypeMigrationDialog(tk.Toplevel):
 
     def _build_buttons(self, parent):
         """Build the dialog buttons."""
-        button_frame = ttk.Frame(parent)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
+        button_frame = ttk.Frame(parent, padding=(20, 10, 20, 20))
+        button_frame.pack(fill=tk.X)
 
         # Cancel button
         cancel_btn = ttk.Button(

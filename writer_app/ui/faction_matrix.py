@@ -11,6 +11,10 @@ class FactionMatrixCanvas(tk.Canvas):
         
         self.bind("<Configure>", lambda e: self.refresh())
         self.bind("<Button-1>", self.on_click)
+        self.bind("<MouseWheel>", self._on_mousewheel)
+        self.bind("<Shift-MouseWheel>", self._on_shift_mousewheel)
+        self.bind("<Button-4>", self._on_mousewheel)
+        self.bind("<Button-5>", self._on_mousewheel)
 
     def refresh(self):
         self.delete("all")
@@ -18,17 +22,22 @@ class FactionMatrixCanvas(tk.Canvas):
         factions = self.project_manager.get_factions()
         matrix = self.project_manager.get_faction_matrix()
         
+        w = max(self.winfo_width(), 1)
+        h = max(self.winfo_height(), 1)
+
         if not factions:
-            self.create_text(self.winfo_width()/2, self.winfo_height()/2, text="暂无势力。请点击上方添加。", fill="#555")
+            self.configure(scrollregion=(0, 0, w, h))
+            self.create_text(w/2, h/2, text="暂无势力。请点击上方添加。", fill="#555")
             return
             
         n = len(factions)
-        w = self.winfo_width()
-        h = self.winfo_height()
         
         padding = 100
         cell_size = min((w - padding*2) / (n+1), (h - padding*2) / (n+1))
         cell_size = min(80, max(40, cell_size))
+        content_w = max(w, padding * 2 + (n + 1) * cell_size)
+        content_h = max(h, padding * 2 + (n + 1) * cell_size)
+        self.configure(scrollregion=(0, 0, content_w, content_h))
         
         start_x = padding
         start_y = padding
@@ -74,6 +83,21 @@ class FactionMatrixCanvas(tk.Canvas):
                 width = 2 if self.selected_pair == (f_row["uid"], f_col["uid"]) else 1
                 self.create_rectangle(x, y, x+cell_size, y+cell_size, fill=color, outline=outline, width=width, tags=tag)
                 self.create_text(x + cell_size/2, y + cell_size/2, text=str(val), fill="white", tags=tag)
+
+    def _on_mousewheel(self, event):
+        if getattr(event, "num", None) == 4:
+            units = -3
+        elif getattr(event, "num", None) == 5:
+            units = 3
+        else:
+            units = int(-1 * (event.delta / 120)) if event.delta else 0
+        if units:
+            self.yview_scroll(units, "units")
+
+    def _on_shift_mousewheel(self, event):
+        units = int(-1 * (event.delta / 120)) if event.delta else 0
+        if units:
+            self.xview_scroll(units, "units")
 
     def on_click(self, event):
         item = self.find_closest(self.canvasx(event.x), self.canvasy(event.y))[0]
@@ -229,8 +253,18 @@ class FactionMatrixController:
         paned.add(left_frame, weight=4)
         paned.add(right_frame, weight=1)
 
-        self.view = FactionMatrixCanvas(left_frame, project_manager, on_relation_select=self._on_relation_select)
-        self.view.pack(fill=tk.BOTH, expand=True)
+        canvas_frame = ttk.Frame(left_frame)
+        canvas_frame.pack(fill=tk.BOTH, expand=True)
+        canvas_frame.rowconfigure(0, weight=1)
+        canvas_frame.columnconfigure(0, weight=1)
+
+        self.view = FactionMatrixCanvas(canvas_frame, project_manager, on_relation_select=self._on_relation_select)
+        x_scroll = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.view.xview)
+        y_scroll = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.view.yview)
+        self.view.configure(xscrollcommand=x_scroll.set, yscrollcommand=y_scroll.set)
+        self.view.grid(row=0, column=0, sticky="nsew")
+        y_scroll.grid(row=0, column=1, sticky="ns")
+        x_scroll.grid(row=1, column=0, sticky="ew")
 
         self.relation_panel = FactionRelationPanel(
             right_frame,

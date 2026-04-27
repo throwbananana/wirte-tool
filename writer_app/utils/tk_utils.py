@@ -6,10 +6,87 @@ safety checks, especially for async callback scenarios.
 """
 
 import tkinter as tk
+from tkinter import ttk
 from typing import Callable, Dict, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class ScrollableFrame(ttk.Frame):
+    """A vertical scrolling frame for forms that may exceed the viewport."""
+
+    _WHEEL_SKIP_CLASSES = {
+        "Canvas",
+        "Combobox",
+        "Listbox",
+        "Text",
+        "Treeview",
+        "TCombobox",
+        "TScrollbar",
+    }
+
+    def __init__(self, parent, padding=0, canvas_kwargs=None, **kwargs):
+        super().__init__(parent, **kwargs)
+        canvas_kwargs = canvas_kwargs or {}
+
+        self.canvas = tk.Canvas(
+            self,
+            borderwidth=0,
+            highlightthickness=0,
+            **canvas_kwargs
+        )
+        self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.content = ttk.Frame(self.canvas, padding=padding)
+        self._content_window = self.canvas.create_window(
+            (0, 0),
+            window=self.content,
+            anchor="nw"
+        )
+
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.content.bind("<Configure>", self._on_content_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self._bind_mousewheel(self.canvas)
+        self._bind_mousewheel(self.content)
+
+    def _on_content_configure(self, _event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        self._bind_mousewheel_to_children(self.content)
+
+    def _on_canvas_configure(self, event):
+        self.canvas.itemconfigure(self._content_window, width=event.width)
+
+    def _bind_mousewheel_to_children(self, widget):
+        for child in widget.winfo_children():
+            if child.winfo_class() not in self._WHEEL_SKIP_CLASSES:
+                self._bind_mousewheel(child)
+            self._bind_mousewheel_to_children(child)
+
+    def _bind_mousewheel(self, widget):
+        if getattr(widget, "_scrollable_frame_mousewheel_bound", False):
+            return
+        widget.bind("<MouseWheel>", self._on_mousewheel, add="+")
+        widget.bind("<Button-4>", self._on_mousewheel, add="+")
+        widget.bind("<Button-5>", self._on_mousewheel, add="+")
+        setattr(widget, "_scrollable_frame_mousewheel_bound", True)
+
+    def _on_mousewheel(self, event):
+        if self.content.winfo_reqheight() <= self.canvas.winfo_height():
+            return None
+        if getattr(event, "num", None) == 4:
+            units = -3
+        elif getattr(event, "num", None) == 5:
+            units = 3
+        else:
+            units = int(-1 * (event.delta / 120)) if event.delta else 0
+        if units:
+            self.canvas.yview_scroll(units, "units")
+        return "break"
 
 
 def safe_after(
